@@ -3,40 +3,11 @@
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
 from math import ceil, fmod
-from typing import Any, Optional, Tuple, Union, cast
+from typing import Optional, Tuple, Union, cast
 
 import numpy
 import xarray as xr
 from affine import Affine
-
-
-def unsqueeze_data_array(
-    da: xr.DataArray, dim: str, pos: int, coord: Any = 0, attrs: Optional[dict] = None
-) -> xr.DataArray:
-    """
-    Add a 1-length dimension to a data array.
-
-    :param da: array to add a 1-length dimension
-    :param dim: name of new dimension
-    :param pos: position of dim
-    :param coord: label of the coordinate on the unsqueezed dimension
-    :param attrs: attributes for the coordinate dimension
-    :return: A new xarray with a dimension added
-    """
-    new_dims = list(da.dims)
-    new_dims.insert(pos, dim)
-    new_shape = da.data.shape[:pos] + (1,) + da.data.shape[pos:]
-    new_data = da.data.reshape(new_shape)
-    new_coords = {k: v for k, v in da.coords.items()}
-    new_coords[dim] = xr.DataArray([coord], dims=[dim], attrs=attrs)
-    return xr.DataArray(new_data, dims=new_dims, coords=new_coords, attrs=da.attrs)
-
-
-def unsqueeze_dataset(
-    ds: xr.Dataset, dim: str, coord: int = 0, pos: int = 0
-) -> xr.Dataset:
-    ds = ds.map(unsqueeze_data_array, dim=dim, pos=pos, keep_attrs=True, coord=coord)
-    return ds
 
 
 def spatial_dims(

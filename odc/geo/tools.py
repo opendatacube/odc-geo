@@ -11,7 +11,7 @@ import numpy as np
 from affine import Affine
 from numpy import linalg
 
-from ..math import maybe_int, snap_scale
+from .math import maybe_int, snap_scale
 
 # This is numeric code, short names make sense in this context, so disabling
 # "invalid name" checks for the whole file

@@ -5,26 +5,23 @@
 """
 Add geometric extensions to :class:`xarray.Dataset` and :class:`xarray.DataArray` for use
 with Data Cube by Monkey Patching those classes.
-
-This extension is reliant on an `xarray` object having a `.crs` property of type
-:class:`datacube.utils.geometry.CRS`. This is used to inspect the spatial dimensions of the
-:class:`Dataset` or :class:`DataArray`, and provide new attributes for accessing a
-:class:`datacube.utils.geometry.GeoBox`, affine transform and extent for the dataset as
-`.geobox`, `.affine` and `.extent` respectively.
-
 """
 import warnings
 
 import xarray
-from datacube.utils import geometry, spatial_dims
-from datacube.utils.math import affine_from_axis
+
+from ._base import CRS, CRSError, GeoBox
+from .math import affine_from_axis, spatial_dims
+
+# from datacube.utils import geometry, spatial_dims
+# from datacube.utils.math import affine_from_axis
 
 
 def _norm_crs(crs):
-    if crs is None or isinstance(crs, geometry.CRS):
+    if crs is None or isinstance(crs, CRS):
         return crs
     elif isinstance(crs, str):
-        return geometry.CRS(crs)
+        return CRS(crs)
     else:
         raise ValueError(f"Can not interpret {type(crs)} as CRS")
 
@@ -47,10 +44,10 @@ def _get_crs_from_attrs(obj, sdims):
             return
         if isinstance(crs, str):
             try:
-                crs_set.add(geometry.CRS(crs))
-            except geometry.CRSError:
+                crs_set.add(CRS(crs))
+            except CRSError:
                 warnings.warn(f"Failed to parse CRS: {crs}")
-        elif isinstance(crs, geometry.CRS):
+        elif isinstance(crs, CRS):
             # support current bad behaviour of injecting CRS directly into
             # attributes in example notebooks
             crs_set.add(crs)
@@ -176,13 +173,13 @@ def _xarray_geobox(obj):
 
     try:
         crs = _norm_crs(crs)
-    except (ValueError, geometry.CRSError):
+    except (ValueError, CRSError):
         warnings.warn(f"Encountered malformed CRS: {crs}")
         return None
 
     h, w = (obj.coords[dim].size for dim in sdims)
 
-    return geometry.GeoBox(w, h, transform, crs)
+    return GeoBox(w, h, transform, crs)
 
 
 xarray.Dataset.geobox = property(_xarray_geobox)  # type: ignore
