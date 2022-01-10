@@ -1,0 +1,27 @@
+{
+    "python.formatting.provider": "black",
+    "python.linting.flake8Enabled": true,
+    "python.linting.flake8Args": [
+        "--ignore=E731,W503",
+        "--max-line-length=120"
+    ],
+    "python.linting.mypyEnabled": false,
+    "python.analysis.typeCheckingMode": "off",
+    "python.linting.pydocstyleEnabled": false,
+    "python.linting.pydocstyleArgs": [
+        "--max-line-length=120"
+    ],
+    "python.linting.pycodestyleEnabled": true,
+    "python.linting.pycodestyleArgs": [
+        "--max-line-length=120"
+    ],
+    "python.linting.pylintEnabled": true,
+    "python.sortImports.args": [
+        "--profile=black"
+    ],
+    "python.testing.pytestEnabled": true,
+    "python.testing.pytestArgs": [
+        "-s",
+        "-v"
+    ]
+}
