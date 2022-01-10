@@ -11,8 +11,8 @@ from typing import Dict, Iterable, Optional, Tuple
 
 from affine import Affine
 
-from ..math import clamp
-from . import BoundingBox, GeoBox, Geometry
+from ._base import BoundingBox, GeoBox, Geometry
+from .math import clamp
 from .tools import align_up
 
 # pylint: disable=invalid-name

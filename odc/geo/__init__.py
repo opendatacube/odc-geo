@@ -5,6 +5,8 @@
 """ Geometric shapes and operations on them
 """
 
+from ._version import __version__
+
 from ._base import (
     CRS,
     BoundingBox,
@@ -69,6 +71,8 @@ from .tools import (
     w_,
 )
 
+from ._gridspec import GridSpec
+
 __all__ = [
     "Coordinate",
     "BoundingBox",
@@ -80,6 +84,7 @@ __all__ = [
     "CoordList",
     "Geometry",
     "GeoBox",
+    "GridSpec",
     "assign_crs",
     "common_crs",
     "bbox_union",
@@ -130,4 +135,5 @@ __all__ = [
     "warp_affine",
     "rio_reproject",
     "w_",
+    "__version__",
 ]

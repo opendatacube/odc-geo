@@ -10,6 +10,8 @@ from typing import Iterator, Optional, Tuple
 
 from affine import Affine
 
+from ._base import CRS, BoundingBox, GeoBox, Geometry, intersects
+
 DEFAULT_SPATIAL_DIMS = ("y", "x")  # Used when product lacks grid_spec
 
 
@@ -17,17 +19,17 @@ class GridSpec:
     """
     Definition for a regular spatial grid
 
-    >>> gs = GridSpec(crs=geometry.CRS('EPSG:4326'), tile_size=(1, 1), resolution=(-0.1, 0.1), origin=(-50.05, 139.95))
+    >>> gs = GridSpec(crs=CRS('EPSG:4326'), tile_size=(1, 1), resolution=(-0.1, 0.1), origin=(-50.05, 139.95))
     >>> gs.tile_resolution
     (10, 10)
-    >>> list(gs.tiles(geometry.BoundingBox(140, -50, 141.5, -48.5)))
+    >>> list(gs.tiles(BoundingBox(140, -50, 141.5, -48.5)))
     [((0, 0), GeoBox(10, 10, Affine(0.1, 0.0, 139.95,
            0.0, -0.1, -49.05), EPSG:4326)), ((1, 0), GeoBox(10, 10, Affine(0.1, 0.0, 140.95,
            0.0, -0.1, -49.05), EPSG:4326)), ((0, 1), GeoBox(10, 10, Affine(0.1, 0.0, 139.95,
            0.0, -0.1, -48.05), EPSG:4326)), ((1, 1), GeoBox(10, 10, Affine(0.1, 0.0, 140.95,
            0.0, -0.1, -48.05), EPSG:4326))]
 
-    :param geometry.CRS crs: Coordinate System used to define the grid
+    :param CRS crs: Coordinate System used to define the grid
     :param [float,float] tile_size: (Y, X) size of each tile, in CRS units
     :param [float,float] resolution: (Y, X) size of each data point in the grid, in CRS units. Y will
                                    usually be negative.
@@ -36,7 +38,7 @@ class GridSpec:
 
     def __init__(
         self,
-        crs: geometry.CRS,
+        crs: CRS,
         tile_size: Tuple[float, float],
         resolution: Tuple[float, float],
         origin: Optional[Tuple[float, float]] = None,
@@ -99,7 +101,7 @@ class GridSpec:
         )
         return (y, x)
 
-    def tile_geobox(self, tile_index: Tuple[int, int]) -> geometry.GeoBox:
+    def tile_geobox(self, tile_index: Tuple[int, int]) -> GeoBox:
         """
         Tile geobox.
 
@@ -108,14 +110,14 @@ class GridSpec:
         res_y, res_x = self.resolution
         y, x = self.tile_coords(tile_index)
         h, w = self.tile_resolution
-        geobox = geometry.GeoBox(
+        geobox = GeoBox(
             crs=self.crs, affine=Affine(res_x, 0.0, x, 0.0, res_y, y), width=w, height=h
         )
         return geobox
 
     def tiles(
-        self, bounds: geometry.BoundingBox, geobox_cache: Optional[dict] = None
-    ) -> Iterator[Tuple[Tuple[int, int], geometry.GeoBox]]:
+        self, bounds: BoundingBox, geobox_cache: Optional[dict] = None
+    ) -> Iterator[Tuple[Tuple[int, int], GeoBox]]:
         """
         Returns an iterator of tile_index, :py:class:`GeoBox` tuples across
         the grid and overlapping with the specified `bounds` rectangle.
@@ -153,10 +155,10 @@ class GridSpec:
 
     def tiles_from_geopolygon(
         self,
-        geopolygon: geometry.Geometry,
+        geopolygon: Geometry,
         tile_buffer: Optional[Tuple[float, float]] = None,
         geobox_cache: Optional[dict] = None,
-    ) -> Iterator[Tuple[Tuple[int, int], geometry.GeoBox]]:
+    ) -> Iterator[Tuple[Tuple[int, int], GeoBox]]:
         """
         Returns an iterator of tile_index, :py:class:`GeoBox` tuples across
         the grid and overlapping with the specified `geopolygon`.
@@ -166,7 +168,7 @@ class GridSpec:
            Grid cells are referenced by coordinates `(x, y)`, which is the opposite to the usual CRS
            dimension order.
 
-        :param geometry.Geometry geopolygon: Polygon to tile
+        :param Geometry geopolygon: Polygon to tile
         :param tile_buffer: Optional <float,float> tuple, (extra padding for the query
                             in native units of this GridSpec)
         :param dict geobox_cache: Optional cache to re-use geoboxes instead of creating new one each time
@@ -181,7 +183,7 @@ class GridSpec:
                 tile_geobox.buffered(*tile_buffer) if tile_buffer else tile_geobox
             )
 
-            if geometry.intersects(tile_geobox.extent, geopolygon):
+            if intersects(tile_geobox.extent, geopolygon):
                 yield (tile_index, tile_geobox)
 
     @staticmethod

@@ -35,7 +35,7 @@ from pyproj.transformer import Transformer
 from shapely import geometry, ops
 from shapely.geometry import base
 
-from ..math import is_almost_int
+from .math import is_almost_int
 from .tools import is_affine_st, roi_normalise, roi_shape
 
 Coordinate = namedtuple("Coordinate", ("values", "units", "resolution"))
@@ -335,7 +335,7 @@ class CRS:
         transform = _make_crs_transform(self._crs, other._crs, always_xy=always_xy)
 
         def result(x, y):
-            rx, ry = transform(x, y)
+            rx, ry = transform(x, y)  # pylint: disable=unpacking-non-sequence
 
             if not isinstance(rx, numpy.ndarray) or not isinstance(ry, numpy.ndarray):
                 return (rx, ry)
@@ -1350,7 +1350,7 @@ def scaled_down_geobox(src_geobox: GeoBox, scaler: int) -> GeoBox:
     return GeoBox(W, H, A, src_geobox.crs)
 
 
-def _round_to_res(value: float, res: float, acc: float = 0.1) -> int:
+def _round_to_res(value: float, res: float) -> int:
     res = abs(res)
     return int(math.ceil((value - 0.1 * res) / res))
 
