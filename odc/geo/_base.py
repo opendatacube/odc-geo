@@ -721,11 +721,11 @@ class Geometry:
         if splitter.crs != self.crs:
             raise CRSMismatchError(self.crs, splitter.crs)
 
-        for g in ops.split(self.geom, splitter.geom):
+        for g in ops.split(self.geom, splitter.geom).geoms:
             yield Geometry(g, self.crs)
 
     def __iter__(self) -> Iterator["Geometry"]:
-        for geom in self.geom:
+        for geom in self.geom.geoms:
             yield Geometry(geom, self.crs)
 
     def __nonzero__(self) -> bool:
