@@ -14,6 +14,7 @@ This extension is reliant on an `xarray` object having a `.crs` property of type
 
 """
 import warnings
+
 import xarray
 from datacube.utils import geometry, spatial_dims
 from datacube.utils.math import affine_from_axis
@@ -25,19 +26,19 @@ def _norm_crs(crs):
     elif isinstance(crs, str):
         return geometry.CRS(crs)
     else:
-        raise ValueError('Can not interpret {} as CRS'.format(type(crs)))
+        raise ValueError(f"Can not interpret {type(crs)} as CRS")
 
 
 def _get_crs_from_attrs(obj, sdims):
-    """ Looks for attribute named `crs` containing CRS string
-        - Checks spatials coords attrs
-        - Checks data variable attrs
-        - Checks dataset attrs
+    """Looks for attribute named `crs` containing CRS string
+    - Checks spatials coords attrs
+    - Checks data variable attrs
+    - Checks dataset attrs
 
-        Returns
-        =======
-        Content for `.attrs[crs]` usually it's a string
-        None if not present in any of the places listed above
+    Returns
+    =======
+    Content for `.attrs[crs]` usually it's a string
+    None if not present in any of the places listed above
     """
     crs_set = set()
 
@@ -57,8 +58,8 @@ def _get_crs_from_attrs(obj, sdims):
             warnings.warn(f"Ignoring crs attribute of type: {type(crs)}")
 
     def process_attrs(attrs):
-        _add_candidate(attrs.get('crs', None))
-        _add_candidate(attrs.get('crs_wkt', None))
+        _add_candidate(attrs.get("crs", None))
+        _add_candidate(attrs.get("crs_wkt", None))
 
     def process_datavar(x):
         process_attrs(x.attrs)
@@ -83,48 +84,53 @@ def _get_crs_from_attrs(obj, sdims):
     return crs
 
 
-def _get_crs_from_coord(obj, mode='strict'):
-    """ Looks for dimensionless coordinate with `spatial_ref` attribute.
+def _get_crs_from_coord(obj, mode="strict"):
+    """Looks for dimensionless coordinate with `spatial_ref` attribute.
 
-        obj: Dataset | DataArray
-        mode: strict|any|all
-           strict -- raise Error if multiple candidates
-           any    -- return first one
-           all    -- return a list of all found CRSs
+     obj: Dataset | DataArray
+     mode: strict|any|all
+        strict -- raise Error if multiple candidates
+        any    -- return first one
+        all    -- return a list of all found CRSs
 
-       Returns
-       =======
-       None     - if none found
-       crs:str  - if found one
-       crs:str  - if found several but mode is any
+    Returns
+    =======
+    None     - if none found
+    crs:str  - if found one
+    crs:str  - if found several but mode is any
 
-       (crs: str, crs: str) - if found several and mode=all
+    (crs: str, crs: str) - if found several and mode=all
     """
-    grid_mapping = obj.attrs.get('grid_mapping', None)
+    grid_mapping = obj.attrs.get("grid_mapping", None)
 
     # First check CF convention "pointer"
     if grid_mapping is not None and grid_mapping in obj.coords:
         coord = obj.coords[grid_mapping]
-        spatial_ref = coord.attrs.get('spatial_ref', None)
+        spatial_ref = coord.attrs.get("spatial_ref", None)
         if spatial_ref is not None:
             return spatial_ref
         else:
-            raise ValueError(f"Coordinate '{grid_mapping}' has no `spatial_ref` attribute")
+            raise ValueError(
+                f"Coordinate '{grid_mapping}' has no `spatial_ref` attribute"
+            )
 
     # No explicit `grid_mapping` find some "CRS" coordinate
-    candidates = tuple(coord.attrs['spatial_ref'] for coord in obj.coords.values()
-                       if coord.ndim == 0 and 'spatial_ref' in coord.attrs)
+    candidates = tuple(
+        coord.attrs["spatial_ref"]
+        for coord in obj.coords.values()
+        if coord.ndim == 0 and "spatial_ref" in coord.attrs
+    )
 
     if len(candidates) == 0:
         return None
     if len(candidates) == 1:
         return candidates[0]
 
-    if mode == 'strict':
+    if mode == "strict":
         raise ValueError("Too many candidates when looking for CRS")
-    elif mode == 'all':
+    elif mode == "all":
         return candidates
-    elif mode == 'any':
+    elif mode == "any":
         return candidates[0]
     else:
         raise ValueError(f"Mode needs to be: strict|any|all got {mode}")
@@ -136,7 +142,7 @@ def _xarray_affine_impl(obj):
         return None, None
 
     yy, xx = (obj[dim] for dim in sdims)
-    fallback_res = (coord.attrs.get('resolution', None) for coord in (xx, yy))
+    fallback_res = (coord.attrs.get("resolution", None) for coord in (xx, yy))
 
     return affine_from_axis(xx.values, yy.values, fallback_res), sdims
 
@@ -179,9 +185,9 @@ def _xarray_geobox(obj):
     return geometry.GeoBox(w, h, transform, crs)
 
 
-xarray.Dataset.geobox = property(_xarray_geobox)    # type: ignore
-xarray.Dataset.affine = property(_xarray_affine)    # type: ignore
-xarray.Dataset.extent = property(_xarray_extent)    # type: ignore
+xarray.Dataset.geobox = property(_xarray_geobox)  # type: ignore
+xarray.Dataset.affine = property(_xarray_affine)  # type: ignore
+xarray.Dataset.extent = property(_xarray_extent)  # type: ignore
 xarray.DataArray.geobox = property(_xarray_geobox)  # type: ignore
 xarray.DataArray.affine = property(_xarray_affine)  # type: ignore
 xarray.DataArray.extent = property(_xarray_extent)  # type: ignore

@@ -2,14 +2,13 @@
 #
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
-from affine import Affine
 import numpy as np
 import pytest
-from datacube.utils.geometry import gbox as gbx
+from affine import Affine
 from datacube.utils import geometry
-from datacube.utils.geometry import GeoBox
+from datacube.utils.geometry import GeoBox, gbox as gbx
 
-epsg3857 = geometry.CRS('EPSG:3857')
+epsg3857 = geometry.CRS("EPSG:3857")
 
 
 def test_gbox_ops():
@@ -41,9 +40,9 @@ def test_gbox_ops():
     assert d.shape == (50, 500)
     assert d.crs is s.crs
     assert d.extent.contains(s.extent)
-    assert d.resolution == (s.resolution[0]*2, s.resolution[1]*2)
+    assert d.resolution == (s.resolution[0] * 2, s.resolution[1] * 2)
 
-    d = gbx.zoom_out(s, 2*max(s.shape))
+    d = gbx.zoom_out(s, 2 * max(s.shape))
     assert d.shape == (1, 1)
     assert d.crs is s.crs
     assert d.extent.contains(s.extent)
@@ -124,8 +123,7 @@ def test_gbox_ops():
     assert d.extent != s.extent
     assert s.extent.contains(d[1:, :].extent)
 
-    d = gbx.affine_transform_pix(s, Affine(1, 0, 0,
-                                           0, 1, 0))
+    d = gbx.affine_transform_pix(s, Affine(1, 0, 0, 0, 1, 0))
     assert d.crs is s.crs
     assert d.shape == s.shape
     assert d.resolution == s.resolution
@@ -136,7 +134,9 @@ def test_gbox_ops():
     assert d.shape == s.shape
     assert d.extent != s.extent
     np.testing.assert_almost_equal(d.extent.area, s.extent.area, 1e-5)
-    assert s[49:52, 499:502].extent.contains(d[50:51, 500:501].extent), "Check that center pixel hasn't moved"
+    assert s[49:52, 499:502].extent.contains(
+        d[50:51, 500:501].extent
+    ), "Check that center pixel hasn't moved"
 
 
 def test_gbox_tiles():
@@ -145,11 +145,11 @@ def test_gbox_tiles():
     h, w = (10, 20)
     gbox = GeoBox(W, H, A, epsg3857)
     tt = gbx.GeoboxTiles(gbox, (h, w))
-    assert tt.shape == (300/10, 200/20)
+    assert tt.shape == (300 / 10, 200 / 20)
     assert tt.base is gbox
 
     assert tt[0, 0] == gbox[0:h, 0:w]
-    assert tt[0, 1] == gbox[0:h, w:w+w]
+    assert tt[0, 1] == gbox[0:h, w : w + w]
 
     assert tt[0, 0] is tt[0, 0]  # Should cache exact same object
     assert tt[4, 1].shape == (h, w)
@@ -168,7 +168,7 @@ def test_gbox_tiles():
         with pytest.raises(IndexError):
             tt.chunk_shape(idx)
 
-    cc = np.zeros(tt.shape, dtype='int32')
+    cc = np.zeros(tt.shape, dtype="int32")
     for idx in tt.tiles(gbox.extent):
         cc[idx] += 1
     np.testing.assert_array_equal(cc, np.ones(tt.shape))
