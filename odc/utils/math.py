@@ -2,19 +2,17 @@
 #
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
-from typing import Tuple, Union, Optional, Any, cast
 from math import ceil, fmod
+from typing import Any, Optional, Tuple, Union, cast
 
 import numpy
 import xarray as xr
 from affine import Affine
 
 
-def unsqueeze_data_array(da: xr.DataArray,
-                         dim: str,
-                         pos: int,
-                         coord: Any = 0,
-                         attrs: Optional[dict] = None) -> xr.DataArray:
+def unsqueeze_data_array(
+    da: xr.DataArray, dim: str, pos: int, coord: Any = 0, attrs: Optional[dict] = None
+) -> xr.DataArray:
     """
     Add a 1-length dimension to a data array.
 
@@ -34,29 +32,30 @@ def unsqueeze_data_array(da: xr.DataArray,
     return xr.DataArray(new_data, dims=new_dims, coords=new_coords, attrs=da.attrs)
 
 
-def unsqueeze_dataset(ds: xr.Dataset, dim: str, coord: int = 0, pos: int = 0) -> xr.Dataset:
+def unsqueeze_dataset(
+    ds: xr.Dataset, dim: str, coord: int = 0, pos: int = 0
+) -> xr.Dataset:
     ds = ds.map(unsqueeze_data_array, dim=dim, pos=pos, keep_attrs=True, coord=coord)
     return ds
 
 
-def spatial_dims(xx: Union[xr.DataArray, xr.Dataset],
-                 relaxed: bool = False) -> Optional[Tuple[str, str]]:
-    """ Find spatial dimensions of `xx`.
+def spatial_dims(
+    xx: Union[xr.DataArray, xr.Dataset], relaxed: bool = False
+) -> Optional[Tuple[str, str]]:
+    """Find spatial dimensions of `xx`.
 
-        Checks for presence of dimensions named:
-          y, x | latitude, longitude | lat, lon
+    Checks for presence of dimensions named:
+      y, x | latitude, longitude | lat, lon
 
-        Returns
-        =======
-        None -- if no dimensions with expected names are found
-        ('y', 'x') | ('latitude', 'longitude') | ('lat', 'lon')
+    Returns
+    =======
+    None -- if no dimensions with expected names are found
+    ('y', 'x') | ('latitude', 'longitude') | ('lat', 'lon')
 
-        If *relaxed* is True and none of the above dimension names are found,
-        assume that last two dimensions are spatial dimensions.
+    If *relaxed* is True and none of the above dimension names are found,
+    assume that last two dimensions are spatial dimensions.
     """
-    guesses = [('y', 'x'),
-               ('latitude', 'longitude'),
-               ('lat', 'lon')]
+    guesses = [("y", "x"), ("latitude", "longitude"), ("lat", "lon")]
 
     dims = set(xx.dims)
     for guess in guesses:
@@ -70,16 +69,15 @@ def spatial_dims(xx: Union[xr.DataArray, xr.Dataset],
 
 
 def maybe_zero(x: float, tol: float) -> float:
-    """ Turn almost zeros to actual zeros
-    """
+    """Turn almost zeros to actual zeros"""
     if abs(x) < tol:
         return 0
     return x
 
 
 def maybe_int(x: float, tol: float) -> Union[int, float]:
-    """ Turn almost ints to actual ints, pass through other values unmodified
-    """
+    """Turn almost ints to actual ints, pass through other values unmodified"""
+
     def split(x):
         x_part = fmod(x, 1.0)
         x_whole = x - x_part
@@ -100,8 +98,7 @@ def maybe_int(x: float, tol: float) -> Union[int, float]:
 
 
 def snap_scale(s, tol=1e-6):
-    """ Snap scale to the nearest integer and simple fractions in the form 1/<int>
-    """
+    """Snap scale to the nearest integer and simple fractions in the form 1/<int>"""
     if abs(s) >= 1 - tol:
         return maybe_int(s, tol)
     else:
@@ -139,7 +136,7 @@ def dtype_is_float(dtype) -> bool:
     """
     Check if `dtype` is floating-point.
     """
-    return numpy.dtype(dtype).kind == 'f'
+    return numpy.dtype(dtype).kind == "f"
 
 
 def valid_mask(xx, nodata):
@@ -188,7 +185,7 @@ def num2numpy(x, dtype, ignore_range=None):
     if isinstance(dtype, (str, type)):
         dtype = numpy.dtype(dtype)
 
-    if ignore_range or dtype.kind == 'f':
+    if ignore_range or dtype.kind == "f":
         return dtype.type(x)
 
     info = numpy.iinfo(dtype)
@@ -199,14 +196,14 @@ def num2numpy(x, dtype, ignore_range=None):
 
 
 def data_resolution_and_offset(data, fallback_resolution=None):
-    """ Compute resolution and offset from x/y axis data.
+    """Compute resolution and offset from x/y axis data.
 
-        Only uses first two coordinate values, assumes that data is regularly
-        sampled.
+    Only uses first two coordinate values, assumes that data is regularly
+    sampled.
 
-        Returns
-        =======
-        (resolution: float, offset: float)
+    Returns
+    =======
+    (resolution: float, offset: float)
     """
     if data.size < 2:
         if data.size < 1:
@@ -279,4 +276,6 @@ def iter_slices(shape, chunk_size):
     num_grid_chunks = [int(ceil(s / float(c))) for s, c in zip(shape, chunk_size)]
     for grid_index in numpy.ndindex(*num_grid_chunks):
         yield tuple(
-            slice(min(d * c, stop), min((d + 1) * c, stop)) for d, c, stop in zip(grid_index, chunk_size, shape))
+            slice(min(d * c, stop), min((d + 1) * c, stop))
+            for d, c, stop in zip(grid_index, chunk_size, shape)
+        )
