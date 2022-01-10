@@ -1,0 +1,44 @@
+name: odc-geo
+channels:
+  - conda-forge
+
+dependencies:
+  - python =3.8
+  - pip =20
+
+  # odc-geo dependencies
+  - pyproj
+  - shapely
+  - rasterio
+  - xarray
+  - numpy
+  - toolz
+  - cachetools
+
+  # tests and dev
+  ## to use from jupyter-lab: `python -m ipykernel install --user --name odc-geo`
+  - ipykernel
+
+  ## linting tools
+  - autopep8
+  - autoflake
+  - black
+  - isort
+  - mock
+  - mypy
+  - pycodestyle
+  - pylint
+  ### shed dependencies
+  - pyyaml
+  - pyupgrade
+  - libcst
+
+  ## test
+  - pytest
+  - hypothesis
+  - pytest-cov
+  - pytest-timeout
+
+  - pip:
+      # linter
+      - shed
