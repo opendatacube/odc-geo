@@ -2,29 +2,27 @@
 #
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
+from typing import Callable, Tuple, Union
+
 import numpy as np
 from affine import Affine
-from typing import Callable, Union, Tuple
 
-from datacube.utils.geometry import (
-    CRS,
-    GeoBox,
-    apply_affine,
-)
-from datacube.model import GridSpec
+from odc.geo import CRS, GeoBox, GridSpec, apply_affine
 
 # pylint: disable=invalid-name
 
-epsg4326 = CRS('EPSG:4326')
-epsg3577 = CRS('EPSG:3577')
-epsg3857 = CRS('EPSG:3857')
+epsg4326 = CRS("EPSG:4326")
+epsg3577 = CRS("EPSG:3577")
+epsg3857 = CRS("EPSG:3857")
 
-AlbersGS = GridSpec(crs=epsg3577,
-                    tile_size=(100000.0, 100000.0),
-                    resolution=(-25, 25),
-                    origin=(0.0, 0.0))
+AlbersGS = GridSpec(
+    crs=epsg3577,
+    tile_size=(100000.0, 100000.0),
+    resolution=(-25, 25),
+    origin=(0.0, 0.0),
+)
 
-SAMPLE_WKT_WITHOUT_AUTHORITY = '''PROJCS["unnamed",
+SAMPLE_WKT_WITHOUT_AUTHORITY = """PROJCS["unnamed",
        GEOGCS["unnamed ellipse",
               DATUM["unknown",
                     SPHEROID["unnamed",6378137,0],
@@ -38,11 +36,16 @@ SAMPLE_WKT_WITHOUT_AUTHORITY = '''PROJCS["unnamed",
        PARAMETER["false_northing",0],
        UNIT["Meter",1]
 ]
-'''
+"""
 
 
 def mkA(rot=0, scale=(1, 1), shear=0, translation=(0, 0)):
-    return Affine.translation(*translation)*Affine.rotation(rot)*Affine.shear(shear)*Affine.scale(*scale)
+    return (
+        Affine.translation(*translation)
+        * Affine.rotation(rot)
+        * Affine.shear(shear)
+        * Affine.scale(*scale)
+    )
 
 
 def xy_from_gbox(gbox: GeoBox) -> Tuple[np.ndarray, np.ndarray]:
@@ -51,14 +54,16 @@ def xy_from_gbox(gbox: GeoBox) -> Tuple[np.ndarray, np.ndarray]:
     """
     h, w = gbox.shape
 
-    xx, yy = np.meshgrid(np.arange(w, dtype='float64') + 0.5,
-                         np.arange(h, dtype='float64') + 0.5)
+    xx, yy = np.meshgrid(
+        np.arange(w, dtype="float64") + 0.5, np.arange(h, dtype="float64") + 0.5
+    )
 
     return apply_affine(gbox.transform, xx, yy)
 
 
-def xy_norm(x: np.ndarray, y: np.ndarray,
-            deg: float = 33.0) -> Tuple[np.ndarray, np.ndarray, Affine]:
+def xy_norm(
+    x: np.ndarray, y: np.ndarray, deg: float = 33.0
+) -> Tuple[np.ndarray, np.ndarray, Affine]:
     """
     Transform output of xy_from_geobox with a reversible linear transform. On
     output x,y are in [0,1] range. Reversible Affine transform includes
@@ -80,10 +85,10 @@ def xy_norm(x: np.ndarray, y: np.ndarray,
     def norm_v(v):
         vmin = v.min()
         v -= vmin
-        s = 1.0/v.max()
+        s = 1.0 / v.max()
         v *= s
 
-        return (s, -vmin*s)
+        return (s, -vmin * s)
 
     A_rot = Affine.rotation(deg)
     x, y = apply_affine(A_rot, x, y)
@@ -91,13 +96,12 @@ def xy_norm(x: np.ndarray, y: np.ndarray,
     sx, tx = norm_v(x)
     sy, ty = norm_v(y)
 
-    A = Affine(sx, 0, tx,
-               0, sy, ty)*A_rot
+    A = Affine(sx, 0, tx, 0, sy, ty) * A_rot
 
     return x, y, ~A
 
 
-def to_fixed_point(a, dtype='uint16'):
+def to_fixed_point(a, dtype="uint16"):
     """
     Convert normalised ([0,1]) floating point image to integer fixed point fractional.
 
@@ -106,7 +110,7 @@ def to_fixed_point(a, dtype='uint16'):
     Reverse is provided by: ``from_fixed_point``
     """
     ii = np.iinfo(dtype)
-    a = a*ii.max + 0.5
+    a = a * ii.max + 0.5
     a = np.clip(a, 0, ii.max, out=a)
     return a.astype(ii.dtype)
 
@@ -118,12 +122,12 @@ def from_fixed_point(a):
     This is reverse of ``to_fixed_point``
     """
     ii = np.iinfo(a.dtype)
-    return a.astype('float64')*(1.0/ii.max)
+    return a.astype("float64") * (1.0 / ii.max)
 
 
-def gen_test_image_xy(gbox: GeoBox,
-                      dtype: Union[str, np.dtype, type] = 'float32',
-                      deg: float = 33.0) -> Tuple[np.ndarray, Callable]:
+def gen_test_image_xy(
+    gbox: GeoBox, dtype: Union[str, np.dtype, type] = "float32", deg: float = 33.0
+) -> Tuple[np.ndarray, Callable]:
     """
     Generate test image that captures pixel coordinates in pixel values.
     Useful for testing reprojections/reads.
@@ -146,7 +150,7 @@ def gen_test_image_xy(gbox: GeoBox,
 
     xy = np.stack([x, y])
 
-    if dtype.kind == 'f':
+    if dtype.kind == "f":
         xy = xy.astype(dtype)
     else:
         xy = to_fixed_point(xy, dtype)
@@ -165,7 +169,7 @@ def gen_test_image_xy(gbox: GeoBox,
             else:
                 missing_mask = (x == nodata) + (y == nodata)
 
-        if x.dtype.kind != 'f':
+        if x.dtype.kind != "f":
             x = from_fixed_point(x)
             y = from_fixed_point(y)
 
@@ -177,7 +181,7 @@ def gen_test_image_xy(gbox: GeoBox,
 
         if stacked:
             return np.stack([x, y])
-        else:
-            return x, y
+
+        return x, y
 
     return xy, denorm

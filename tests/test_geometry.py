@@ -9,19 +9,6 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 from affine import Affine
-from datacube.testutils.geom import (
-    SAMPLE_WKT_WITHOUT_AUTHORITY,
-    AlbersGS,
-    epsg3577,
-    epsg3857,
-    epsg4326,
-    from_fixed_point,
-    gen_test_image_xy,
-    mkA,
-    to_fixed_point,
-    xy_from_gbox,
-    xy_norm,
-)
 from pytest import approx
 
 from odc import geo as geometry
@@ -64,6 +51,20 @@ from odc.geo._base import (
     geobox_intersection_conservative,
     geobox_union_conservative,
 )
+from odc.geo.testutils.geom import (
+    SAMPLE_WKT_WITHOUT_AUTHORITY,
+    AlbersGS,
+    epsg3577,
+    epsg3857,
+    epsg4326,
+    from_fixed_point,
+    gen_test_image_xy,
+    mkA,
+    to_fixed_point,
+    xy_from_gbox,
+    xy_norm,
+)
+from odc.geo.tools import gbox_boundary
 
 
 def test_pickleable():
@@ -427,8 +428,8 @@ def test_shapely_wrappers():
     assert x.typecode == y.typecode
     assert x.typecode == "d"
 
-    assert (poly | poly) == poly
-    assert (poly & poly) == poly
+    assert ((poly | poly) - poly).is_empty
+    assert ((poly & poly) - poly).is_empty
     assert (poly ^ poly).is_empty
     assert (poly - poly).is_empty
 
