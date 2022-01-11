@@ -166,8 +166,7 @@ class GeoboxTiles:
             _in = i * n
             if 0 <= _in < N:
                 return slice(_in, min(_in + n, N))
-            else:
-                raise IndexError(f"Index ({idx[0]},{idx[1]})is out of range")
+            raise IndexError(f"Index ({idx[0]},{idx[1]})is out of range")
 
         ir, ic = (
             _slice(i, N, n) for i, N, n in zip(idx, self._gbox.shape, self._tile_shape)
@@ -185,10 +184,10 @@ class GeoboxTiles:
         def _sz(i: int, n: int, tile_sz: int, total_sz: int) -> int:
             if 0 <= i < n - 1:  # not edge tile
                 return tile_sz
-            elif i == n - 1:  # edge tile
+            if i == n - 1:  # edge tile
                 return total_sz - (i * tile_sz)
-            else:  # out of index case
-                raise IndexError(f"Index ({idx[0]},{idx[1]}) is out of range")
+            # out of index case
+            raise IndexError(f"Index ({idx[0]},{idx[1]}) is out of range")
 
         n1, n2 = map(_sz, idx, self._shape, self._tile_shape, self._gbox.shape)
         return (n1, n2)

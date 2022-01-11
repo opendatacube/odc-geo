@@ -451,7 +451,7 @@ class Geometry:
     If 3D coordinates are supplied, they are converted to 2D by dropping the Z points.
     """
 
-    # pylint: disable=protected-access
+    # pylint: disable=protected-access, too-many-public-methods
 
     def __init__(
         self,
@@ -971,9 +971,9 @@ def multigeom(geoms: Iterable[Geometry]) -> Geometry:
     src_type = src_type.pop()
     if src_type == "Polygon":
         return Geometry(geometry.MultiPolygon(raw_geoms), crs)
-    elif src_type == "Point":
+    if src_type == "Point":
         return Geometry(geometry.MultiPoint(raw_geoms), crs)
-    elif src_type == "LineString":
+    if src_type == "LineString":
         return Geometry(geometry.MultiLineString(raw_geoms), crs)
 
     raise ValueError("Only understand Polygon|LineString|Point")
