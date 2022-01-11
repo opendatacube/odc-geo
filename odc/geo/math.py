@@ -65,25 +65,24 @@ def maybe_int(x: float, tol: float) -> Union[int, float]:
 
     if abs(x_part) < tol:  # almost int
         return int(x_whole)
-    else:
-        return x
+    return x
 
 
 def snap_scale(s, tol=1e-6):
     """Snap scale to the nearest integer and simple fractions in the form 1/<int>"""
     if abs(s) >= 1 - tol:
         return maybe_int(s, tol)
-    else:
-        # Check of s is 0
-        if abs(s) < tol:
-            return s
 
-        # Check for simple fractions
-        s_inv = 1 / s
-        s_inv_snapped = maybe_int(s_inv, tol)
-        if s_inv_snapped is s_inv:
-            return s
-        return 1 / s_inv_snapped
+    # Check of s is 0
+    if abs(s) < tol:
+        return s
+
+    # Check for simple fractions
+    s_inv = 1 / s
+    s_inv_snapped = maybe_int(s_inv, tol)
+    if s_inv_snapped is s_inv:
+        return s
+    return 1 / s_inv_snapped
 
 
 def clamp(x, lo, up):

@@ -20,10 +20,10 @@ from .math import affine_from_axis, spatial_dims
 def _norm_crs(crs):
     if crs is None or isinstance(crs, CRS):
         return crs
-    elif isinstance(crs, str):
+    if isinstance(crs, str):
         return CRS(crs)
-    else:
-        raise ValueError(f"Can not interpret {type(crs)} as CRS")
+
+    raise ValueError(f"Can not interpret {type(crs)} as CRS")
 
 
 def _get_crs_from_attrs(obj, sdims):
@@ -106,10 +106,7 @@ def _get_crs_from_coord(obj, mode="strict"):
         spatial_ref = coord.attrs.get("spatial_ref", None)
         if spatial_ref is not None:
             return spatial_ref
-        else:
-            raise ValueError(
-                f"Coordinate '{grid_mapping}' has no `spatial_ref` attribute"
-            )
+        raise ValueError(f"Coordinate '{grid_mapping}' has no `spatial_ref` attribute")
 
     # No explicit `grid_mapping` find some "CRS" coordinate
     candidates = tuple(
@@ -125,12 +122,12 @@ def _get_crs_from_coord(obj, mode="strict"):
 
     if mode == "strict":
         raise ValueError("Too many candidates when looking for CRS")
-    elif mode == "all":
+    if mode == "all":
         return candidates
-    elif mode == "any":
+    if mode == "any":
         return candidates[0]
-    else:
-        raise ValueError(f"Mode needs to be: strict|any|all got {mode}")
+
+    raise ValueError(f"Mode needs to be: strict|any|all got {mode}")
 
 
 def _xarray_affine_impl(obj):

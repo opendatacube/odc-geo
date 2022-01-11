@@ -21,6 +21,8 @@ from .math import maybe_int, snap_scale
 class WindowFromSlice:
     """Translate numpy slices to rasterio window tuples."""
 
+    # pylint: disable=too-few-public-methods
+
     def __getitem__(self, roi):
         if roi is None:
             return None
@@ -503,7 +505,7 @@ def roi_intersect(a, b):
     def slice_intersect(a, b):
         if a.stop < b.start:
             return slice(a.stop, a.stop)
-        elif a.start > b.stop:
+        if a.start > b.stop:
             return slice(a.start, a.start)
 
         _in = max(a.start, b.start)
