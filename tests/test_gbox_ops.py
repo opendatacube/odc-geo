@@ -135,7 +135,7 @@ def test_gbox_ops():
     assert d.crs is s.crs
     assert d.shape == s.shape
     assert d.extent != s.extent
-    np.testing.assert_almost_equal(d.extent.area, s.extent.area, 1e-5)
+    np.testing.assert_almost_equal(d.extent.area, s.extent.area, 5)
     assert s[49:52, 499:502].extent.contains(
         d[50:51, 500:501].extent
     ), "Check that center pixel hasn't moved"
