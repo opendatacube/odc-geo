@@ -1,0 +1,32 @@
+name: odc-geo-tests-py38
+channels:
+  - conda-forge
+
+dependencies:
+  - python =3.8
+  - pip =20
+
+  # odc-geo dependencies
+  - pyproj
+  - shapely
+  - rasterio
+  - xarray
+  - numpy
+  - cachetools
+
+  ## linting tools
+  - autopep8
+  - autoflake
+  - black
+  - isort
+  - mock
+  - mypy
+  - pycodestyle
+  - pylint
+  - types-cachetools
+  - types-certifi
+
+  ## test
+  - pytest
+  - pytest-cov
+  - pytest-timeout
