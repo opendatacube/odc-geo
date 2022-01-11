@@ -39,7 +39,7 @@ from .math import is_almost_int
 from .tools import is_affine_st, roi_normalise, roi_shape
 
 Coordinate = namedtuple("Coordinate", ("values", "units", "resolution"))
-_BoundingBox = namedtuple("BoundingBox", ("left", "bottom", "right", "top"))
+_BoundingBox = namedtuple("_BoundingBox", ("left", "bottom", "right", "top"))
 SomeCRS = Union[str, "CRS", _CRS, Dict[str, Any]]
 MaybeCRS = Optional[SomeCRS]
 CoordList = List[Tuple[float, float]]
@@ -207,7 +207,7 @@ class CRS:
 
     @property
     def wkt(self) -> str:
-        return self.to_wkt(version="WKT1_GDAL")
+        return self.to_wkt(version=WktVersion.WKT1_GDAL)
 
     def to_epsg(self) -> Optional[int]:
         """
@@ -277,7 +277,7 @@ class CRS:
     def __repr__(self) -> str:
         return f"CRS('{self._str}')"
 
-    def __eq__(self, other: SomeCRS) -> bool:
+    def __eq__(self, other) -> bool:
         if not isinstance(other, CRS):
             try:
                 other = CRS(other)
@@ -307,11 +307,10 @@ class CRS:
         Bounding box in Lon/Lat as a 4 point Polygon in EPSG:4326.
         None if not defined
         """
-        region = self._crs.area_of_use
-        if region is None:
+        aou = self._crs.area_of_use
+        if aou is None:
             return None
-        x1, y1, x2, y2 = region.bounds
-        return box(x1, y1, x2, y2, "EPSG:4326")
+        return box(aou.west, aou.south, aou.east, aou.north, "EPSG:4326")
 
     @property
     def crs_str(self) -> str:
