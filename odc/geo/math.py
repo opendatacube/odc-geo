@@ -3,7 +3,7 @@
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
 from math import ceil, fmod
-from typing import Optional, Tuple, Union, cast
+from typing import Optional, Tuple, Union
 
 import numpy
 import xarray as xr
@@ -28,13 +28,14 @@ def spatial_dims(
     """
     guesses = [("y", "x"), ("latitude", "longitude"), ("lat", "lon")]
 
-    dims = set(xx.dims)
+    _dims = [str(dim) for dim in xx.dims]
+    dims = set(_dims)
     for guess in guesses:
         if dims.issuperset(guess):
             return guess
 
-    if relaxed and len(xx.dims) >= 2:
-        return cast(Tuple[str, str], xx.dims[-2:])
+    if relaxed and len(_dims) >= 2:
+        return _dims[-2], _dims[-1]
 
     return None
 
