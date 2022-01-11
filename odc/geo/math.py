@@ -47,21 +47,32 @@ def maybe_zero(x: float, tol: float) -> float:
     return x
 
 
+def split_float(x: float) -> Tuple[float, float]:
+    """
+    Split float number into whole and fractional parts.
+
+    Adding the two numbers back together should result in the original value.
+    Fractional part is always in the ``(-0.5, +0.5)`` interval, and whole part
+    is equivalent to ``round(x)``.
+
+    :param x: floating point number
+    :return: whole, fraction
+    """
+    x_part = fmod(x, 1.0)
+    x_whole = x - x_part
+    if x_part > 0.5:
+        x_part -= 1
+        x_whole += 1
+    elif x_part < -0.5:
+        x_part += 1
+        x_whole -= 1
+    return (x_whole, x_part)
+
+
 def maybe_int(x: float, tol: float) -> Union[int, float]:
     """Turn almost ints to actual ints, pass through other values unmodified"""
 
-    def split(x):
-        x_part = fmod(x, 1.0)
-        x_whole = x - x_part
-        if x_part > 0.5:
-            x_part -= 1
-            x_whole += 1
-        elif x_part < -0.5:
-            x_part += 1
-            x_whole -= 1
-        return (x_whole, x_part)
-
-    x_whole, x_part = split(x)
+    x_whole, x_part = split_float(x)
 
     if abs(x_part) < tol:  # almost int
         return int(x_whole)

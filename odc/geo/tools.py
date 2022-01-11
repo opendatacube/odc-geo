@@ -11,7 +11,7 @@ import numpy as np
 from affine import Affine
 from numpy import linalg
 
-from .math import maybe_int, snap_scale
+from .math import maybe_int, snap_scale, split_float
 
 # This is numeric code, short names make sense in this context, so disabling
 # "invalid name" checks for the whole file
@@ -224,20 +224,7 @@ def split_translation(t):
     :returns: (t_whole: (float, float), t_subpix: (float, float))
     """
 
-    def _split1(x):
-        x_part = math.fmod(x, 1.0)
-        x_whole = x - x_part
-        if x_part > 0.5:
-            x_part -= 1
-            x_whole += 1
-        elif x_part < -0.5:
-            x_part += 1
-            x_whole -= 1
-
-        return (x_whole, x_part)
-
-    _tt = [_split1(x) for x in t]
-
+    _tt = [split_float(x) for x in t]
     return tuple(t[0] for t in _tt), tuple(t[1] for t in _tt)
 
 
