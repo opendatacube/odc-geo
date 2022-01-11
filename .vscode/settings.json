@@ -5,7 +5,7 @@
         "--ignore=E731,W503",
         "--max-line-length=120"
     ],
-    "python.linting.mypyEnabled": false,
+    "python.linting.mypyEnabled": true,
     "python.analysis.typeCheckingMode": "off",
     "python.linting.pydocstyleEnabled": false,
     "python.linting.pydocstyleArgs": [
