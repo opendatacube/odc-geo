@@ -28,6 +28,7 @@ dependencies:
   - mypy
   - pycodestyle
   - pylint
+  - docutils
   ### shed dependencies
   - pyyaml
   - pyupgrade

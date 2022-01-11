@@ -1,3 +1,20 @@
+# Instructions for Developers
+
+## Environment Setup
+
+Minimal conda environment with all the dependencies of `odc-geo` and all the
+linting tools is provided in `dev-env.yml` file.
+
+```
+mamba env create -f dev-env.yml
+conda activate odc-geo
+pip install -e .
+```
+
+
+## VScode Workspace Configuration
+
+```json
 {
     "python.formatting.provider": "black",
     "python.linting.flake8Enabled": true,
@@ -25,3 +42,4 @@
         "-v"
     ]
 }
+```
