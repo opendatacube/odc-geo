@@ -11,7 +11,8 @@ from typing import Optional, Tuple, Union
 
 import xarray
 
-from ._base import CRS, CRSError, GeoBox
+from ._crs import CRS, CRSError
+from ._geobox import GeoBox
 from .math import affine_from_axis
 
 # from datacube.utils import geometry, spatial_dims

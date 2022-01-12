@@ -2,22 +2,22 @@
 #
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
-"""
-Core classes used across modules.
-"""
+"""GridSpec class."""
 import math
 from typing import Iterator, Optional, Tuple
 
 from affine import Affine
 
-from ._base import CRS, BoundingBox, GeoBox, Geometry, intersects
+from ._crs import CRS
+from ._geobox import GeoBox
+from ._geom import BoundingBox, Geometry, intersects
 
 DEFAULT_SPATIAL_DIMS = ("y", "x")  # Used when product lacks grid_spec
 
 
 class GridSpec:
     """
-    Definition for a regular spatial grid
+    Definition for a regular spatial grid.
 
     >>> gs = GridSpec(crs=CRS('EPSG:4326'), tile_size=(1, 1), resolution=(-0.1, 0.1), origin=(-50.05, 139.95))
     >>> gs.tile_resolution

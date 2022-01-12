@@ -39,18 +39,16 @@ from odc.geo import (
     split_translation,
     w_,
 )
-from odc.geo._base import (
+from odc.geo._crs import _guess_crs_str, _norm_crs, _norm_crs_or_error
+from odc.geo._geobox import (
     _align_pix,
-    _guess_crs_str,
     _mk_crs_coord,
-    _norm_crs,
-    _norm_crs_or_error,
     _round_to_res,
     bounding_box_in_pixel_domain,
-    force_2d,
     geobox_intersection_conservative,
     geobox_union_conservative,
 )
+from odc.geo._geom import densify, force_2d
 from odc.geo.testutils.geom import (
     SAMPLE_WKT_WITHOUT_AUTHORITY,
     AlbersGS,
@@ -489,8 +487,6 @@ def test_boundingbox():
 
 
 def test_densify():
-    from odc.geo._base import densify
-
     s_x10 = [(0, 0), (10, 0)]
     assert densify(s_x10, 20) == s_x10
     assert densify(s_x10, 200) == s_x10
