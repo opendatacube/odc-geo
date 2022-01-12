@@ -39,7 +39,7 @@ from odc.geo import (
     split_translation,
     w_,
 )
-from odc.geo._crs import _guess_crs_str, _norm_crs, _norm_crs_or_error
+from odc.geo._crs import _guess_crs_str, norm_crs, norm_crs_or_error
 from odc.geo._geobox import (
     _align_pix,
     _mk_crs_coord,
@@ -1595,10 +1595,10 @@ def test_base_internals():
     assert _round_to_res(0.0, 1.0) == 0
     assert _round_to_res(0.05, 1.0) == 0
 
-    assert _norm_crs(None) is None
+    assert norm_crs(None) is None
 
     with pytest.raises(ValueError):
-        _norm_crs_or_error(None)
+        norm_crs_or_error(None)
 
 
 def test_geom_clone():

@@ -17,6 +17,8 @@ from ._crs import (
     MaybeCRS,
     SomeCRS,
     crs_units_per_degree,
+    norm_crs,
+    norm_crs_or_error,
 )
 
 from ._geom import (
@@ -122,6 +124,8 @@ __all__ = [
     "multipoint",
     "multipolygon",
     "native_pix_transform",
+    "norm_crs",
+    "norm_crs_or_error",
     "point",
     "polygon_from_transform",
     "polygon",

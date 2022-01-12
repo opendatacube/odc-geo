@@ -20,8 +20,8 @@ from ._crs import (
     CRSMismatchError,
     MaybeCRS,
     SomeCRS,
-    _norm_crs,
-    _norm_crs_or_error,
+    norm_crs,
+    norm_crs_or_error,
 )
 
 _BoundingBox = namedtuple("_BoundingBox", ("left", "bottom", "right", "top"))
@@ -203,7 +203,7 @@ class Geometry:
             self.geom: base.BaseGeometry = _clone_shapely_geom(geom.geom)
             return
 
-        crs = _norm_crs(crs)
+        crs = norm_crs(crs)
         self.crs = crs
         if isinstance(geom, base.BaseGeometry):
             self.geom = geom
@@ -432,7 +432,7 @@ class Geometry:
                                   when converting to geographic projections.
                                   Currently only works in few specific cases (source CRS is smooth over the dateline).
         """
-        crs = _norm_crs_or_error(crs)
+        crs = norm_crs_or_error(crs)
         if self.crs == crs:
             return self
 
@@ -515,7 +515,7 @@ def projected_lon(
     step: float = 1.0,
 ) -> Geometry:
     """Project vertical line along some longitude into given CRS."""
-    crs = _norm_crs_or_error(crs)
+    crs = norm_crs_or_error(crs)
     yy = numpy.arange(lat[0], lat[1], step, dtype="float32")
     xx = numpy.full_like(yy, lon)
     tr = CRS("EPSG:4326").transformer_to_crs(crs)
