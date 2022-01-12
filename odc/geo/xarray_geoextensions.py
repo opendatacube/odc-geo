@@ -7,11 +7,12 @@ Add geometric extensions to :class:`xarray.Dataset` and :class:`xarray.DataArray
 with Data Cube by Monkey Patching those classes.
 """
 import warnings
+from typing import Optional, Tuple, Union
 
 import xarray
 
 from ._base import CRS, CRSError, GeoBox
-from .math import affine_from_axis, spatial_dims
+from .math import affine_from_axis
 
 # from datacube.utils import geometry, spatial_dims
 # from datacube.utils.math import affine_from_axis
@@ -128,6 +129,36 @@ def _get_crs_from_coord(obj, mode="strict"):
         return candidates[0]
 
     raise ValueError(f"Mode needs to be: strict|any|all got {mode}")
+
+
+def spatial_dims(
+    xx: Union[xarray.DataArray, xarray.Dataset], relaxed: bool = False
+) -> Optional[Tuple[str, str]]:
+    """Find spatial dimensions of `xx`.
+
+    Checks for presence of dimensions named:
+      y, x | latitude, longitude | lat, lon
+
+    Returns
+    =======
+    None -- if no dimensions with expected names are found
+    ('y', 'x') | ('latitude', 'longitude') | ('lat', 'lon')
+
+    If *relaxed* is True and none of the above dimension names are found,
+    assume that last two dimensions are spatial dimensions.
+    """
+    guesses = [("y", "x"), ("latitude", "longitude"), ("lat", "lon")]
+
+    _dims = [str(dim) for dim in xx.dims]
+    dims = set(_dims)
+    for guess in guesses:
+        if dims.issuperset(guess):
+            return guess
+
+    if relaxed and len(_dims) >= 2:
+        return _dims[-2], _dims[-1]
+
+    return None
 
 
 def _xarray_affine_impl(obj):

@@ -3,41 +3,10 @@
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
 from math import ceil, fmod
-from typing import Optional, Tuple, Union
+from typing import Tuple, Union
 
 import numpy
-import xarray as xr
 from affine import Affine
-
-
-def spatial_dims(
-    xx: Union[xr.DataArray, xr.Dataset], relaxed: bool = False
-) -> Optional[Tuple[str, str]]:
-    """Find spatial dimensions of `xx`.
-
-    Checks for presence of dimensions named:
-      y, x | latitude, longitude | lat, lon
-
-    Returns
-    =======
-    None -- if no dimensions with expected names are found
-    ('y', 'x') | ('latitude', 'longitude') | ('lat', 'lon')
-
-    If *relaxed* is True and none of the above dimension names are found,
-    assume that last two dimensions are spatial dimensions.
-    """
-    guesses = [("y", "x"), ("latitude", "longitude"), ("lat", "lon")]
-
-    _dims = [str(dim) for dim in xx.dims]
-    dims = set(_dims)
-    for guess in guesses:
-        if dims.issuperset(guess):
-            return guess
-
-    if relaxed and len(_dims) >= 2:
-        return _dims[-2], _dims[-1]
-
-    return None
 
 
 def maybe_zero(x: float, tol: float) -> float:
