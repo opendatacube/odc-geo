@@ -417,12 +417,12 @@ def assign_crs(
 
     .. code-block:: python
 
-        xx = datacube.utils.geometry.assign_crs(xr.open_rasterio("some-file.tif"))
+        xx = odc.geo.assign_crs(xr.open_rasterio("some-file.tif"))
         print(xx.geobox)
         print(xx.astype("float32").geobox)
 
 
-    :param xx:  Dataset or DataArray
+    :param xx: :py:class:`xarray.Dataset` or :py:class:`~xarray.DataArray`
     :param crs: CRS to assign, if omitted try to guess from attributes
     :param crs_coord_name: how to name crs corodinate (defaults to ``spatial_ref``)
     """

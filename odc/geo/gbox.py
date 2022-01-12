@@ -141,9 +141,9 @@ class GeoboxTiles:
     """Partition GeoBox into sub geoboxes"""
 
     def __init__(self, box: GeoBox, tile_shape: Tuple[int, int]):
-        """Construct from a ``GeoBox``
+        """Construct from a ``GeoBox``.
 
-        :param box: source :class:`datacube.utils.geometry.GeoBox`
+        :param box: source :class:`~odc.geo.GeoBox`
         :param tile_shape: Shape of sub-tiles in pixels (rows, cols)
         """
         self._gbox = box
