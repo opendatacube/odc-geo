@@ -10,7 +10,7 @@ import numpy
 import xarray as xr
 from affine import Affine
 
-from ._crs import CRS, MaybeCRS, _norm_crs_or_error
+from ._crs import CRS, MaybeCRS, norm_crs_or_error
 from ._geom import (
     BoundingBox,
     Geometry,
@@ -432,7 +432,7 @@ def assign_crs(
             raise ValueError("Failed to guess CRS for this object")
         crs = geobox.crs
 
-    crs = _norm_crs_or_error(crs)
+    crs = norm_crs_or_error(crs)
     crs_coord = _mk_crs_coord(crs, name=crs_coord_name)
     xx = xx.assign_coords({crs_coord.name: crs_coord})
 

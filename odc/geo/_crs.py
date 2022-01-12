@@ -250,7 +250,8 @@ class CRSMismatchError(ValueError):
     """
 
 
-def _norm_crs(crs: MaybeCRS) -> Optional[CRS]:
+def norm_crs(crs: MaybeCRS) -> Optional[CRS]:
+    """Normalise CRS representation."""
     if isinstance(crs, CRS):
         return crs
     if crs is None:
@@ -258,7 +259,8 @@ def _norm_crs(crs: MaybeCRS) -> Optional[CRS]:
     return CRS(crs)
 
 
-def _norm_crs_or_error(crs: MaybeCRS) -> CRS:
+def norm_crs_or_error(crs: MaybeCRS) -> CRS:
+    """Normalise CRS representation, raise error if input is ``None``."""
     if isinstance(crs, CRS):
         return crs
     if crs is None:
