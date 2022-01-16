@@ -64,6 +64,14 @@ def snap_scale(s, tol=1e-6):
     return 1 / s_inv_snapped
 
 
+def align_down(x: int, align: int) -> int:
+    return x - (x % align)
+
+
+def align_up(x: int, align: int) -> int:
+    return align_down(x + (align - 1), align)
+
+
 def clamp(x, lo, up):
     """
     clamp x to be lo <= x <= up

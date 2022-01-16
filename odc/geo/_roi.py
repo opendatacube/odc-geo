@@ -6,6 +6,8 @@ import collections.abc
 
 import numpy as np
 
+from .math import align_down, align_up
+
 # This is numeric code, short names make sense in this context, so disabling
 # "invalid name" checks for the whole file
 # pylint: disable=invalid-name
@@ -82,14 +84,6 @@ def roi_boundary(roi, pts_per_side=2):
     yy = np.linspace(yy.start, yy.stop, pts_per_side, dtype="float32")
 
     return polygon_path(xx, yy).T[:-1]
-
-
-def align_down(x, align):
-    return x - (x % align)
-
-
-def align_up(x, align):
-    return align_down(x + (align - 1), align)
 
 
 def scaled_down_roi(roi, scale: int):
