@@ -83,8 +83,6 @@ from .tools import (
     split_translation,
     w_,
 )
-from ._warp import rio_reproject, warp_affine
-
 
 __all__ = [
     "__version__",
@@ -130,7 +128,6 @@ __all__ = [
     "polygon_from_transform",
     "polygon",
     "projected_lon",
-    "rio_reproject",
     "roi_boundary",
     "roi_center",
     "roi_from_points",
@@ -150,5 +147,4 @@ __all__ = [
     "unary_intersection",
     "unary_union",
     "w_",
-    "warp_affine",
 ]
