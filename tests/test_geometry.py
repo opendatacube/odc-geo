@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 from affine import Affine
 from pytest import approx
+from shapely.errors import ShapelyDeprecationWarning
 
 from odc import geo as geometry
 from odc.geo import (
@@ -276,8 +277,9 @@ def test_ops():
         pt.interpolate(3)
 
     # test array interface
-    assert line.__array_interface__ is not None
-    assert np.array(line).shape == (3, 2)
+    with pytest.warns(ShapelyDeprecationWarning):
+        assert line.__array_interface__ is not None
+        assert np.array(line).shape == (3, 2)
 
     # test simplify
     poly = geometry.polygon([(0, 0), (0, 5), (10, 5)], epsg4326)
