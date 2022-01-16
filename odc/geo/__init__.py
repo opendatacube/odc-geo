@@ -77,20 +77,16 @@ from ._roi import (
 
 from ._overlap import (
     affine_from_pts,
-    apply_affine,
     compute_axis_overlap,
     compute_reproject_roi,
     decompose_rws,
     get_scale_at_point,
-    is_affine_st,
     native_pix_transform,
-    split_translation,
 )
 
 __all__ = [
     "__version__",
     "affine_from_pts",
-    "apply_affine",
     "assign_crs",
     "bbox_intersection",
     "bbox_union",
@@ -115,7 +111,6 @@ __all__ = [
     "get_scale_at_point",
     "GridSpec",
     "intersects",
-    "is_affine_st",
     "line",
     "lonlat_bounds",
     "MaybeCRS",
@@ -146,7 +141,6 @@ __all__ = [
     "scaled_up_roi",
     "sides",
     "SomeCRS",
-    "split_translation",
     "unary_intersection",
     "unary_union",
     "w_",

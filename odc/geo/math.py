@@ -5,6 +5,7 @@
 from math import fmod
 from typing import Tuple, Union
 
+import numpy as np
 from affine import Affine
 
 
@@ -149,3 +150,47 @@ def affine_from_axis(xx, yy, fallback_resolution=None):
     yres, yoff = data_resolution_and_offset(yy, fry)
 
     return Affine.translation(xoff, yoff) * Affine.scale(xres, yres)
+
+
+def apply_affine(
+    A: Affine, x: np.ndarray, y: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    broadcast A*(x_i, y_i) across all elements of x/y arrays in any shape (usually 2d image)
+    """
+
+    shape = x.shape
+
+    A = np.asarray(A).reshape(3, 3)
+    t = A[:2, -1].reshape((2, 1))
+    A = A[:2, :2]
+
+    x, y = A @ np.vstack([x.ravel(), y.ravel()]) + t
+    x, y = (a.reshape(shape) for a in (x, y))
+    return (x, y)
+
+
+def split_translation(t):
+    """
+    Split translation into pixel aligned and sub-pixel components.
+
+    Subpixel translation is guaranteed to be in [-0.5, +0.5] range.
+
+    >  x + t = x + t_whole + t_subpix
+
+    :param t: (float, float)
+
+    :returns: (t_whole: (float, float), t_subpix: (float, float))
+    """
+
+    _tt = [split_float(x) for x in t]
+    return tuple(t[0] for t in _tt), tuple(t[1] for t in _tt)
+
+
+def is_affine_st(A, tol=1e-10):
+    """
+    True if Affine transform has scale and translation components only.
+    """
+    (_, wx, _, wy, _, _, *_) = A
+
+    return abs(wx) < tol and abs(wy) < tol

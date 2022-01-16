@@ -19,7 +19,6 @@ from odc.geo import (
     CRSMismatchError,
     GeoBox,
     affine_from_pts,
-    apply_affine,
     bbox_union,
     chop_along_antimeridian,
     clip_lon180,
@@ -29,7 +28,6 @@ from odc.geo import (
     crs_units_per_degree,
     decompose_rws,
     get_scale_at_point,
-    is_affine_st,
     multigeom,
     native_pix_transform,
     projected_lon,
@@ -37,7 +35,6 @@ from odc.geo import (
     roi_normalise,
     roi_shape,
     scaled_down_geobox,
-    split_translation,
     w_,
 )
 from odc.geo._crs import _guess_crs_str, norm_crs, norm_crs_or_error
@@ -51,6 +48,7 @@ from odc.geo._geobox import (
 )
 from odc.geo._geom import densify, force_2d
 from odc.geo._roi import gbox_boundary, polygon_path
+from odc.geo.math import apply_affine, is_affine_st, split_translation
 from odc.geo.testutils.geom import (
     SAMPLE_WKT_WITHOUT_AUTHORITY,
     AlbersGS,
