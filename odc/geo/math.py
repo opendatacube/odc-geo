@@ -2,10 +2,9 @@
 #
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
-from math import ceil, fmod
+from math import fmod
 from typing import Tuple, Union
 
-import numpy
 from affine import Affine
 
 
@@ -83,69 +82,6 @@ def is_almost_int(x: float, tol: float):
     return x < tol
 
 
-def dtype_is_float(dtype) -> bool:
-    """
-    Check if `dtype` is floating-point.
-    """
-    return numpy.dtype(dtype).kind == "f"
-
-
-def valid_mask(xx, nodata):
-    """
-    Compute mask such that xx[mask] contains only valid pixels.
-    """
-    if dtype_is_float(xx.dtype):
-        if nodata is None or numpy.isnan(nodata):
-            return ~numpy.isnan(xx)
-        return ~numpy.isnan(xx) & (xx != nodata)
-
-    if nodata is None:
-        return numpy.full_like(xx, True, dtype=bool)
-    return xx != nodata
-
-
-def invalid_mask(xx, nodata):
-    """
-    Compute mask such that xx[mask] contains only invalid pixels.
-    """
-    if dtype_is_float(xx.dtype):
-        if nodata is None or numpy.isnan(nodata):
-            return numpy.isnan(xx)
-        return numpy.isnan(xx) | (xx == nodata)
-
-    if nodata is None:
-        return numpy.full_like(xx, False, dtype=bool)
-    return xx == nodata
-
-
-def num2numpy(x, dtype, ignore_range=None):
-    """
-    Cast python numeric value to numpy.
-
-    :param x int|float: Numerical value to convert to numpy.type
-    :param dtype str|numpy.dtype|numpy.type: Destination dtype
-    :param ignore_range: If set to True skip range check and cast anyway (for example: -1 -> 255)
-
-    :returns: None if x is None
-    :returns: None if x is outside the valid range of dtype and ignore_range is not set
-    :returns: dtype.type(x) if x is within range or ignore_range=True
-    """
-    if x is None:
-        return None
-
-    if isinstance(dtype, (str, type)):
-        dtype = numpy.dtype(dtype)
-
-    if ignore_range or dtype.kind == "f":
-        return dtype.type(x)
-
-    info = numpy.iinfo(dtype)
-    if info.min <= x <= info.max:
-        return dtype.type(x)
-
-    return None
-
-
 def data_resolution_and_offset(data, fallback_resolution=None):
     """Compute resolution and offset from x/y axis data.
 
@@ -205,28 +141,3 @@ def affine_from_axis(xx, yy, fallback_resolution=None):
     yres, yoff = data_resolution_and_offset(yy, fry)
 
     return Affine.translation(xoff, yoff) * Affine.scale(xres, yres)
-
-
-def iter_slices(shape, chunk_size):
-    """
-    Generate slices for a given shape.
-
-    E.g. ``shape=(4000, 4000), chunk_size=(500, 500)``
-    Would yield 64 tuples of slices, each indexing 500x500.
-
-    If the shape is not divisible by the chunk_size, the last chunk in each dimension will be smaller.
-
-    :param tuple(int) shape: Shape of an array
-    :param tuple(int) chunk_size: length of each slice for each dimension
-    :return: Yields slices that can be used on an array of the given shape
-
-    >>> list(iter_slices((5,), (2,)))
-    [(slice(0, 2, None),), (slice(2, 4, None),), (slice(4, 5, None),)]
-    """
-    assert len(shape) == len(chunk_size)
-    num_grid_chunks = [int(ceil(s / float(c))) for s, c in zip(shape, chunk_size)]
-    for grid_index in numpy.ndindex(*num_grid_chunks):
-        yield tuple(
-            slice(min(d * c, stop), min((d + 1) * c, stop))
-            for d, c, stop in zip(grid_index, chunk_size, shape)
-        )
