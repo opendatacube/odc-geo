@@ -75,18 +75,8 @@ from ._roi import (
     w_,
 )
 
-from ._overlap import (
-    affine_from_pts,
-    compute_axis_overlap,
-    compute_reproject_roi,
-    decompose_rws,
-    get_scale_at_point,
-    native_pix_transform,
-)
-
 __all__ = [
     "__version__",
-    "affine_from_pts",
     "assign_crs",
     "bbox_intersection",
     "bbox_union",
@@ -95,20 +85,16 @@ __all__ = [
     "chop_along_antimeridian",
     "clip_lon180",
     "common_crs",
-    "compute_axis_overlap",
-    "compute_reproject_roi",
     "Coordinate",
     "CoordList",
     "crs_units_per_degree",
     "CRS",
     "CRSError",
     "CRSMismatchError",
-    "decompose_rws",
     "geobox_intersection_conservative",
     "geobox_union_conservative",
     "GeoBox",
     "Geometry",
-    "get_scale_at_point",
     "GridSpec",
     "intersects",
     "line",
@@ -119,7 +105,6 @@ __all__ = [
     "multiline",
     "multipoint",
     "multipolygon",
-    "native_pix_transform",
     "norm_crs",
     "norm_crs_or_error",
     "point",

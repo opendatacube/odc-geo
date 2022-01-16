@@ -18,18 +18,12 @@ from odc.geo import (
     BoundingBox,
     CRSMismatchError,
     GeoBox,
-    affine_from_pts,
     bbox_union,
     chop_along_antimeridian,
     clip_lon180,
     common_crs,
-    compute_axis_overlap,
-    compute_reproject_roi,
     crs_units_per_degree,
-    decompose_rws,
-    get_scale_at_point,
     multigeom,
-    native_pix_transform,
     projected_lon,
     roi_is_empty,
     roi_normalise,
@@ -47,6 +41,14 @@ from odc.geo._geobox import (
     geobox_union_conservative,
 )
 from odc.geo._geom import densify, force_2d
+from odc.geo._overlap import (
+    affine_from_pts,
+    compute_axis_overlap,
+    compute_reproject_roi,
+    decompose_rws,
+    get_scale_at_point,
+    native_pix_transform,
+)
 from odc.geo._roi import gbox_boundary, polygon_path
 from odc.geo.math import apply_affine, is_affine_st, split_translation
 from odc.geo.testutils.geom import (
