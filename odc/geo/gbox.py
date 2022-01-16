@@ -13,8 +13,8 @@ from affine import Affine
 
 from ._geobox import GeoBox
 from ._geom import BoundingBox, Geometry
+from ._roi import align_up
 from .math import clamp
-from .tools import align_up
 
 # pylint: disable=invalid-name
 MaybeInt = Optional[int]

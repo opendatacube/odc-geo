@@ -59,15 +59,7 @@ from ._geobox import (
 
 from ._gridspec import GridSpec
 
-from .tools import (
-    affine_from_pts,
-    apply_affine,
-    compute_axis_overlap,
-    compute_reproject_roi,
-    decompose_rws,
-    get_scale_at_point,
-    is_affine_st,
-    native_pix_transform,
+from ._roi import (
     roi_boundary,
     roi_center,
     roi_from_points,
@@ -80,8 +72,19 @@ from .tools import (
     scaled_down_roi,
     scaled_down_shape,
     scaled_up_roi,
-    split_translation,
     w_,
+)
+
+from ._overlap import (
+    affine_from_pts,
+    apply_affine,
+    compute_axis_overlap,
+    compute_reproject_roi,
+    decompose_rws,
+    get_scale_at_point,
+    is_affine_st,
+    native_pix_transform,
+    split_translation,
 )
 
 __all__ = [

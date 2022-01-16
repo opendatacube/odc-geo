@@ -50,6 +50,7 @@ from odc.geo._geobox import (
     geobox_union_conservative,
 )
 from odc.geo._geom import densify, force_2d
+from odc.geo._roi import gbox_boundary, polygon_path
 from odc.geo.testutils.geom import (
     SAMPLE_WKT_WITHOUT_AUTHORITY,
     AlbersGS,
@@ -63,7 +64,6 @@ from odc.geo.testutils.geom import (
     xy_from_gbox,
     xy_norm,
 )
-from odc.geo.tools import gbox_boundary
 
 
 def test_pickleable():
@@ -1094,8 +1094,6 @@ def test_crs():
 
 
 def test_polygon_path():
-    from odc.geo.tools import polygon_path
-
     pp = polygon_path([0, 1])
     assert pp.shape == (2, 5)
     assert set(pp.ravel()) == {0, 1}

@@ -18,8 +18,10 @@ from ._geom import (
     bbox_union,
     polygon_from_transform,
 )
+from ._overlap import is_affine_st
 from .math import is_almost_int
-from .tools import is_affine_st, roi_normalise, roi_shape
+
+from ._roi import roi_normalise, roi_shape
 
 Coordinate = namedtuple("Coordinate", ("values", "units", "resolution"))
 
