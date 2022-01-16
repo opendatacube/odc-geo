@@ -4,17 +4,20 @@
 # SPDX-License-Identifier: Apache-2.0
 import math
 from types import SimpleNamespace
-from typing import Tuple
+from typing import Optional, Tuple, Union
 
 import numpy as np
 from affine import Affine
 from numpy import linalg
 
+from ._geobox import GeoBox
 from ._roi import gbox_boundary, roi_boundary, roi_center, roi_from_points, roi_is_empty
 from .math import is_affine_st, maybe_int, snap_scale
 
 
-def decompose_rws(A):
+def decompose_rws(
+    A: Union[Affine, np.ndarray]
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Compute decomposition Affine matrix sans translation into Rotation, Shear and Scale.
 
@@ -226,7 +229,7 @@ def box_overlap(src_shape, dst_shape, ST, tol):
     return (s0, s1), (d0, d1)
 
 
-def native_pix_transform(src, dst):
+def native_pix_transform(src: GeoBox, dst: GeoBox):
     """
 
     direction: from src to dst
@@ -253,15 +256,23 @@ def native_pix_transform(src, dst):
     def tr(pts):
         return transform(pts, _fwd)
 
-    tr.back = lambda pts: transform(pts, _bwd)
-    tr.back.back = tr
-    tr.linear = None
-    tr.back.linear = None
+    # TODO: re-work with dataclasses
+
+    tr.back = lambda pts: transform(pts, _bwd)  # type: ignore
+    tr.back.back = tr  # type: ignore
+    tr.linear = None  # type: ignore
+    tr.back.linear = None  # type: ignore
 
     return tr
 
 
-def compute_reproject_roi(src, dst, tol=0.05, padding=None, align=None):
+def compute_reproject_roi(
+    src: GeoBox,
+    dst: GeoBox,
+    tol: float = 0.05,
+    padding: Optional[int] = None,
+    align: Optional[int] = None,
+):
     """Given two GeoBoxes find the region within the source GeoBox that overlaps
     with the destination GeoBox, and also compute the scale factor (>1 means
     shrink). Scale is chosen such that if you apply it to the source image
