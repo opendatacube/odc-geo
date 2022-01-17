@@ -47,12 +47,7 @@ from odc.geo._overlap import (
     native_pix_transform,
 )
 from odc.geo._roi import polygon_path
-from odc.geo.geobox import (
-    GeoBox,
-    _align_pix,
-    _round_to_res,
-    scaled_down_geobox,
-)
+from odc.geo.geobox import GeoBox, _align_pix, _round_to_res, scaled_down_geobox
 from odc.geo.math import apply_affine, is_affine_st, split_translation
 from odc.geo.testutils.geom import (
     SAMPLE_WKT_WITHOUT_AUTHORITY,
@@ -411,6 +406,9 @@ def test_boundingbox():
     assert BoundingBox.from_xy((2, 1), (20, 10)) == (1, 10, 2, 20)
     assert BoundingBox.from_points((1, 11), (2, 22)) == (1, 11, 2, 22)
     assert BoundingBox.from_points((1, 22), (2, 11)) == (1, 11, 2, 22)
+
+    assert BoundingBox(1, 3, 10, 20).buffered(1, 3) == (0, 0, 11, 23)
+    assert BoundingBox(1, 3, 10, 20).buffered(1) == (0, 2, 11, 21)
 
 
 def test_densify():

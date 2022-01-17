@@ -194,8 +194,9 @@ def test_geobox():
     with pytest.raises(ValueError):
         gbox[:1, :1, :]
 
-    assert gbox.buffered(10, 0).shape == (gbox.height + 2 * 1, gbox.width)
-    assert gbox.buffered(30, 20).shape == (gbox.height + 2 * 3, gbox.width + 2 * 2)
+    assert gbox.buffered(0, 10).shape == (gbox.height + 2 * 1, gbox.width)
+    assert gbox.buffered(10).shape == (gbox.height + 2 * 1, gbox.width + 2 * 1)
+    assert gbox.buffered(20, 30).shape == (gbox.height + 2 * 3, gbox.width + 2 * 2)
 
     assert (gbox | gbox) == gbox
     assert (gbox & gbox) == gbox

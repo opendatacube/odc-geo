@@ -97,10 +97,13 @@ class GeoBox:
         )
         return GeoBox(crs=crs, affine=affine, width=width, height=height)
 
-    def buffered(self, ybuff, xbuff) -> "GeoBox":
+    def buffered(self, xbuff: float, ybuff: Optional[float] = None) -> "GeoBox":
         """
-        Produce a tile buffered by ybuff, xbuff (in CRS units)
+        Produce a tile buffered by xbuff, ybuff (in CRS units)
         """
+        if ybuff is None:
+            ybuff = xbuff
+
         by, bx = (
             _round_to_res(buf, res) for buf, res in zip((ybuff, xbuff), self.resolution)
         )

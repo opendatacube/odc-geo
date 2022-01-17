@@ -15,14 +15,7 @@ from affine import Affine
 from shapely import geometry, ops
 from shapely.geometry import base
 
-from ._crs import (
-    CRS,
-    CRSMismatchError,
-    MaybeCRS,
-    SomeCRS,
-    norm_crs,
-    norm_crs_or_error,
-)
+from ._crs import CRS, CRSMismatchError, MaybeCRS, SomeCRS, norm_crs, norm_crs_or_error
 
 _BoundingBox = namedtuple("_BoundingBox", ("left", "bottom", "right", "top"))
 CoordList = List[Tuple[float, float]]
@@ -33,19 +26,22 @@ CoordList = List[Tuple[float, float]]
 class BoundingBox(_BoundingBox):
     """Bounding box, defining extent in cartesian coordinates."""
 
-    def buffered(self, ybuff: float, xbuff: float) -> "BoundingBox":
+    def buffered(self, xbuff: float, ybuff: Optional[float] = None) -> "BoundingBox":
         """
         Return a new BoundingBox, buffered in the x and y dimensions.
 
-        :param ybuff: Y dimension buffering amount
         :param xbuff: X dimension buffering amount
+        :param ybuff: Y dimension buffering amount
         :return: new BoundingBox
         """
+        if ybuff is None:
+            ybuff = xbuff
+
         return BoundingBox(
             left=self.left - xbuff,
+            bottom=self.bottom - ybuff,
             right=self.right + xbuff,
             top=self.top + ybuff,
-            bottom=self.bottom - ybuff,
         )
 
     @property
