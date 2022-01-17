@@ -147,6 +147,8 @@ def test_geobox():
         resolution = (-25, 25)
         geobox = GeoBox.from_geopolygon(polygon, resolution)
 
+        assert GeoBox.from_geopolygon(polygon, resolution, crs=geobox.crs) == geobox
+
         assert abs(resolution[0]) > abs(
             geobox.extent.boundingbox.left - polygon.boundingbox.left
         )
@@ -171,6 +173,7 @@ def test_geobox():
     assert gbox.geographic_extent.crs == epsg4326
     assert gbox.extent.boundingbox.height == h * 10.0
     assert gbox.extent.boundingbox.width == w * 10.0
+    assert gbox.alignment == (4, 0)  # 4 because -2983006 % 10 is 4
     assert isinstance(str(gbox), str)
     assert "EPSG:3577" in repr(gbox)
 

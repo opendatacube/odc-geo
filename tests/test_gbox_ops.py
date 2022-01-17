@@ -176,6 +176,7 @@ def test_gbox_tiles():
     np.testing.assert_array_equal(cc, np.ones(tt.shape))
 
     assert list(tt.tiles(gbox[:h, :w].extent)) == [(0, 0)]
+    assert list(tt.tiles(gbox[:h, :w].extent.to_crs("epsg:4326"))) == [(0, 0)]
 
     (H, W) = (11, 22)
     (h, w) = (10, 20)
