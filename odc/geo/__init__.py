@@ -57,8 +57,6 @@ from ._geobox import (
     scaled_down_geobox,
 )
 
-from ._gridspec import GridSpec
-
 from ._roi import (
     roi_boundary,
     roi_center,
@@ -95,7 +93,6 @@ __all__ = [
     "geobox_union_conservative",
     "GeoBox",
     "Geometry",
-    "GridSpec",
     "intersects",
     "line",
     "lonlat_bounds",

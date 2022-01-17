@@ -144,10 +144,10 @@ class GridSpec:
 
         tile_size_y, tile_size_x = self.tile_size
         tile_origin_y, tile_origin_x = self.origin
-        for y in GridSpec.grid_range(
+        for y in GridSpec._grid_range(
             bounds.bottom - tile_origin_y, bounds.top - tile_origin_y, tile_size_y
         ):
-            for x in GridSpec.grid_range(
+            for x in GridSpec._grid_range(
                 bounds.left - tile_origin_x, bounds.right - tile_origin_x, tile_size_x
             ):
                 tile_index = (x, y)
@@ -187,26 +187,11 @@ class GridSpec:
                 yield (tile_index, tile_geobox)
 
     @staticmethod
-    def grid_range(lower: float, upper: float, step: float) -> range:
+    def _grid_range(lower: float, upper: float, step: float) -> range:
         """
         Returns the indices along a 1D scale.
 
         Used for producing 2D grid indices.
-
-        >>> list(GridSpec.grid_range(-4.0, -1.0, 3.0))
-        [-2, -1]
-        >>> list(GridSpec.grid_range(1.0, 4.0, -3.0))
-        [-2, -1]
-        >>> list(GridSpec.grid_range(-3.0, 0.0, 3.0))
-        [-1]
-        >>> list(GridSpec.grid_range(-2.0, 1.0, 3.0))
-        [-1, 0]
-        >>> list(GridSpec.grid_range(-1.0, 2.0, 3.0))
-        [-1, 0]
-        >>> list(GridSpec.grid_range(0.0, 3.0, 3.0))
-        [0]
-        >>> list(GridSpec.grid_range(1.0, 4.0, 3.0))
-        [0, 1]
         """
         if step < 0.0:
             lower, upper, step = -upper, -lower, -step

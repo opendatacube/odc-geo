@@ -4,7 +4,8 @@
 # SPDX-License-Identifier: Apache-2.0
 import numpy
 
-from odc.geo import CRS, BoundingBox, GridSpec, polygon
+from odc.geo import CRS, BoundingBox, polygon
+from odc.geo.gridspec import GridSpec
 
 
 def test_gridspec():
@@ -73,3 +74,13 @@ def test_gridspec_upperleft():
         (30, 15)
     }  # WELD grid spec has 21 vertical cells -- 21 - 6 = 15
     assert cells[(30, 15)].extent.boundingbox == tile_bbox
+
+
+def test_grid_range():
+    assert list(GridSpec._grid_range(-4.0, -1.0, 3.0)) == [-2, -1]
+    assert list(GridSpec._grid_range(+1.0, 4.0, -3.0)) == [-2, -1]
+    assert list(GridSpec._grid_range(-3.0, 0.0, 3.0)) == [-1]
+    assert list(GridSpec._grid_range(-2.0, 1.0, 3.0)) == [-1, 0]
+    assert list(GridSpec._grid_range(-1.0, 2.0, 3.0)) == [-1, 0]
+    assert list(GridSpec._grid_range(+0.0, 3.0, 3.0)) == [0]
+    assert list(GridSpec._grid_range(+1.0, 4.0, 3.0)) == [0, 1]
