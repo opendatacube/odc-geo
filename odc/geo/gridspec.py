@@ -63,9 +63,9 @@ class GridSpec:
         return (y, x)
 
     @property
-    def tile_resolution(self) -> Tuple[int, int]:
+    def tile_shape(self) -> Tuple[int, int]:
         """
-        Tile size in pixels in CRS dimension order (Usually y,x or lat,lon)
+        Tile shape in pixels in Y,X order, like numpy
         """
         y, x = (int(abs(ts / res)) for ts, res in zip(self.tile_size, self.resolution))
         return (y, x)
@@ -96,7 +96,7 @@ class GridSpec:
         """
         res_y, res_x = self.resolution
         y, x = self.tile_coords(tile_index)
-        h, w = self.tile_resolution
+        h, w = self.tile_shape
         geobox = GeoBox(
             crs=self.crs, affine=Affine(res_x, 0.0, x, 0.0, res_y, y), width=w, height=h
         )
