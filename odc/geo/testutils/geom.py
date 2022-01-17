@@ -7,7 +7,8 @@ from typing import Callable, Tuple, Union
 import numpy as np
 from affine import Affine
 
-from odc.geo import CRS, GeoBox
+from odc.geo import CRS
+from odc.geo.geobox import GeoBox
 from odc.geo.gridspec import GridSpec
 from odc.geo.math import apply_affine
 

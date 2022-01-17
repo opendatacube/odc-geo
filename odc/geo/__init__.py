@@ -48,15 +48,6 @@ from ._geom import (
     unary_union,
 )
 
-from ._geobox import (
-    Coordinate,
-    GeoBox,
-    assign_crs,
-    geobox_intersection_conservative,
-    geobox_union_conservative,
-    scaled_down_geobox,
-)
-
 from ._roi import (
     roi_boundary,
     roi_center,
@@ -75,7 +66,6 @@ from ._roi import (
 
 __all__ = [
     "__version__",
-    "assign_crs",
     "bbox_intersection",
     "bbox_union",
     "BoundingBox",
@@ -83,15 +73,11 @@ __all__ = [
     "chop_along_antimeridian",
     "clip_lon180",
     "common_crs",
-    "Coordinate",
     "CoordList",
     "crs_units_per_degree",
     "CRS",
     "CRSError",
     "CRSMismatchError",
-    "geobox_intersection_conservative",
-    "geobox_union_conservative",
-    "GeoBox",
     "Geometry",
     "intersects",
     "line",
@@ -117,7 +103,6 @@ __all__ = [
     "roi_normalise",
     "roi_pad",
     "roi_shape",
-    "scaled_down_geobox",
     "scaled_down_roi",
     "scaled_down_shape",
     "scaled_up_roi",

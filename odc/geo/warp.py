@@ -9,7 +9,7 @@ import rasterio.crs
 import rasterio.warp
 from affine import Affine
 
-from ._geobox import GeoBox
+from .geobox import GeoBox
 
 Resampling = Union[str, int, rasterio.warp.Resampling]  # pylint: disable=invalid-name
 Nodata = Optional[Union[int, float]]  # pylint: disable=invalid-name

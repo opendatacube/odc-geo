@@ -17,7 +17,6 @@ from odc.geo import (
     CRS,
     BoundingBox,
     CRSMismatchError,
-    GeoBox,
     bbox_union,
     chop_along_antimeridian,
     clip_lon180,
@@ -28,18 +27,9 @@ from odc.geo import (
     roi_is_empty,
     roi_normalise,
     roi_shape,
-    scaled_down_geobox,
     w_,
 )
 from odc.geo._crs import _guess_crs_str, norm_crs, norm_crs_or_error
-from odc.geo._geobox import (
-    _align_pix,
-    _mk_crs_coord,
-    _round_to_res,
-    bounding_box_in_pixel_domain,
-    geobox_intersection_conservative,
-    geobox_union_conservative,
-)
 from odc.geo._geom import densify, force_2d
 from odc.geo._overlap import (
     affine_from_pts,
@@ -50,6 +40,16 @@ from odc.geo._overlap import (
     native_pix_transform,
 )
 from odc.geo._roi import gbox_boundary, polygon_path
+from odc.geo.geobox import (
+    GeoBox,
+    _align_pix,
+    _mk_crs_coord,
+    _round_to_res,
+    bounding_box_in_pixel_domain,
+    geobox_intersection_conservative,
+    geobox_union_conservative,
+    scaled_down_geobox,
+)
 from odc.geo.math import apply_affine, is_affine_st, split_translation
 from odc.geo.testutils.geom import (
     SAMPLE_WKT_WITHOUT_AUTHORITY,
@@ -74,7 +74,7 @@ def test_pickleable():
 
 
 def test_geobox_simple():
-    t = geometry.GeoBox(
+    t = GeoBox(
         4000, 4000, Affine(0.00025, 0.0, 151.0, 0.0, -0.00025, -29.0), epsg4326
     )
 
@@ -120,7 +120,7 @@ def test_geobox_simple():
 
     # ensure GeoBox accepts string CRS
     assert isinstance(
-        geometry.GeoBox(
+        GeoBox(
             4000, 4000, Affine(0.00025, 0.0, 151.0, 0.0, -0.00025, -29.0), "epsg:4326"
         ).crs,
         CRS,
@@ -754,7 +754,7 @@ def test_geobox():
     for points in points_list:
         polygon = geometry.polygon(points, crs=epsg3577)
         resolution = (-25, 25)
-        geobox = geometry.GeoBox.from_geopolygon(polygon, resolution)
+        geobox = GeoBox.from_geopolygon(polygon, resolution)
 
         assert abs(resolution[0]) > abs(
             geobox.extent.boundingbox.left - polygon.boundingbox.left
@@ -1365,8 +1365,8 @@ def test_pix_transform():
 
     A = mkA(scale=(20, -20), translation=pt)
 
-    src = geometry.GeoBox(1024, 512, A, epsg3577)
-    dst = geometry.GeoBox.from_geopolygon(src.geographic_extent, (0.0001, -0.0001))
+    src = GeoBox(1024, 512, A, epsg3577)
+    dst = GeoBox.from_geopolygon(src.geographic_extent, (0.0001, -0.0001))
 
     tr = native_pix_transform(src, dst)
 
@@ -1406,7 +1406,7 @@ def test_pix_transform():
 
 def test_compute_reproject_roi():
     src = AlbersGS.tile_geobox((15, -40))
-    dst = geometry.GeoBox.from_geopolygon(
+    dst = GeoBox.from_geopolygon(
         src.extent.to_crs(epsg3857).buffer(10), resolution=src.resolution
     )
 

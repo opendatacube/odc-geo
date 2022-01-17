@@ -9,7 +9,7 @@ from typing import Iterator, Optional, Tuple
 from affine import Affine
 
 from ._crs import CRS
-from ._geobox import GeoBox
+from .geobox import GeoBox
 from ._geom import BoundingBox, Geometry, intersects
 
 

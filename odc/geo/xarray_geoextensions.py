@@ -12,7 +12,7 @@ from typing import Optional, Tuple, Union
 import xarray
 
 from ._crs import CRS, CRSError
-from ._geobox import GeoBox
+from .geobox import GeoBox
 from .math import affine_from_axis
 
 

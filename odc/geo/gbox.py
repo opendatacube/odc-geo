@@ -11,7 +11,7 @@ from typing import Dict, Iterable, Optional, Tuple
 
 from affine import Affine
 
-from ._geobox import GeoBox
+from .geobox import GeoBox
 from ._geom import BoundingBox, Geometry
 from ._roi import align_up
 from .math import clamp
