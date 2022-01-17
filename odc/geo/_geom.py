@@ -20,8 +20,6 @@ from ._crs import CRS, CRSMismatchError, MaybeCRS, SomeCRS, norm_crs, norm_crs_o
 _BoundingBox = namedtuple("_BoundingBox", ("left", "bottom", "right", "top"))
 CoordList = List[Tuple[float, float]]
 
-# pylint: disable=too-many-lines
-
 
 class BoundingBox(_BoundingBox):
     """Bounding box, defining extent in cartesian coordinates."""
