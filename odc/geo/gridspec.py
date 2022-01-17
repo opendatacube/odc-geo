@@ -12,22 +12,10 @@ from ._crs import CRS
 from ._geobox import GeoBox
 from ._geom import BoundingBox, Geometry, intersects
 
-DEFAULT_SPATIAL_DIMS = ("y", "x")  # Used when product lacks grid_spec
-
 
 class GridSpec:
     """
     Definition for a regular spatial grid.
-
-    >>> gs = GridSpec(crs=CRS('EPSG:4326'), tile_size=(1, 1), resolution=(-0.1, 0.1), origin=(-50.05, 139.95))
-    >>> gs.tile_resolution
-    (10, 10)
-    >>> list(gs.tiles(BoundingBox(140, -50, 141.5, -48.5)))
-    [((0, 0), GeoBox(10, 10, Affine(0.1, 0.0, 139.95,
-           0.0, -0.1, -49.05), EPSG:4326)), ((1, 0), GeoBox(10, 10, Affine(0.1, 0.0, 140.95,
-           0.0, -0.1, -49.05), EPSG:4326)), ((0, 1), GeoBox(10, 10, Affine(0.1, 0.0, 139.95,
-           0.0, -0.1, -48.05), EPSG:4326)), ((1, 1), GeoBox(10, 10, Affine(0.1, 0.0, 140.95,
-           0.0, -0.1, -48.05), EPSG:4326))]
 
     :param CRS crs: Coordinate System used to define the grid
     :param [float,float] tile_size: (Y, X) size of each tile, in CRS units
@@ -63,7 +51,6 @@ class GridSpec:
     def dimensions(self) -> Tuple[str, str]:
         """
         List of dimension names of the grid spec
-
         """
         return self.crs.dimensions
 
