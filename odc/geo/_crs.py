@@ -4,12 +4,10 @@
 # SPDX-License-Identifier: Apache-2.0
 import math
 import warnings
-from distutils.version import LooseVersion
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Union
 
 import cachetools
 import numpy
-import rasterio
 from pyproj.crs import CRS as _CRS
 from pyproj.enums import WktVersion
 from pyproj.exceptions import CRSError
@@ -58,12 +56,7 @@ class CRS:
     Wrapper around `pyproj.CRS` for backwards compatibility.
     """
 
-    DEFAULT_WKT_VERSION = (
-        WktVersion.WKT1_GDAL
-        if LooseVersion(rasterio.__gdal_version__) < LooseVersion("3.0.0")
-        else WktVersion.WKT2_2019
-    )
-
+    DEFAULT_WKT_VERSION = WktVersion.WKT2_2019
     __slots__ = ("_crs", "_epsg", "_str")
 
     def __init__(self, crs_str: Any):
@@ -300,4 +293,4 @@ def crs_units_per_degree(
 
 
 if TYPE_CHECKING:
-    from . import _geom
+    from . import _geom  # pragma: no cover

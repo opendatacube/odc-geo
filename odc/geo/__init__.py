@@ -48,26 +48,7 @@ from ._geom import (
     unary_union,
 )
 
-from ._geobox import (
-    Coordinate,
-    GeoBox,
-    assign_crs,
-    geobox_intersection_conservative,
-    geobox_union_conservative,
-    scaled_down_geobox,
-)
-
-from ._gridspec import GridSpec
-
-from .tools import (
-    affine_from_pts,
-    apply_affine,
-    compute_axis_overlap,
-    compute_reproject_roi,
-    decompose_rws,
-    get_scale_at_point,
-    is_affine_st,
-    native_pix_transform,
+from ._roi import (
     roi_boundary,
     roi_center,
     roi_from_points,
@@ -80,17 +61,11 @@ from .tools import (
     scaled_down_roi,
     scaled_down_shape,
     scaled_up_roi,
-    split_translation,
     w_,
 )
-from ._warp import rio_reproject, warp_affine
-
 
 __all__ = [
     "__version__",
-    "affine_from_pts",
-    "apply_affine",
-    "assign_crs",
     "bbox_intersection",
     "bbox_union",
     "BoundingBox",
@@ -98,23 +73,13 @@ __all__ = [
     "chop_along_antimeridian",
     "clip_lon180",
     "common_crs",
-    "compute_axis_overlap",
-    "compute_reproject_roi",
-    "Coordinate",
     "CoordList",
     "crs_units_per_degree",
     "CRS",
     "CRSError",
     "CRSMismatchError",
-    "decompose_rws",
-    "geobox_intersection_conservative",
-    "geobox_union_conservative",
-    "GeoBox",
     "Geometry",
-    "get_scale_at_point",
-    "GridSpec",
     "intersects",
-    "is_affine_st",
     "line",
     "lonlat_bounds",
     "MaybeCRS",
@@ -123,14 +88,12 @@ __all__ = [
     "multiline",
     "multipoint",
     "multipolygon",
-    "native_pix_transform",
     "norm_crs",
     "norm_crs_or_error",
     "point",
     "polygon_from_transform",
     "polygon",
     "projected_lon",
-    "rio_reproject",
     "roi_boundary",
     "roi_center",
     "roi_from_points",
@@ -140,15 +103,12 @@ __all__ = [
     "roi_normalise",
     "roi_pad",
     "roi_shape",
-    "scaled_down_geobox",
     "scaled_down_roi",
     "scaled_down_shape",
     "scaled_up_roi",
     "sides",
     "SomeCRS",
-    "split_translation",
     "unary_intersection",
     "unary_union",
     "w_",
-    "warp_affine",
 ]

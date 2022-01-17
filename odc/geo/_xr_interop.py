@@ -7,12 +7,13 @@ Add geometric extensions to :class:`xarray.Dataset` and :class:`xarray.DataArray
 with Data Cube by Monkey Patching those classes.
 """
 import warnings
-from typing import Optional, Tuple, Union
+from typing import Dict, Hashable, Optional, Tuple, Union
 
+import numpy
 import xarray
 
-from ._crs import CRS, CRSError
-from ._geobox import GeoBox
+from ._crs import CRS, CRSError, MaybeCRS, norm_crs_or_error
+from .geobox import Coordinate, GeoBox
 from .math import affine_from_axis
 
 
@@ -170,16 +171,6 @@ def _xarray_affine_impl(obj):
     return affine_from_axis(xx.values, yy.values, fallback_res), sdims
 
 
-def _xarray_affine(obj):
-    transform, _ = _xarray_affine_impl(obj)
-    return transform
-
-
-def _xarray_extent(obj):
-    geobox = obj.geobox
-    return None if geobox is None else geobox.extent
-
-
 def _xarray_geobox(obj):
     transform, sdims = _xarray_affine_impl(obj)
     if sdims is None:
@@ -208,9 +199,120 @@ def _xarray_geobox(obj):
     return GeoBox(w, h, transform, crs)
 
 
+def _mk_crs_coord(crs: CRS, name: str = "spatial_ref") -> xarray.DataArray:
+    # pylint: disable=protected-access
+
+    if crs.projected:
+        grid_mapping_name = crs._crs.to_cf().get("grid_mapping_name")
+        if grid_mapping_name is None:
+            grid_mapping_name = "??"
+        grid_mapping_name = grid_mapping_name.lower()
+    else:
+        grid_mapping_name = "latitude_longitude"
+
+    epsg = 0 if crs.epsg is None else crs.epsg
+
+    return xarray.DataArray(
+        numpy.asarray(epsg, "int32"),
+        name=name,
+        dims=(),
+        attrs={"spatial_ref": crs.wkt, "grid_mapping_name": grid_mapping_name},
+    )
+
+
+def _coord_to_xr(name: str, c: Coordinate, **attrs) -> xarray.DataArray:
+    """Construct xr.DataArray from named Coordinate object, this can then be used
+    to define coordinates for xr.Dataset|xr.DataArray
+    """
+    attrs = dict(units=c.units, resolution=c.resolution, **attrs)
+    return xarray.DataArray(
+        c.values, coords={name: c.values}, dims=(name,), attrs=attrs
+    )
+
+
+def assign_crs(
+    xx: Union[xarray.DataArray, xarray.Dataset],
+    crs: MaybeCRS = None,
+    crs_coord_name: str = "spatial_ref",
+) -> Union[xarray.Dataset, xarray.DataArray]:
+    """
+    Assign CRS for a non-georegistered array or dataset.
+
+    Returns a new object with CRS information populated.
+
+    Can also be called without ``crs`` argument on data that already has CRS
+    information but not in the format used by datacube, in this case CRS
+    metadata will be restructured into a shape used by datacube. This format
+    allows for better propagation of CRS information through various
+    computations.
+
+    .. code-block:: python
+
+        xx = odc.geo.assign_crs(xr.open_rasterio("some-file.tif"))
+        print(xx.geobox)
+        print(xx.astype("float32").geobox)
+
+
+    :param xx: :py:class:`xarray.Dataset` or :py:class:`~xarray.DataArray`
+    :param crs: CRS to assign, if omitted try to guess from attributes
+    :param crs_coord_name: how to name crs corodinate (defaults to ``spatial_ref``)
+    """
+    if crs is None:
+        geobox = getattr(xx, "geobox", None)
+        if geobox is None:
+            raise ValueError("Failed to guess CRS for this object")
+        crs = geobox.crs
+
+    crs = norm_crs_or_error(crs)
+    crs_coord = _mk_crs_coord(crs, name=crs_coord_name)
+    xx = xx.assign_coords({crs_coord.name: crs_coord})
+
+    xx.attrs.update(grid_mapping=crs_coord_name)
+
+    if isinstance(xx, xarray.Dataset):
+        for band in xx.data_vars.values():
+            band.attrs.update(grid_mapping=crs_coord_name)
+
+    return xx
+
+
+def xr_coords(
+    gbox: GeoBox, with_crs: Union[bool, str] = False
+) -> Dict[Hashable, xarray.DataArray]:
+    """Dictionary of Coordinates in xarray format
+
+    :param with_crs: If True include netcdf/cf style CRS Coordinate
+    with default name 'spatial_ref', if with_crs is a string then treat
+    the string as a name of the coordinate.
+
+    Returns
+    =======
+
+    OrderedDict name:str -> xr.DataArray
+
+    where names are either `y,x` for projected or `latitude, longitude` for geographic.
+
+    """
+    spatial_ref = "spatial_ref"
+    if isinstance(with_crs, str):
+        spatial_ref = with_crs
+        with_crs = True
+
+    attrs = {}
+    coords = gbox.coordinates
+    crs = gbox.crs
+    if crs is not None:
+        attrs["crs"] = str(crs)
+
+    coords: Dict[Hashable, xarray.DataArray] = {
+        n: _coord_to_xr(n, c, **attrs) for n, c in coords.items()
+    }
+
+    if with_crs and crs is not None:
+        coords[spatial_ref] = _mk_crs_coord(crs, spatial_ref)
+
+    return coords
+
+
 xarray.Dataset.geobox = property(_xarray_geobox)  # type: ignore
-xarray.Dataset.affine = property(_xarray_affine)  # type: ignore
-xarray.Dataset.extent = property(_xarray_extent)  # type: ignore
 xarray.DataArray.geobox = property(_xarray_geobox)  # type: ignore
-xarray.DataArray.affine = property(_xarray_affine)  # type: ignore
-xarray.DataArray.extent = property(_xarray_extent)  # type: ignore

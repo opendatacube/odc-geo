@@ -9,25 +9,13 @@ from typing import Iterator, Optional, Tuple
 from affine import Affine
 
 from ._crs import CRS
-from ._geobox import GeoBox
+from .geobox import GeoBox
 from ._geom import BoundingBox, Geometry, intersects
-
-DEFAULT_SPATIAL_DIMS = ("y", "x")  # Used when product lacks grid_spec
 
 
 class GridSpec:
     """
     Definition for a regular spatial grid.
-
-    >>> gs = GridSpec(crs=CRS('EPSG:4326'), tile_size=(1, 1), resolution=(-0.1, 0.1), origin=(-50.05, 139.95))
-    >>> gs.tile_resolution
-    (10, 10)
-    >>> list(gs.tiles(BoundingBox(140, -50, 141.5, -48.5)))
-    [((0, 0), GeoBox(10, 10, Affine(0.1, 0.0, 139.95,
-           0.0, -0.1, -49.05), EPSG:4326)), ((1, 0), GeoBox(10, 10, Affine(0.1, 0.0, 140.95,
-           0.0, -0.1, -49.05), EPSG:4326)), ((0, 1), GeoBox(10, 10, Affine(0.1, 0.0, 139.95,
-           0.0, -0.1, -48.05), EPSG:4326)), ((1, 1), GeoBox(10, 10, Affine(0.1, 0.0, 140.95,
-           0.0, -0.1, -48.05), EPSG:4326))]
 
     :param CRS crs: Coordinate System used to define the grid
     :param [float,float] tile_size: (Y, X) size of each tile, in CRS units
@@ -63,7 +51,6 @@ class GridSpec:
     def dimensions(self) -> Tuple[str, str]:
         """
         List of dimension names of the grid spec
-
         """
         return self.crs.dimensions
 
@@ -76,9 +63,9 @@ class GridSpec:
         return (y, x)
 
     @property
-    def tile_resolution(self) -> Tuple[int, int]:
+    def tile_shape(self) -> Tuple[int, int]:
         """
-        Tile size in pixels in CRS dimension order (Usually y,x or lat,lon)
+        Tile shape in pixels in Y,X order, like numpy
         """
         y, x = (int(abs(ts / res)) for ts, res in zip(self.tile_size, self.resolution))
         return (y, x)
@@ -109,7 +96,7 @@ class GridSpec:
         """
         res_y, res_x = self.resolution
         y, x = self.tile_coords(tile_index)
-        h, w = self.tile_resolution
+        h, w = self.tile_shape
         geobox = GeoBox(
             crs=self.crs, affine=Affine(res_x, 0.0, x, 0.0, res_y, y), width=w, height=h
         )
@@ -144,10 +131,10 @@ class GridSpec:
 
         tile_size_y, tile_size_x = self.tile_size
         tile_origin_y, tile_origin_x = self.origin
-        for y in GridSpec.grid_range(
+        for y in GridSpec._grid_range(
             bounds.bottom - tile_origin_y, bounds.top - tile_origin_y, tile_size_y
         ):
-            for x in GridSpec.grid_range(
+            for x in GridSpec._grid_range(
                 bounds.left - tile_origin_x, bounds.right - tile_origin_x, tile_size_x
             ):
                 tile_index = (x, y)
@@ -187,26 +174,11 @@ class GridSpec:
                 yield (tile_index, tile_geobox)
 
     @staticmethod
-    def grid_range(lower: float, upper: float, step: float) -> range:
+    def _grid_range(lower: float, upper: float, step: float) -> range:
         """
         Returns the indices along a 1D scale.
 
         Used for producing 2D grid indices.
-
-        >>> list(GridSpec.grid_range(-4.0, -1.0, 3.0))
-        [-2, -1]
-        >>> list(GridSpec.grid_range(1.0, 4.0, -3.0))
-        [-2, -1]
-        >>> list(GridSpec.grid_range(-3.0, 0.0, 3.0))
-        [-1]
-        >>> list(GridSpec.grid_range(-2.0, 1.0, 3.0))
-        [-1, 0]
-        >>> list(GridSpec.grid_range(-1.0, 2.0, 3.0))
-        [-1, 0]
-        >>> list(GridSpec.grid_range(0.0, 3.0, 3.0))
-        [0]
-        >>> list(GridSpec.grid_range(1.0, 4.0, 3.0))
-        [0, 1]
         """
         if step < 0.0:
             lower, upper, step = -upper, -lower, -step

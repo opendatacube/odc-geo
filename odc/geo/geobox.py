@@ -2,15 +2,15 @@
 #
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
+import itertools
 import math
 from collections import OrderedDict, namedtuple
-from typing import Dict, Hashable, List, Optional, Tuple, Union
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import numpy
-import xarray as xr
 from affine import Affine
 
-from ._crs import CRS, MaybeCRS, norm_crs_or_error
+from ._crs import CRS, MaybeCRS
 from ._geom import (
     BoundingBox,
     Geometry,
@@ -18,8 +18,13 @@ from ._geom import (
     bbox_union,
     polygon_from_transform,
 )
-from .math import is_almost_int
-from .tools import is_affine_st, roi_normalise, roi_shape
+from ._roi import align_up, polygon_path, roi_normalise, roi_shape
+from .math import clamp, is_affine_st, is_almost_int
+
+# pylint: disable=invalid-name
+MaybeInt = Optional[int]
+MaybeFloat = Optional[float]
+
 
 Coordinate = namedtuple("Coordinate", ("values", "units", "resolution"))
 
@@ -91,10 +96,13 @@ class GeoBox:
         )
         return GeoBox(crs=crs, affine=affine, width=width, height=height)
 
-    def buffered(self, ybuff, xbuff) -> "GeoBox":
+    def buffered(self, xbuff: float, ybuff: Optional[float] = None) -> "GeoBox":
         """
-        Produce a tile buffered by ybuff, xbuff (in CRS units)
+        Produce a tile buffered by xbuff, ybuff (in CRS units)
         """
+        if ybuff is None:
+            ybuff = xbuff
+
         by, bx = (
             _round_to_res(buf, res) for buf, res in zip((ybuff, xbuff), self.resolution)
         )
@@ -203,43 +211,6 @@ class GeoBox:
             )
         )
 
-    def xr_coords(
-        self, with_crs: Union[bool, str] = False
-    ) -> Dict[Hashable, xr.DataArray]:
-        """Dictionary of Coordinates in xarray format
-
-        :param with_crs: If True include netcdf/cf style CRS Coordinate
-        with default name 'spatial_ref', if with_crs is a string then treat
-        the string as a name of the coordinate.
-
-        Returns
-        =======
-
-        OrderedDict name:str -> xr.DataArray
-
-        where names are either `y,x` for projected or `latitude, longitude` for geographic.
-
-        """
-        spatial_ref = "spatial_ref"
-        if isinstance(with_crs, str):
-            spatial_ref = with_crs
-            with_crs = True
-
-        attrs = {}
-        coords = self.coordinates
-        crs = self.crs
-        if crs is not None:
-            attrs["crs"] = str(crs)
-
-        coords: Dict[Hashable, xr.DataArray] = {
-            n: _coord_to_xr(n, c, **attrs) for n, c in coords.items()
-        }
-
-        if with_crs and crs is not None:
-            coords[spatial_ref] = _mk_crs_coord(crs, spatial_ref)
-
-        return coords
-
     @property
     def geographic_extent(self) -> Geometry:
         """GeoBox extent in EPSG:4326"""
@@ -265,6 +236,15 @@ class GeoBox:
             and self.transform == other.transform
             and self.crs == other.crs
         )
+
+
+def gbox_boundary(gbox: GeoBox, pts_per_side: int = 16) -> Geometry:
+    """Return points in pixel space along the perimeter of a GeoBox, or a 2d array."""
+    H, W = gbox.shape[:2]
+    xx = numpy.linspace(0, W, pts_per_side, dtype="float32")
+    yy = numpy.linspace(0, H, pts_per_side, dtype="float32")
+
+    return polygon_path(xx, yy).T[:-1]
 
 
 def bounding_box_in_pixel_domain(geobox: GeoBox, reference: GeoBox) -> BoundingBox:
@@ -370,76 +350,219 @@ def _round_to_res(value: float, res: float) -> int:
     return int(math.ceil((value - 0.1 * res) / res))
 
 
-def _mk_crs_coord(crs: CRS, name: str = "spatial_ref") -> xr.DataArray:
-    # pylint: disable=protected-access
-
-    if crs.projected:
-        grid_mapping_name = crs._crs.to_cf().get("grid_mapping_name")
-        if grid_mapping_name is None:
-            grid_mapping_name = "??"
-        grid_mapping_name = grid_mapping_name.lower()
-    else:
-        grid_mapping_name = "latitude_longitude"
-
-    epsg = 0 if crs.epsg is None else crs.epsg
-
-    return xr.DataArray(
-        numpy.asarray(epsg, "int32"),
-        name=name,
-        dims=(),
-        attrs={"spatial_ref": crs.wkt, "grid_mapping_name": grid_mapping_name},
-    )
-
-
-def _coord_to_xr(name: str, c: Coordinate, **attrs) -> xr.DataArray:
-    """Construct xr.DataArray from named Coordinate object, this can then be used
-    to define coordinates for xr.Dataset|xr.DataArray
+def flipy(gbox: GeoBox) -> GeoBox:
     """
-    attrs = dict(units=c.units, resolution=c.resolution, **attrs)
-    return xr.DataArray(c.values, coords={name: c.values}, dims=(name,), attrs=attrs)
-
-
-def assign_crs(
-    xx: Union[xr.DataArray, xr.Dataset],
-    crs: MaybeCRS = None,
-    crs_coord_name: str = "spatial_ref",
-) -> Union[xr.Dataset, xr.DataArray]:
+    :returns: GeoBox covering the same region but with Y-axis flipped
     """
-    Assign CRS for a non-georegistered array or dataset.
-
-    Returns a new object with CRS information populated.
-
-    Can also be called without ``crs`` argument on data that already has CRS
-    information but not in the format used by datacube, in this case CRS
-    metadata will be restructured into a shape used by datacube. This format
-    allows for better propagation of CRS information through various
-    computations.
-
-    .. code-block:: python
-
-        xx = odc.geo.assign_crs(xr.open_rasterio("some-file.tif"))
-        print(xx.geobox)
-        print(xx.astype("float32").geobox)
+    H, W = gbox.shape
+    A = Affine.translation(0, H) * Affine.scale(1, -1)
+    A = gbox.affine * A
+    return GeoBox(W, H, A, gbox.crs)
 
 
-    :param xx: :py:class:`xarray.Dataset` or :py:class:`~xarray.DataArray`
-    :param crs: CRS to assign, if omitted try to guess from attributes
-    :param crs_coord_name: how to name crs corodinate (defaults to ``spatial_ref``)
+def flipx(gbox: GeoBox) -> GeoBox:
     """
-    if crs is None:
-        geobox = getattr(xx, "geobox", None)
-        if geobox is None:
-            raise ValueError("Failed to guess CRS for this object")
-        crs = geobox.crs
+    :returns: GeoBox covering the same region but with X-axis flipped
+    """
+    H, W = gbox.shape
+    A = Affine.translation(W, 0) * Affine.scale(-1, 1)
+    A = gbox.affine * A
+    return GeoBox(W, H, A, gbox.crs)
 
-    crs = norm_crs_or_error(crs)
-    crs_coord = _mk_crs_coord(crs, name=crs_coord_name)
-    xx = xx.assign_coords({crs_coord.name: crs_coord})
 
-    xx.attrs.update(grid_mapping=crs_coord_name)
+def translate_pix(gbox: GeoBox, tx: float, ty: float) -> GeoBox:
+    """
+    Shift GeoBox in pixel plane. (0,0) of the new GeoBox will be at the same
+    location as pixel (tx, ty) in the original GeoBox.
+    """
+    H, W = gbox.shape
+    A = gbox.affine * Affine.translation(tx, ty)
+    return GeoBox(W, H, A, gbox.crs)
 
-    if isinstance(xx, xr.Dataset):
-        for band in xx.data_vars.values():
-            band.attrs.update(grid_mapping=crs_coord_name)
 
-    return xx
+def pad(gbox: GeoBox, padx: int, pady: MaybeInt = None) -> GeoBox:
+    """
+    Expand GeoBox by fixed number of pixels on each side
+    """
+    # false positive for -pady, it's never None by the time it runs
+    # pylint: disable=invalid-unary-operand-type
+
+    pady = padx if pady is None else pady
+
+    H, W = gbox.shape
+    A = gbox.affine * Affine.translation(-padx, -pady)
+    return GeoBox(W + padx * 2, H + pady * 2, A, gbox.crs)
+
+
+def pad_wh(gbox: GeoBox, alignx: int = 16, aligny: MaybeInt = None) -> GeoBox:
+    """
+    Expand GeoBox such that width and height are multiples of supplied number.
+    """
+    aligny = alignx if aligny is None else aligny
+    H, W = gbox.shape
+
+    return GeoBox(align_up(W, alignx), align_up(H, aligny), gbox.affine, gbox.crs)
+
+
+def zoom_out(gbox: GeoBox, factor: float) -> GeoBox:
+    """
+    factor > 1 --> smaller width/height, fewer but bigger pixels
+    factor < 1 --> bigger width/height, more but smaller pixels
+
+    :returns: GeoBox covering the same region but with bigger pixels (i.e. lower resolution)
+    """
+
+    H, W = (max(1, math.ceil(s / factor)) for s in gbox.shape)
+    A = gbox.affine * Affine.scale(factor, factor)
+    return GeoBox(W, H, A, gbox.crs)
+
+
+def zoom_to(gbox: GeoBox, shape: Tuple[int, int]) -> GeoBox:
+    """
+    :returns: GeoBox covering the same region but with different number of pixels
+              and therefore resolution.
+    """
+    H, W = gbox.shape
+    h, w = shape
+
+    sx, sy = W / float(w), H / float(h)
+    A = gbox.affine * Affine.scale(sx, sy)
+    return GeoBox(w, h, A, gbox.crs)
+
+
+def rotate(gbox: GeoBox, deg: float) -> GeoBox:
+    """
+    Rotate GeoBox around the center.
+
+    It's as if you stick a needle through the center of the GeoBox footprint
+    and rotate it counter clock wise by supplied number of degrees.
+
+    Note that from pixel point of view image rotates the other way. If you have
+    source image with an arrow pointing right, and you rotate GeoBox 90 degree,
+    in that view arrow should point down (this is assuming usual case of inverted
+    y-axis)
+    """
+    h, w = gbox.shape
+    c0 = gbox.transform * (w * 0.5, h * 0.5)
+    A = Affine.rotation(deg, c0) * gbox.transform
+    return GeoBox(w, h, A, gbox.crs)
+
+
+def affine_transform_pix(gbox: GeoBox, transform: Affine) -> GeoBox:
+    """
+    Apply affine transform on pixel side.
+
+    :param transform: Affine matrix mapping from new pixel coordinate space to
+    pixel coordinate space of input gbox
+
+    :returns: GeoBox of the same pixel shape but covering different region,
+    pixels in the output gbox relate to input geobox via `transform`
+
+    X_old_pix = transform * X_new_pix
+
+    """
+    H, W = gbox.shape
+    A = gbox.affine * transform
+    return GeoBox(W, H, A, gbox.crs)
+
+
+class GeoboxTiles:
+    """Partition GeoBox into sub geoboxes"""
+
+    def __init__(self, box: GeoBox, tile_shape: Tuple[int, int]):
+        """Construct from a ``GeoBox``.
+
+        :param box: source :class:`~odc.geo.GeoBox`
+        :param tile_shape: Shape of sub-tiles in pixels (rows, cols)
+        """
+        self._gbox = box
+        self._tile_shape = tile_shape
+        self._shape = tuple(
+            math.ceil(float(N) / n) for N, n in zip(box.shape, tile_shape)
+        )
+        self._cache: Dict[Tuple[int, int], GeoBox] = {}
+
+    @property
+    def base(self) -> GeoBox:
+        return self._gbox
+
+    @property
+    def shape(self):
+        """Number of tiles along each dimension"""
+        return self._shape
+
+    def _idx_to_slice(self, idx: Tuple[int, int]) -> Tuple[slice, slice]:
+        def _slice(i, N, n) -> slice:
+            _in = i * n
+            if 0 <= _in < N:
+                return slice(_in, min(_in + n, N))
+            raise IndexError(f"Index ({idx[0]},{idx[1]})is out of range")
+
+        ir, ic = (
+            _slice(i, N, n) for i, N, n in zip(idx, self._gbox.shape, self._tile_shape)
+        )
+        return (ir, ic)
+
+    def chunk_shape(self, idx: Tuple[int, int]) -> Tuple[int, int]:
+        """Chunk shape for a given chunk index.
+
+        :param idx: (row, col) index
+        :returns: (nrow, ncols) shape of a tile (edge tiles might be smaller)
+        :raises: IndexError when index is outside of [(0,0) -> .shape)
+        """
+
+        def _sz(i: int, n: int, tile_sz: int, total_sz: int) -> int:
+            if 0 <= i < n - 1:  # not edge tile
+                return tile_sz
+            if i == n - 1:  # edge tile
+                return total_sz - (i * tile_sz)
+            # out of index case
+            raise IndexError(f"Index ({idx[0]},{idx[1]}) is out of range")
+
+        n1, n2 = map(_sz, idx, self._shape, self._tile_shape, self._gbox.shape)
+        return (n1, n2)
+
+    def __getitem__(self, idx: Tuple[int, int]) -> GeoBox:
+        """Lookup tile by index, index is in matrix access order: (row, col)
+
+        :param idx: (row, col) index
+        :returns: GeoBox of a tile
+        :raises: IndexError when index is outside of [(0,0) -> .shape)
+        """
+        sub_gbox = self._cache.get(idx, None)
+        if sub_gbox is not None:
+            return sub_gbox
+
+        roi = self._idx_to_slice(idx)
+        return self._cache.setdefault(idx, self._gbox[roi])
+
+    def range_from_bbox(self, bbox: BoundingBox) -> Tuple[range, range]:
+        """Compute rows and columns overlapping with a given ``BoundingBox``"""
+
+        def clamped_range(v1: float, v2: float, N: int) -> range:
+            _in = clamp(math.floor(v1), 0, N)
+            _out = clamp(math.ceil(v2), 0, N)
+            return range(_in, _out)
+
+        sy, sx = self._tile_shape
+        A = Affine.scale(1.0 / sx, 1.0 / sy) * (~self._gbox.transform)
+        # A maps from X,Y in meters to chunk index
+        bbox = bbox.transform(A)
+
+        NY, NX = self.shape
+        xx = clamped_range(bbox.left, bbox.right, NX)
+        yy = clamped_range(bbox.bottom, bbox.top, NY)
+        return (yy, xx)
+
+    def tiles(self, polygon: Geometry) -> Iterable[Tuple[int, int]]:
+        """Return tile indexes overlapping with a given geometry."""
+        target_crs = self._gbox.crs
+        poly = polygon
+        if target_crs is not None and poly.crs != target_crs:
+            poly = poly.to_crs(target_crs)
+
+        yy, xx = self.range_from_bbox(poly.boundingbox)
+        for idx in itertools.product(yy, xx):
+            gbox = self[idx]
+            if gbox.extent.intersects(poly):
+                yield idx
