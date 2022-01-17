@@ -3,6 +3,9 @@
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
 
+from types import SimpleNamespace
+from unittest.mock import Mock
+
 import pytest
 import rasterio.crs
 from pytest import approx
@@ -140,8 +143,16 @@ def test_crs_compat():
 
     crs = CRS("epsg:3577")
     assert crs.epsg == 3577
+    assert str(crs) == "EPSG:3577"
     crs2 = CRS(crs)
     assert crs.epsg == crs2.epsg
+
+    assert crs == CRS(crs.proj)
+    assert crs == CRS(crs)
+    assert crs == CRS(f"epsg:{crs.to_epsg()}")
+    assert crs == CRS(crs.to_wkt())
+
+    assert str(CRS(crs.to_wkt())) == "EPSG:3577"
 
     crs_rio = rasterio.crs.CRS(init="epsg:3577")
     assert CRS(crs_rio).epsg == 3577
@@ -156,6 +167,10 @@ def test_crs_compat():
         crs_dict = crs.proj.to_dict()
 
     assert CRS(crs_dict) == crs
+
+    wkt_crs = SimpleNamespace(to_wkt=Mock(return_value=crs.to_wkt()))
+    assert getattr(wkt_crs, "to_epsg", None) is None
+    assert CRS(wkt_crs) == crs
 
 
 def test_crs_hash():
