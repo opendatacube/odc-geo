@@ -742,6 +742,17 @@ def test_3d_point_converted_to_2d_point():
     assert p_2d == p_3d
 
 
+def test_mid_longitude():
+    assert geometry.mid_longitude(geometry.point(10, 3, "epsg:4326")) == 10
+    assert geometry.mid_longitude(geometry.point(10, 3, "epsg:4326").buffer(3)) == 10
+    assert (
+        geometry.mid_longitude(
+            geometry.point(10, 3, "epsg:4326").buffer(3).to_crs("epsg:3857")
+        )
+        == 10
+    )
+
+
 def test_polygon_path():
     pp = polygon_path([0, 1])
     assert pp.shape == (2, 5)
