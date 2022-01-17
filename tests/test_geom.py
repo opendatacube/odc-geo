@@ -80,6 +80,7 @@ def test_props():
     assert box1.area == 400.0
     assert box1.boundary.length == 80.0
     assert box1.centroid == geometry.point(20, 20, crs)
+    assert isinstance(box1.wkt, str)
 
     triangle = geometry.polygon([(10, 20), (20, 20), (20, 10), (10, 20)], crs=crs)
     assert triangle.boundingbox == geometry.BoundingBox(10, 10, 20, 20)
@@ -296,12 +297,15 @@ def test_multigeom():
     assert bb.crs is b1.crs
     assert len(list(bb)) == 2
 
+    assert geometry.multipolygon([b1.boundary.coords, b2.boundary.coords], b1.crs) == bb
+
     g1 = geometry.line([p1, p2], None)
     g2 = geometry.line([p3, p4], None)
     gg = multigeom(iter([g1, g2, g1]))
     assert gg.type == "MultiLineString"
     assert gg.crs is g1.crs
     assert len(list(gg)) == 3
+    assert geometry.multiline([[p1, p2], [p3, p4], [p1, p2]], None) == gg
 
     g1 = geometry.point(*p1, epsg3857)
     g2 = geometry.point(*p2, epsg3857)
@@ -313,6 +317,8 @@ def test_multigeom():
     assert list(gg)[0] == g1
     assert list(gg)[1] == g2
     assert list(gg)[2] == g3
+
+    assert geometry.multipoint([p1, p2, p3], epsg3857) == gg
 
     # can't mix types
     with pytest.raises(ValueError):

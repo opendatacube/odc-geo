@@ -636,16 +636,15 @@ def polygon(outer, crs: MaybeCRS, *inners) -> Geometry:
     return Geometry({"type": "Polygon", "coordinates": (outer,) + inners}, crs=crs)
 
 
-def multipolygon(coords: List[List[CoordList]], crs: MaybeCRS) -> Geometry:
+def multipolygon(coords: List[CoordList], crs: MaybeCRS) -> Geometry:
     """
     Create a 2D MultiPolygon
 
-    >>> multipolygon([[[(10, 10), (20, 20), (20, 10), (10, 10)]], [[(40, 10), (50, 20), (50, 10), (40, 10)]]], None)
-    Geometry(MULTIPOLYGON (((10 10, 20 20, 20 10, 10 10)), ((40 10, 50 20, 50 10, 40 10))), None)
-
     :param coords: list of lists of x,y coordinate tuples
     """
-    return Geometry({"type": "MultiPolygon", "coordinates": coords}, crs=crs)
+    return Geometry(
+        {"type": "MultiPolygon", "coordinates": [[poly] for poly in coords]}, crs=crs
+    )
 
 
 def box(
