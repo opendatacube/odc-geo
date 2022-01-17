@@ -1065,6 +1065,9 @@ def test_crs():
     assert crs.projected is False
     assert crs.dimensions == ("latitude", "longitude")
     assert crs.epsg == 4326
+    assert epsg4326.semi_major_axis > 6_350_000
+    assert epsg4326.semi_minor_axis > 6_350_000
+    assert epsg4326.inverse_flattening == pytest.approx(298.257223563)
 
     crs2 = CRS(crs)
     assert crs2 == crs

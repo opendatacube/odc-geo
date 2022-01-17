@@ -293,4 +293,4 @@ def crs_units_per_degree(
 
 
 if TYPE_CHECKING:
-    from . import _geom
+    from . import _geom  # pragma: no cover
