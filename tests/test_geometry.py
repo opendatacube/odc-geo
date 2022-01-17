@@ -4,10 +4,12 @@
 # SPDX-License-Identifier: Apache-2.0
 import math
 import pickle
+from random import uniform
 from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
+import rasterio.crs
 from affine import Affine
 from pytest import approx
 from shapely.errors import ShapelyDeprecationWarning
@@ -24,9 +26,18 @@ from odc.geo import (
     crs_units_per_degree,
     multigeom,
     projected_lon,
+    roi_boundary,
+    roi_center,
+    roi_from_points,
+    roi_intersect,
     roi_is_empty,
+    roi_is_full,
     roi_normalise,
+    roi_pad,
     roi_shape,
+    scaled_down_roi,
+    scaled_down_shape,
+    scaled_up_roi,
     w_,
 )
 from odc.geo._crs import _guess_crs_str, norm_crs, norm_crs_or_error
@@ -74,9 +85,7 @@ def test_pickleable():
 
 
 def test_geobox_simple():
-    t = GeoBox(
-        4000, 4000, Affine(0.00025, 0.0, 151.0, 0.0, -0.00025, -29.0), epsg4326
-    )
+    t = GeoBox(4000, 4000, Affine(0.00025, 0.0, 151.0, 0.0, -0.00025, -29.0), epsg4326)
 
     expect_lon = np.asarray(
         [
@@ -1141,22 +1150,7 @@ def test_geobox_scale_down():
 
 
 def test_roi_tools():
-    from numpy import s_
-
-    from odc.geo import (
-        roi_boundary,
-        roi_center,
-        roi_from_points,
-        roi_intersect,
-        roi_is_empty,
-        roi_is_full,
-        roi_normalise,
-        roi_pad,
-        roi_shape,
-        scaled_down_roi,
-        scaled_down_shape,
-        scaled_up_roi,
-    )
+    s_ = np.s_
 
     assert roi_shape(s_[2:4, 3:4]) == (2, 1)
     assert roi_shape(s_[:4, :7]) == (4, 7)
@@ -1227,15 +1221,15 @@ def test_apply_affine():
 
 
 def test_point_transformer():
-    from odc.geo import point
-
     tr = epsg3857.transformer_to_crs(epsg4326)
     tr_back = epsg4326.transformer_to_crs(epsg3857)
 
     pts = [(0, 0), (0, 1), (1, 2), (10, 11)]
     x, y = np.vstack(pts).astype("float64").T
 
-    pts_expect = [point(*pt, epsg3857).to_crs(epsg4326).points[0] for pt in pts]
+    pts_expect = [
+        geometry.point(*pt, epsg3857).to_crs(epsg4326).points[0] for pt in pts
+    ]
 
     x_expect = [pt[0] for pt in pts_expect]
     y_expect = [pt[1] for pt in pts_expect]
@@ -1279,9 +1273,7 @@ def test_split_translation():
 
 
 def get_diff(A, B):
-    from math import sqrt
-
-    return sqrt(sum((a - b) ** 2 for a, b in zip(A, B)))
+    return math.sqrt(sum((a - b) ** 2 for a, b in zip(A, B)))
 
 
 def test_affine_checks():
@@ -1317,8 +1309,6 @@ def test_affine_rsw():
 
 
 def test_fit():
-    from random import uniform
-
     def run_test(A, n, tol=1e-5):
         X = [(uniform(0, 1), uniform(0, 1)) for _ in range(n)]
         Y = [A * x for x in X]
@@ -1490,7 +1480,7 @@ def test_compute_reproject_roi_issue1047():
 
 
 def test_window_from_slice():
-    from numpy import s_
+    s_ = np.s_
 
     assert w_[None] is None
     assert w_[s_[:3, 4:5]] == ((0, 3), (4, 5))
@@ -1550,7 +1540,6 @@ def test_axis_overlap():
 
 
 def test_crs_compat():
-    import rasterio.crs
 
     crs = CRS("epsg:3577")
     assert crs.epsg == 3577
