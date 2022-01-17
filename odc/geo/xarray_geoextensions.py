@@ -170,16 +170,6 @@ def _xarray_affine_impl(obj):
     return affine_from_axis(xx.values, yy.values, fallback_res), sdims
 
 
-def _xarray_affine(obj):
-    transform, _ = _xarray_affine_impl(obj)
-    return transform
-
-
-def _xarray_extent(obj):
-    geobox = obj.geobox
-    return None if geobox is None else geobox.extent
-
-
 def _xarray_geobox(obj):
     transform, sdims = _xarray_affine_impl(obj)
     if sdims is None:
@@ -209,8 +199,4 @@ def _xarray_geobox(obj):
 
 
 xarray.Dataset.geobox = property(_xarray_geobox)  # type: ignore
-xarray.Dataset.affine = property(_xarray_affine)  # type: ignore
-xarray.Dataset.extent = property(_xarray_extent)  # type: ignore
 xarray.DataArray.geobox = property(_xarray_geobox)  # type: ignore
-xarray.DataArray.affine = property(_xarray_affine)  # type: ignore
-xarray.DataArray.extent = property(_xarray_extent)  # type: ignore
