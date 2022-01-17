@@ -19,7 +19,7 @@ from ._geom import (
     bbox_union,
     polygon_from_transform,
 )
-from ._roi import align_up, roi_normalise, roi_shape
+from ._roi import align_up, polygon_path, roi_normalise, roi_shape
 from .math import clamp, is_affine_st, is_almost_int
 
 # pylint: disable=invalid-name
@@ -271,6 +271,15 @@ class GeoBox:
             and self.transform == other.transform
             and self.crs == other.crs
         )
+
+
+def gbox_boundary(gbox: GeoBox, pts_per_side: int = 16) -> Geometry:
+    """Return points in pixel space along the perimeter of a GeoBox, or a 2d array."""
+    H, W = gbox.shape[:2]
+    xx = numpy.linspace(0, W, pts_per_side, dtype="float32")
+    yy = numpy.linspace(0, H, pts_per_side, dtype="float32")
+
+    return polygon_path(xx, yy).T[:-1]
 
 
 def bounding_box_in_pixel_domain(geobox: GeoBox, reference: GeoBox) -> BoundingBox:

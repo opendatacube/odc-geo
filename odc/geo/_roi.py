@@ -62,15 +62,6 @@ def polygon_path(x, y=None):
     ).T
 
 
-def gbox_boundary(gbox, pts_per_side=16):
-    """Return points in pixel space along the perimeter of a GeoBox, or a 2d array."""
-    H, W = gbox.shape[:2]
-    xx = np.linspace(0, W, pts_per_side, dtype="float32")
-    yy = np.linspace(0, H, pts_per_side, dtype="float32")
-
-    return polygon_path(xx, yy).T[:-1]
-
-
 def roi_boundary(roi, pts_per_side=2):
     """
     Get boundary points from a 2d roi.

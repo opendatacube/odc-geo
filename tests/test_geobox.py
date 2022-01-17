@@ -10,11 +10,11 @@ from affine import Affine
 
 from odc import geo as geometry
 from odc.geo import CRS
-from odc.geo._roi import gbox_boundary
 from odc.geo.geobox import (
     GeoBox,
     _mk_crs_coord,
     bounding_box_in_pixel_domain,
+    gbox_boundary,
     geobox_intersection_conservative,
     geobox_union_conservative,
     scaled_down_geobox,
@@ -112,7 +112,6 @@ def test_xy_from_geobox():
     XX, YY = apply_affine(A, xx_, yy_)
     np.testing.assert_array_almost_equal(xx, XX)
     np.testing.assert_array_almost_equal(yy, YY)
-
 
 
 def test_geobox():
@@ -263,7 +262,6 @@ def test_geobox_xr_coords():
     crs._crs = MagicMock()
     crs._crs.to_cf.return_value = {}
     assert _mk_crs_coord(crs).attrs["grid_mapping_name"] == "??"
-
 
 
 def test_gbox_boundary():

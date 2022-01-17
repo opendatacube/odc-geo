@@ -10,8 +10,8 @@ import numpy as np
 from affine import Affine
 from numpy import linalg
 
-from .geobox import GeoBox
-from ._roi import gbox_boundary, roi_boundary, roi_center, roi_from_points, roi_is_empty
+from ._roi import roi_boundary, roi_center, roi_from_points, roi_is_empty
+from .geobox import GeoBox, gbox_boundary
 from .math import is_affine_st, maybe_int, snap_scale
 
 
