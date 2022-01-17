@@ -36,7 +36,7 @@ from odc.geo import (
     scaled_up_roi,
     w_,
 )
-from odc.geo._crs import _guess_crs_str, norm_crs, norm_crs_or_error
+from odc.geo._crs import norm_crs, norm_crs_or_error
 from odc.geo._geom import densify, force_2d
 from odc.geo._overlap import (
     affine_from_pts,
@@ -1157,9 +1157,7 @@ def test_axis_overlap():
 
 
 def test_base_internals():
-    assert _guess_crs_str(CRS("epsg:3577")) == "EPSG:3577"
     no_epsg_crs = CRS(SAMPLE_WKT_WITHOUT_AUTHORITY)
-    assert _guess_crs_str(no_epsg_crs) == no_epsg_crs.to_wkt()
 
     gjson_bad = {"type": "a", "coordinates": [1, [2, 3, 4]]}
     assert force_2d(gjson_bad) == {"type": "a", "coordinates": [1, [2, 3]]}
