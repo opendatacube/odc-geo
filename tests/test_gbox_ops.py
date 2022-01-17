@@ -7,7 +7,7 @@ import pytest
 from affine import Affine
 
 from odc import geo as geometry
-from odc.geo import gbox as gbx
+from odc.geo import geobox as gbx
 from odc.geo.geobox import GeoBox
 
 epsg3857 = geometry.CRS("EPSG:3857")
