@@ -10,9 +10,9 @@ from affine import Affine
 
 from odc import geo as geometry
 from odc.geo import CRS
+from odc.geo._xr_interop import _mk_crs_coord, xr_coords
 from odc.geo.geobox import (
     GeoBox,
-    _mk_crs_coord,
     bounding_box_in_pixel_domain,
     gbox_boundary,
     geobox_intersection_conservative,
@@ -228,26 +228,26 @@ def test_geobox_xr_coords():
     w, h = 512, 256
     gbox = GeoBox(w, h, A, epsg3577)
 
-    cc = gbox.xr_coords()
+    cc = xr_coords(gbox)
     assert list(cc) == ["y", "x"]
     assert cc["y"].shape == (gbox.shape[0],)
     assert cc["x"].shape == (gbox.shape[1],)
     assert "crs" in cc["y"].attrs
     assert "crs" in cc["x"].attrs
 
-    cc = gbox.xr_coords(with_crs=True)
+    cc = xr_coords(gbox, with_crs=True)
     assert list(cc) == ["y", "x", "spatial_ref"]
     assert cc["spatial_ref"].shape == ()
     assert cc["spatial_ref"].attrs["spatial_ref"] == gbox.crs.wkt
     assert isinstance(cc["spatial_ref"].attrs["grid_mapping_name"], str)
 
-    cc = gbox.xr_coords(with_crs="Albers")
+    cc = xr_coords(gbox, with_crs="Albers")
     assert list(cc) == ["y", "x", "Albers"]
 
     # geographic CRS
     A = mkA(0, scale=(0.1, -0.1), translation=(10, 30))
     gbox = GeoBox(w, h, A, "epsg:4326")
-    cc = gbox.xr_coords(with_crs=True)
+    cc = xr_coords(gbox, with_crs=True)
     assert list(cc) == ["latitude", "longitude", "spatial_ref"]
     assert cc["spatial_ref"].shape == ()
     assert cc["spatial_ref"].attrs["spatial_ref"] == gbox.crs.wkt
@@ -255,7 +255,7 @@ def test_geobox_xr_coords():
 
     # missing CRS for GeoBox
     gbox = GeoBox(w, h, A, None)
-    cc = gbox.xr_coords(with_crs=True)
+    cc = xr_coords(gbox, with_crs=True)
     assert list(cc) == ["y", "x"]
 
     # check CRS without name

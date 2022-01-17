@@ -5,13 +5,12 @@
 import itertools
 import math
 from collections import OrderedDict, namedtuple
-from typing import Dict, Hashable, Iterable, List, Optional, Tuple, Union
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import numpy
-import xarray as xr
 from affine import Affine
 
-from ._crs import CRS, MaybeCRS, norm_crs_or_error
+from ._crs import CRS, MaybeCRS
 from ._geom import (
     BoundingBox,
     Geometry,
@@ -212,43 +211,6 @@ class GeoBox:
             )
         )
 
-    def xr_coords(
-        self, with_crs: Union[bool, str] = False
-    ) -> Dict[Hashable, xr.DataArray]:
-        """Dictionary of Coordinates in xarray format
-
-        :param with_crs: If True include netcdf/cf style CRS Coordinate
-        with default name 'spatial_ref', if with_crs is a string then treat
-        the string as a name of the coordinate.
-
-        Returns
-        =======
-
-        OrderedDict name:str -> xr.DataArray
-
-        where names are either `y,x` for projected or `latitude, longitude` for geographic.
-
-        """
-        spatial_ref = "spatial_ref"
-        if isinstance(with_crs, str):
-            spatial_ref = with_crs
-            with_crs = True
-
-        attrs = {}
-        coords = self.coordinates
-        crs = self.crs
-        if crs is not None:
-            attrs["crs"] = str(crs)
-
-        coords: Dict[Hashable, xr.DataArray] = {
-            n: _coord_to_xr(n, c, **attrs) for n, c in coords.items()
-        }
-
-        if with_crs and crs is not None:
-            coords[spatial_ref] = _mk_crs_coord(crs, spatial_ref)
-
-        return coords
-
     @property
     def geographic_extent(self) -> Geometry:
         """GeoBox extent in EPSG:4326"""
@@ -386,81 +348,6 @@ def scaled_down_geobox(src_geobox: GeoBox, scaler: int) -> GeoBox:
 def _round_to_res(value: float, res: float) -> int:
     res = abs(res)
     return int(math.ceil((value - 0.1 * res) / res))
-
-
-def _mk_crs_coord(crs: CRS, name: str = "spatial_ref") -> xr.DataArray:
-    # pylint: disable=protected-access
-
-    if crs.projected:
-        grid_mapping_name = crs._crs.to_cf().get("grid_mapping_name")
-        if grid_mapping_name is None:
-            grid_mapping_name = "??"
-        grid_mapping_name = grid_mapping_name.lower()
-    else:
-        grid_mapping_name = "latitude_longitude"
-
-    epsg = 0 if crs.epsg is None else crs.epsg
-
-    return xr.DataArray(
-        numpy.asarray(epsg, "int32"),
-        name=name,
-        dims=(),
-        attrs={"spatial_ref": crs.wkt, "grid_mapping_name": grid_mapping_name},
-    )
-
-
-def _coord_to_xr(name: str, c: Coordinate, **attrs) -> xr.DataArray:
-    """Construct xr.DataArray from named Coordinate object, this can then be used
-    to define coordinates for xr.Dataset|xr.DataArray
-    """
-    attrs = dict(units=c.units, resolution=c.resolution, **attrs)
-    return xr.DataArray(c.values, coords={name: c.values}, dims=(name,), attrs=attrs)
-
-
-def assign_crs(
-    xx: Union[xr.DataArray, xr.Dataset],
-    crs: MaybeCRS = None,
-    crs_coord_name: str = "spatial_ref",
-) -> Union[xr.Dataset, xr.DataArray]:
-    """
-    Assign CRS for a non-georegistered array or dataset.
-
-    Returns a new object with CRS information populated.
-
-    Can also be called without ``crs`` argument on data that already has CRS
-    information but not in the format used by datacube, in this case CRS
-    metadata will be restructured into a shape used by datacube. This format
-    allows for better propagation of CRS information through various
-    computations.
-
-    .. code-block:: python
-
-        xx = odc.geo.assign_crs(xr.open_rasterio("some-file.tif"))
-        print(xx.geobox)
-        print(xx.astype("float32").geobox)
-
-
-    :param xx: :py:class:`xarray.Dataset` or :py:class:`~xarray.DataArray`
-    :param crs: CRS to assign, if omitted try to guess from attributes
-    :param crs_coord_name: how to name crs corodinate (defaults to ``spatial_ref``)
-    """
-    if crs is None:
-        geobox = getattr(xx, "geobox", None)
-        if geobox is None:
-            raise ValueError("Failed to guess CRS for this object")
-        crs = geobox.crs
-
-    crs = norm_crs_or_error(crs)
-    crs_coord = _mk_crs_coord(crs, name=crs_coord_name)
-    xx = xx.assign_coords({crs_coord.name: crs_coord})
-
-    xx.attrs.update(grid_mapping=crs_coord_name)
-
-    if isinstance(xx, xr.Dataset):
-        for band in xx.data_vars.values():
-            band.attrs.update(grid_mapping=crs_coord_name)
-
-    return xx
 
 
 def flipy(gbox: GeoBox) -> GeoBox:
