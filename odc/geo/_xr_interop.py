@@ -260,7 +260,7 @@ def _extract_crs(crs_coord: xarray.DataArray) -> Optional[CRS]:
         return None
 
 
-def _locate_geo_info(src: xarray.DataArray) -> GeoState:
+def _locate_geo_info(src: XarrayObject) -> GeoState:
     sdims = spatial_dims(src, relaxed=True)
     if sdims is None:
         return GeoState()
@@ -333,6 +333,45 @@ class ODCExtension:
         self, crs: SomeCRS, crs_coord_name: str = "spatial_ref"
     ) -> xarray.DataArray:
         return assign_crs(self._xx, crs=crs, crs_coord_name=crs_coord_name)
+
+
+@xarray.register_dataset_accessor("odc")
+class ODCExtensionDs:
+    """
+    ODC extension for xarray.
+    """
+
+    def __init__(self, ds: xarray.Dataset):
+        self._ds = ds
+        self._state = _locate_geo_info(ds)
+
+    @property
+    def spatial_dims(self) -> Optional[Tuple[str, str]]:
+        """Return names of spatial dimensions, or ``None``."""
+        return self._state.spatial_dims
+
+    @property
+    def transform(self) -> Optional[Affine]:
+        return self._state.transform
+
+    affine = transform
+
+    @property
+    def crs(self) -> Optional[CRS]:
+        return self._state.crs
+
+    @property
+    def geobox(self) -> Optional[GeoBox]:
+        return self._state.geobox
+
+    @property
+    def uncached(self) -> "ODCExtensionDs":
+        return ODCExtensionDs(self._ds)
+
+    def assign_crs(
+        self, crs: SomeCRS, crs_coord_name: str = "spatial_ref"
+    ) -> xarray.Dataset:
+        return assign_crs(self._ds, crs=crs, crs_coord_name=crs_coord_name)
 
 
 def _xarray_geobox(xx: XarrayObject) -> Optional[GeoBox]:
