@@ -207,6 +207,30 @@ def test_corrupt_inputs(xx_epsg4326: xr.DataArray):
     with pytest.warns(UserWarning):
         xx.odc.crs == "epsg:4326"
 
+    # attribute based search with bad CRS string
+    xx = purge_crs_info(xx_epsg4326)
+    assert xx.odc.crs is None
+    xx = xx.assign_attrs(crs="!some invalid CRS string!!")
+    with pytest.warns(UserWarning):
+        assert xx.odc.crs is None
+
+    # attribute based search with bad CRS type
+    xx = purge_crs_info(xx_epsg4326)
+    assert xx.odc.crs is None
+    xx = xx.assign_attrs(crs=[])
+    with pytest.warns(UserWarning):
+        assert xx.odc.crs is None
+
+    # attribute based search with several different CRS candidates
+    xx = purge_crs_info(xx_epsg4326)
+    assert xx.odc.crs is None
+    xx = xx.assign_attrs(crs="epsg:4326")
+    xx.latitude.attrs["crs"] = epsg3577
+    with pytest.warns(UserWarning):
+        _crs = xx.odc.crs
+        assert _crs is not None
+        assert _crs == epsg3577 or _crs == "epsg:4326"
+
 
 def test_geobox_hook(xx_epsg4326: xr.DataArray):
     register_geobox()
