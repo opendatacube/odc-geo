@@ -43,6 +43,10 @@ def test_gridspec():
     assert "4326" in repr(gs)
     assert gs == gs
     assert (gs == {}) is False
+    assert gs.dimensions == ("latitude", "longitude")
+
+    assert GridSpec(CRS("epsg:3857"), (100, 100), (1, 1)).alignment == (0, 0)
+    assert GridSpec(CRS("epsg:3857"), (100, 100), (1, 1)).dimensions == ("y", "x")
 
 
 def test_gridspec_upperleft():
