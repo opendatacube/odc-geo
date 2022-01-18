@@ -121,12 +121,59 @@ def test_odc_extension(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox):
     assert _xx.XX.odc.geobox == None
 
 
+def test_odc_extension_ds(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox):
+    gbox = geobox_epsg4326
+    xx = xx_epsg4326.to_dataset(name="band")
+
+    assert "spatial_ref" in xx.coords
+    assert xx.band.encoding["grid_mapping"] == "spatial_ref"
+    assert xx.odc.geobox == gbox
+    assert xx.odc.crs == "epsg:4326"
+    assert xx.odc.transform == gbox.transform
+    assert xx.odc.spatial_dims == ("latitude", "longitude")
+    assert xx.spatial_ref.attrs["spatial_ref"] == gbox.crs.wkt
+    assert xx.spatial_ref.attrs["grid_mapping_name"] == "latitude_longitude"
+    assert xx.odc.uncached.transform == xx.odc.transform
+
+    # this drops encoding/attributes, but crs/geobox should remain the same
+    _xx = xx * 10.0
+    assert _xx.band.encoding == {}
+    assert _xx.odc.crs == xx.odc.crs
+    assert _xx.odc.geobox == xx.odc.geobox
+
+    # test non-standard coordinate names
+    _xx = xx.rename(longitude="XX", latitude="YY")
+    assert _xx.band.dims == ("YY", "XX")
+    assert _xx.odc.spatial_dims == ("YY", "XX")
+    assert _xx.odc.crs == gbox.crs
+
+    # 1-d xarrays should report None for everything
+    assert _xx.XX.odc.spatial_dims == None
+    assert _xx.XX.odc.crs == None
+    assert _xx.XX.odc.transform == None
+    assert _xx.XX.odc.geobox == None
+
+
 def test_assign_crs(xx_epsg4326: xr.DataArray):
     xx = purge_crs_info(xx_epsg4326)
     assert xx.odc.crs is None
     yy = xx.odc.assign_crs("epsg:4326")
     assert xx.odc.uncached.crs is None
     assert yy.odc.crs == "epsg:4326"
+
+    # non-cf complaint CRS
+    yy = xx.odc.assign_crs("epsg:3857")
+    assert yy.spatial_ref.attrs["grid_mapping_name"] == "??"
+
+
+def test_assign_crs_ds(xx_epsg4326: xr.DataArray):
+    xx = purge_crs_info(xx_epsg4326).to_dataset(name="band")
+    assert xx.odc.crs is None
+    yy = xx.odc.assign_crs("epsg:4326")
+    assert xx.odc.uncached.crs is None
+    assert yy.odc.crs == "epsg:4326"
+    assert yy.band.odc.crs == "epsg:4326"
+    assert yy.band.encoding["grid_mapping"] == "spatial_ref"
 
     # non-cf complaint CRS
     yy = xx.odc.assign_crs("epsg:3857")
