@@ -221,8 +221,10 @@ def _mk_crs_coord(crs: CRS, name: str = "spatial_ref") -> xarray.DataArray:
 
 
 def _coord_to_xr(name: str, c: Coordinate, **attrs) -> xarray.DataArray:
-    """Construct xr.DataArray from named Coordinate object, this can then be used
-    to define coordinates for xr.Dataset|xr.DataArray
+    """
+    Construct xr.DataArray from named Coordinate object.
+
+    This can then be used to define coordinates for ``xr.Dataset|xr.DataArray``
     """
     attrs = dict(units=c.units, resolution=c.resolution, **attrs)
     return xarray.DataArray(
@@ -277,20 +279,22 @@ def assign_crs(
 
 
 def xr_coords(
-    gbox: GeoBox, with_crs: Union[bool, str] = False
+    gbox: GeoBox, with_crs: Union[bool, str] = True
 ) -> Dict[Hashable, xarray.DataArray]:
-    """Dictionary of Coordinates in xarray format
+    """
+    Dictionary of Coordinates in xarray format.
 
-    :param with_crs: If True include netcdf/cf style CRS Coordinate
-    with default name 'spatial_ref', if with_crs is a string then treat
-    the string as a name of the coordinate.
+    :param with_crs:
+       By default includes netcdf/cf style CRS Coordinate
+       with default name 'spatial_ref', if with_crs is a string then treat
+       the string as a name of the coordinate. To disable pass in ``False``.
 
     Returns
     =======
 
-    OrderedDict name:str -> xr.DataArray
+    Dictionary name:str -> xr.DataArray
 
-    where names are either `y,x` for projected or `latitude, longitude` for geographic.
+    where names are either ``y,x`` for projected or ``latitude, longitude`` for geographic.
 
     """
     spatial_ref = "spatial_ref"
@@ -299,13 +303,13 @@ def xr_coords(
         with_crs = True
 
     attrs = {}
-    coords = gbox.coordinates
     crs = gbox.crs
     if crs is not None:
         attrs["crs"] = str(crs)
 
     coords: Dict[Hashable, xarray.DataArray] = {
-        n: _coord_to_xr(n, c, **attrs) for n, c in coords.items()
+        name: _coord_to_xr(name, coord, **attrs)
+        for name, coord in gbox.coordinates.items()
     }
 
     if with_crs and crs is not None:
