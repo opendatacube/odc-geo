@@ -232,7 +232,7 @@ def test_geobox_xr_coords():
     w, h = 512, 256
     gbox = GeoBox(w, h, A, epsg3577)
 
-    cc = xr_coords(gbox)
+    cc = xr_coords(gbox, with_crs=False)
     assert list(cc) == ["y", "x"]
     assert cc["y"].shape == (gbox.shape[0],)
     assert cc["x"].shape == (gbox.shape[1],)
@@ -244,6 +244,9 @@ def test_geobox_xr_coords():
     assert cc["spatial_ref"].shape == ()
     assert cc["spatial_ref"].attrs["spatial_ref"] == gbox.crs.wkt
     assert isinstance(cc["spatial_ref"].attrs["grid_mapping_name"], str)
+
+    # with_crs should be default True
+    assert list(xr_coords(gbox)) == list(xr_coords(gbox, with_crs=True))
 
     cc = xr_coords(gbox, with_crs="Albers")
     assert list(cc) == ["y", "x", "Albers"]
