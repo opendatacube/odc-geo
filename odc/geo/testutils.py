@@ -5,12 +5,14 @@
 from typing import Callable, Tuple, Union
 
 import numpy as np
+import xarray as xr
 from affine import Affine
 
-from odc.geo import CRS
-from odc.geo.geobox import GeoBox
-from odc.geo.gridspec import GridSpec
-from odc.geo.math import apply_affine
+from . import CRS
+from ._xr_interop import xr_coords
+from .geobox import GeoBox
+from .gridspec import GridSpec
+from .math import apply_affine
 
 # pylint: disable=invalid-name
 
@@ -188,3 +190,38 @@ def gen_test_image_xy(
         return x, y
 
     return xy, denorm
+
+
+def xr_zeros(
+    gbox: GeoBox, dtype="float64", with_crs: Union[str, bool] = True
+) -> xr.DataArray:
+    """
+    Construct geo-registered xarray from a :py:class:`~odc.geo.geobox.GeoBox`.
+
+    :param gbox: Desired footprint and resolution
+    :return: :class:py:`xarray.DataArray` filled with zeros
+    """
+    data = np.zeros(gbox.shape, dtype=dtype)
+    cc = xr_coords(gbox, with_crs=with_crs)
+    ydim, xdim, grid_mapping = list(cc)
+    xx = xr.DataArray(data=data, coords=cc, dims=(ydim, xdim))
+    xx.encoding["grid_mapping"] = grid_mapping
+    return xx
+
+
+def purge_crs_info(xx: xr.DataArray) -> xr.DataArray:
+    attributes_to_clear = ["crs", "wkt", "crs_wkt", "transform", "epsg", "resolution"]
+
+    def _purge_attributes(_x: xr.DataArray) -> xr.DataArray:
+        for attr in attributes_to_clear:
+            _x.attrs.pop(attr, None)
+        _x.encoding.pop("grid_mapping", None)
+        return _x
+
+    # remove non-dimensional coordinate, which is CRS in our case
+    to_drop = [name for name in xx.coords if name not in xx.dims]
+    xx = xx.drop_vars(to_drop)
+
+    # purge attributes from coords and xx
+    cc = {name: _purge_attributes(coord) for name, coord in xx.coords.items()}
+    return _purge_attributes(xx.assign_coords(cc))

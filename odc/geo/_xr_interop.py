@@ -3,31 +3,40 @@
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
 """
-Add geometric extensions to :class:`xarray.Dataset` and :class:`xarray.DataArray` for use
-with Data Cube by Monkey Patching those classes.
+Add ``.odc.`` extension to :py:class:`xarray.Dataset` and :class:`xarray.DataArray`.
 """
 import warnings
-from typing import Dict, Hashable, Optional, Tuple, Union
+from dataclasses import dataclass
+from typing import Dict, Hashable, List, Optional, Set, Tuple, TypeVar, Union
 
 import numpy
 import xarray
+from affine import Affine
 
-from ._crs import CRS, CRSError, MaybeCRS, norm_crs_or_error
+from ._crs import CRS, CRSError, SomeCRS, norm_crs_or_error
 from .geobox import Coordinate, GeoBox
 from .math import affine_from_axis
 
-
-def _norm_crs(crs):
-    if crs is None or isinstance(crs, CRS):
-        return crs
-    if isinstance(crs, str):
-        return CRS(crs)
-
-    raise ValueError(f"Can not interpret {type(crs)} as CRS")
+XarrayObject = Union[xarray.DataArray, xarray.Dataset]
+XrT = TypeVar("XrT", xarray.DataArray, xarray.Dataset)
 
 
-def _get_crs_from_attrs(obj, sdims):
-    """Looks for attribute named `crs` containing CRS string
+@dataclass
+class GeoState:
+    """
+    Geospatial information for xarray object.
+    """
+
+    spatial_dims: Optional[Tuple[str, str]] = None
+    transform: Optional[Affine] = None
+    crs: Optional[CRS] = None
+    geobox: Optional[GeoBox] = None
+
+
+def _get_crs_from_attrs(obj: XarrayObject, sdims: Tuple[str, str]) -> Optional[CRS]:
+    """
+    Looks for attribute named ``crs`` containing CRS string.
+
     - Checks spatials coords attrs
     - Checks data variable attrs
     - Checks dataset attrs
@@ -37,7 +46,7 @@ def _get_crs_from_attrs(obj, sdims):
     Content for `.attrs[crs]` usually it's a string
     None if not present in any of the places listed above
     """
-    crs_set = set()
+    crs_set: Set[CRS] = set()
 
     def _add_candidate(crs):
         if crs is None:
@@ -81,55 +90,6 @@ def _get_crs_from_attrs(obj, sdims):
     return crs
 
 
-def _get_crs_from_coord(obj, mode="strict"):
-    """Looks for dimensionless coordinate with `spatial_ref` attribute.
-
-     obj: Dataset | DataArray
-     mode: strict|any|all
-        strict -- raise Error if multiple candidates
-        any    -- return first one
-        all    -- return a list of all found CRSs
-
-    Returns
-    =======
-    None     - if none found
-    crs:str  - if found one
-    crs:str  - if found several but mode is any
-
-    (crs: str, crs: str) - if found several and mode=all
-    """
-    grid_mapping = obj.attrs.get("grid_mapping", None)
-
-    # First check CF convention "pointer"
-    if grid_mapping is not None and grid_mapping in obj.coords:
-        coord = obj.coords[grid_mapping]
-        spatial_ref = coord.attrs.get("spatial_ref", None)
-        if spatial_ref is not None:
-            return spatial_ref
-        raise ValueError(f"Coordinate '{grid_mapping}' has no `spatial_ref` attribute")
-
-    # No explicit `grid_mapping` find some "CRS" coordinate
-    candidates = tuple(
-        coord.attrs["spatial_ref"]
-        for coord in obj.coords.values()
-        if coord.ndim == 0 and "spatial_ref" in coord.attrs
-    )
-
-    if len(candidates) == 0:
-        return None
-    if len(candidates) == 1:
-        return candidates[0]
-
-    if mode == "strict":
-        raise ValueError("Too many candidates when looking for CRS")
-    if mode == "all":
-        return candidates
-    if mode == "any":
-        return candidates[0]
-
-    raise ValueError(f"Mode needs to be: strict|any|all got {mode}")
-
-
 def spatial_dims(
     xx: Union[xarray.DataArray, xarray.Dataset], relaxed: bool = False
 ) -> Optional[Tuple[str, str]]:
@@ -158,45 +118,6 @@ def spatial_dims(
         return _dims[-2], _dims[-1]
 
     return None
-
-
-def _xarray_affine_impl(obj):
-    sdims = spatial_dims(obj, relaxed=True)
-    if sdims is None:
-        return None, None
-
-    yy, xx = (obj[dim] for dim in sdims)
-    fallback_res = (coord.attrs.get("resolution", None) for coord in (xx, yy))
-
-    return affine_from_axis(xx.values, yy.values, fallback_res), sdims
-
-
-def _xarray_geobox(obj):
-    transform, sdims = _xarray_affine_impl(obj)
-    if sdims is None:
-        return None
-
-    crs = None
-    try:
-        crs = _get_crs_from_coord(obj)
-    except ValueError:
-        pass
-
-    if crs is None:
-        crs = _get_crs_from_attrs(obj, sdims)
-
-    if crs is None:
-        return None
-
-    try:
-        crs = _norm_crs(crs)
-    except (ValueError, CRSError):
-        warnings.warn(f"Encountered malformed CRS: {crs}")
-        return None
-
-    h, w = (obj.coords[dim].size for dim in sdims)
-
-    return GeoBox(w, h, transform, crs)
 
 
 def _mk_crs_coord(crs: CRS, name: str = "spatial_ref") -> xarray.DataArray:
@@ -233,47 +154,35 @@ def _coord_to_xr(name: str, c: Coordinate, **attrs) -> xarray.DataArray:
 
 
 def assign_crs(
-    xx: Union[xarray.DataArray, xarray.Dataset],
-    crs: MaybeCRS = None,
+    xx: XrT,
+    crs: SomeCRS,
     crs_coord_name: str = "spatial_ref",
-) -> Union[xarray.Dataset, xarray.DataArray]:
+) -> XrT:
     """
     Assign CRS for a non-georegistered array or dataset.
 
     Returns a new object with CRS information populated.
 
-    Can also be called without ``crs`` argument on data that already has CRS
-    information but not in the format used by datacube, in this case CRS
-    metadata will be restructured into a shape used by datacube. This format
-    allows for better propagation of CRS information through various
-    computations.
-
     .. code-block:: python
 
-        xx = odc.geo.assign_crs(xr.open_rasterio("some-file.tif"))
-        print(xx.geobox)
-        print(xx.astype("float32").geobox)
+        xx = xr.open_rasterio("some-file.tif")
+        print(xx.odc.crs)
+        print(xx.astype("float32").crs)
 
 
-    :param xx: :py:class:`xarray.Dataset` or :py:class:`~xarray.DataArray`
-    :param crs: CRS to assign, if omitted try to guess from attributes
-    :param crs_coord_name: how to name crs corodinate (defaults to ``spatial_ref``)
+    :param xx: :py:class:`~xarray.Dataset` or :py:class:`~xarray.DataArray`
+    :param crs: CRS to assign
+    :param crs_coord_name: how to name crs coordinate (defaults to ``spatial_ref``)
     """
-    if crs is None:
-        geobox = getattr(xx, "geobox", None)
-        if geobox is None:
-            raise ValueError("Failed to guess CRS for this object")
-        crs = geobox.crs
-
     crs = norm_crs_or_error(crs)
     crs_coord = _mk_crs_coord(crs, name=crs_coord_name)
-    xx = xx.assign_coords({crs_coord.name: crs_coord})
+    xx = xx.assign_coords({crs_coord_name: crs_coord})
 
-    xx.attrs.update(grid_mapping=crs_coord_name)
-
-    if isinstance(xx, xarray.Dataset):
+    if isinstance(xx, xarray.DataArray):
+        xx.encoding.update(grid_mapping=crs_coord_name)
+    elif isinstance(xx, xarray.Dataset):
         for band in xx.data_vars.values():
-            band.attrs.update(grid_mapping=crs_coord_name)
+            band.encoding.update(grid_mapping=crs_coord_name)
 
     return xx
 
@@ -318,5 +227,127 @@ def xr_coords(
     return coords
 
 
-xarray.Dataset.geobox = property(_xarray_geobox)  # type: ignore
-xarray.DataArray.geobox = property(_xarray_geobox)  # type: ignore
+def _locate_crs_coords(xx: XarrayObject) -> List[xarray.DataArray]:
+    grid_mapping = xx.encoding.get("grid_mapping", None)
+    if grid_mapping is None:
+        grid_mapping = xx.attrs.get("grid_mapping")
+
+    if grid_mapping is not None:
+        # Specific mapping is defined via NetCDF/CF convention
+        coord = xx.coords.get(grid_mapping, None)
+        if coord is None:
+            warnings.warn(
+                f"grid_mapping={grid_mapping} is not pointing to valid coordinate"
+            )
+            return []
+        return [coord]
+
+    # Find all dimensionless coordinates with `spatial_ref` attribute present
+    return [
+        coord
+        for coord in xx.coords.values()
+        if coord.ndim == 0 and "spatial_ref" in coord.attrs
+    ]
+
+
+def _extract_crs(crs_coord: xarray.DataArray) -> Optional[CRS]:
+    _wkt = crs_coord.attrs.get("spatial_ref", None)
+    if _wkt is None:
+        return None
+    try:
+        return CRS(_wkt)
+    except CRSError:
+        return None
+
+
+def _locate_geo_info(src: xarray.DataArray) -> GeoState:
+    sdims = spatial_dims(src, relaxed=True)
+    if sdims is None:
+        return GeoState()
+
+    transform: Optional[Affine] = None
+    crs: Optional[CRS] = None
+    geobox: Optional[GeoBox] = None
+
+    _yy, _xx = (src[dim] for dim in sdims)
+    fallback_res = (coord.attrs.get("resolution", None) for coord in (_xx, _yy))
+
+    try:
+        transform = affine_from_axis(_xx.values, _yy.values, fallback_res)
+    except ValueError:
+        # this can fail when any dimension is shorter than 2 elements
+        pass
+
+    _crs_coords = _locate_crs_coords(src)
+    num_candiates = len(_crs_coords)
+    if num_candiates > 0:
+        if num_candiates > 1:
+            warnings.warn("Multiple CRS coordinates are present")
+        crs = _extract_crs(_crs_coords[0])
+    else:
+        # try looking in attributes
+        crs = _get_crs_from_attrs(src, sdims)
+
+    if transform is not None:
+        width = _xx.shape[0]
+        height = _yy.shape[0]
+        geobox = GeoBox(width, height, transform, crs)
+
+    return GeoState(spatial_dims=sdims, transform=transform, crs=crs, geobox=geobox)
+
+
+@xarray.register_dataarray_accessor("odc")
+class ODCExtension:
+    """
+    ODC extension for xarray.
+    """
+
+    def __init__(self, xx: xarray.DataArray):
+        self._xx = xx
+        self._state = _locate_geo_info(xx)
+
+    @property
+    def spatial_dims(self) -> Optional[Tuple[str, str]]:
+        """Return names of spatial dimensions, or ``None``."""
+        return self._state.spatial_dims
+
+    @property
+    def transform(self) -> Optional[Affine]:
+        return self._state.transform
+
+    affine = transform
+
+    @property
+    def crs(self) -> Optional[CRS]:
+        return self._state.crs
+
+    @property
+    def geobox(self) -> Optional[GeoBox]:
+        return self._state.geobox
+
+    @property
+    def uncached(self) -> "ODCExtension":
+        return ODCExtension(self._xx)
+
+    def assign_crs(
+        self, crs: SomeCRS, crs_coord_name: str = "spatial_ref"
+    ) -> xarray.DataArray:
+        return assign_crs(self._xx, crs=crs, crs_coord_name=crs_coord_name)
+
+
+def _xarray_geobox(xx: XarrayObject) -> Optional[GeoBox]:
+    if isinstance(xx, xarray.DataArray):
+        return xx.odc.geobox
+    for dv in xx.data_vars.values():
+        geobox = dv.odc.geobox
+        if geobox is not None:
+            return geobox
+    return None
+
+
+def register_geobox():
+    """
+    Backwards compatiblity layer for datacube ``.geobox`` property.
+    """
+    xarray.Dataset.geobox = property(_xarray_geobox)  # type: ignore
+    xarray.DataArray.geobox = property(_xarray_geobox)  # type: ignore
