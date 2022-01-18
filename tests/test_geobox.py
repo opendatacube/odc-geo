@@ -18,7 +18,7 @@ from odc.geo.geobox import (
     scaled_down_geobox,
 )
 from odc.geo.math import apply_affine
-from odc.geo.testutils.geom import (
+from odc.geo.testutils import (
     epsg3577,
     epsg3857,
     epsg4326,

@@ -9,7 +9,7 @@ from odc.geo._xr_interop import _mk_crs_coord, xr_coords
 from odc.geo.geobox import (
     GeoBox,
 )
-from odc.geo.testutils.geom import (
+from odc.geo.testutils import (
     epsg3577,
     mkA,
 )

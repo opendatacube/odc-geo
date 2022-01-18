@@ -49,7 +49,7 @@ from odc.geo._overlap import (
 from odc.geo._roi import polygon_path
 from odc.geo.geobox import GeoBox, _align_pix, _round_to_res, scaled_down_geobox
 from odc.geo.math import apply_affine, is_affine_st, split_translation
-from odc.geo.testutils.geom import (
+from odc.geo.testutils import (
     SAMPLE_WKT_WITHOUT_AUTHORITY,
     AlbersGS,
     epsg3577,
