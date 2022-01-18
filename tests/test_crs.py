@@ -12,7 +12,7 @@ from pytest import approx
 
 from odc import geo as geometry
 from odc.geo import CRS, CRSMismatchError, common_crs, crs_units_per_degree
-from odc.geo.testutils.geom import epsg3577, epsg3857, epsg4326
+from odc.geo.testutils import epsg3577, epsg3857, epsg4326
 
 
 def test_common_crs():
