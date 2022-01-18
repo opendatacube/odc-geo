@@ -147,6 +147,10 @@ def test_geobox():
         resolution = (-25, 25)
         geobox = GeoBox.from_geopolygon(polygon, resolution)
 
+        # check single value resolution equivalence
+        assert GeoBox.from_geopolygon(polygon, 25) == geobox
+        assert GeoBox.from_geopolygon(polygon, 25.0) == geobox
+
         assert GeoBox.from_geopolygon(polygon, resolution, crs=geobox.crs) == geobox
 
         assert abs(resolution[0]) > abs(

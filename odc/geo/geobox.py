@@ -5,7 +5,7 @@
 import itertools
 import math
 from collections import OrderedDict, namedtuple
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy
 from affine import Affine
@@ -58,11 +58,10 @@ class GeoBox:
         self.affine = affine
         self.extent = polygon_from_transform(width, height, affine, crs=crs)
 
-    @classmethod
+    @staticmethod
     def from_geopolygon(
-        cls,
         geopolygon: Geometry,
-        resolution: Tuple[float, float],
+        resolution: Union[float, int, Tuple[float, float]],
         crs: MaybeCRS = None,
         align: Optional[Tuple[float, float]] = None,
     ) -> "GeoBox":
@@ -71,6 +70,12 @@ class GeoBox:
         :param crs: CRS to use, if different from the geopolygon
         :param align: Align geobox such that point 'align' lies on the pixel boundary.
         """
+
+        if isinstance(resolution, float):
+            resolution = -resolution, resolution
+        elif isinstance(resolution, int):
+            resolution = float(-resolution), float(resolution)
+
         align = align or (0.0, 0.0)
         assert (
             0.0 <= align[1] <= abs(resolution[1])
