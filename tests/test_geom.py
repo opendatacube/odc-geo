@@ -63,6 +63,7 @@ from odc.geo.testutils import (
 )
 
 # pylint: disable=protected-access, pointless-statement
+# pylint: disable=too-many-statements,too-many-locals,too-many-lines
 
 
 def test_pickleable():
@@ -593,7 +594,7 @@ def test_chop():
     chopped = chop_along_antimeridian(poly)
     assert chopped.crs is poly.crs
     assert chopped.type == "MultiPolygon"
-    assert len([g for g in chopped]) == 2
+    assert len(list(chopped)) == 2
 
     poly = geom.box(0, 0, 10, 20, "EPSG:4326")._to_crs(epsg3857)
     assert poly.crs is epsg3857
@@ -619,7 +620,7 @@ def test_clip_lon180():
     assert clip_lon180(b_neg(-180 + err)) == b_neg(-180)
 
     bb = multigeom([b(180 - err), b_neg(180 - err)])
-    bb_ = [g for g in clip_lon180(bb)]
+    bb_ = list(clip_lon180(bb))
     assert bb_[0] == b(180)
     assert bb_[1] == b_neg(-180)
 
@@ -826,7 +827,7 @@ def test_apply_affine():
     assert yy_.shape == xx.shape
 
     xy_expect = [A * (x, y) for x, y in zip(xx.ravel(), yy.ravel())]
-    xy_got = [(x, y) for x, y in zip(xx_.ravel(), yy_.ravel())]
+    xy_got = list(zip(xx_.ravel(), yy_.ravel()))
 
     np.testing.assert_array_almost_equal(xy_expect, xy_got)
 
