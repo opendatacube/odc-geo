@@ -12,11 +12,29 @@ from affine import Affine
 from pytest import approx
 from shapely.errors import ShapelyDeprecationWarning
 
-from odc.geo import (
-    CRS,
-    BoundingBox,
-    CRSMismatchError,
-    geom,
+from odc.geo import CRS, BoundingBox, CRSMismatchError, geom
+from odc.geo._overlap import (
+    affine_from_pts,
+    compute_axis_overlap,
+    compute_reproject_roi,
+    decompose_rws,
+    get_scale_at_point,
+    native_pix_transform,
+)
+from odc.geo.crs import norm_crs, norm_crs_or_error
+from odc.geo.geobox import GeoBox, _align_pix, _round_to_res, scaled_down_geobox
+from odc.geo.geom import (
+    bbox_union,
+    chop_along_antimeridian,
+    clip_lon180,
+    densify,
+    force_2d,
+    multigeom,
+    projected_lon,
+)
+from odc.geo.math import apply_affine, is_affine_st, split_translation
+from odc.geo.roi import (
+    polygon_path,
     roi_boundary,
     roi_center,
     roi_from_points,
@@ -31,27 +49,6 @@ from odc.geo import (
     scaled_up_roi,
     w_,
 )
-from odc.geo._overlap import (
-    affine_from_pts,
-    compute_axis_overlap,
-    compute_reproject_roi,
-    decompose_rws,
-    get_scale_at_point,
-    native_pix_transform,
-)
-from odc.geo._roi import polygon_path
-from odc.geo.crs import norm_crs, norm_crs_or_error
-from odc.geo.geobox import GeoBox, _align_pix, _round_to_res, scaled_down_geobox
-from odc.geo.geom import (
-    bbox_union,
-    chop_along_antimeridian,
-    clip_lon180,
-    densify,
-    force_2d,
-    multigeom,
-    projected_lon,
-)
-from odc.geo.math import apply_affine, is_affine_st, split_translation
 from odc.geo.testutils import (
     SAMPLE_WKT_WITHOUT_AUTHORITY,
     AlbersGS,

@@ -24,22 +24,6 @@ from .geom import (
     Geometry,
 )
 
-from ._roi import (
-    roi_boundary,
-    roi_center,
-    roi_from_points,
-    roi_intersect,
-    roi_is_empty,
-    roi_is_full,
-    roi_normalise,
-    roi_pad,
-    roi_shape,
-    scaled_down_roi,
-    scaled_down_shape,
-    scaled_up_roi,
-    w_,
-)
-
 __all__ = [
     "__version__",
     "BoundingBox",
@@ -49,18 +33,5 @@ __all__ = [
     "CRSMismatchError",
     "Geometry",
     "MaybeCRS",
-    "roi_boundary",
-    "roi_center",
-    "roi_from_points",
-    "roi_intersect",
-    "roi_is_empty",
-    "roi_is_full",
-    "roi_normalise",
-    "roi_pad",
-    "roi_shape",
-    "scaled_down_roi",
-    "scaled_down_shape",
-    "scaled_up_roi",
     "SomeCRS",
-    "w_",
 ]
