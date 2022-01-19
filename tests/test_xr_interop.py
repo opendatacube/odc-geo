@@ -6,9 +6,9 @@ import pytest
 import xarray as xr
 
 from odc.geo import geom
-from odc.geo._xr_interop import register_geobox, xr_coords
 from odc.geo.geobox import GeoBox
 from odc.geo.testutils import epsg3577, mkA, purge_crs_info, xr_zeros
+from odc.geo.xr import register_geobox, xr_coords
 
 # pylint: disable=redefined-outer-name
 
