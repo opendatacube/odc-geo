@@ -9,7 +9,7 @@ from odc.geo.geom import polygon
 from odc.geo.gridspec import GridSpec
 
 # pylint: disable=protected-access,use-implicit-booleaness-not-comparison
-# pylint: disable=comparison-with-itself
+# pylint: disable=comparison-with-itself,unnecessary-comprehension
 
 
 def test_gridspec():

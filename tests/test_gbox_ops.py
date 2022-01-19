@@ -10,7 +10,7 @@ from odc.geo import geobox as gbx
 from odc.geo import geom as geometry
 from odc.geo.geobox import GeoBox
 
-# pylint: disable=pointless-statement
+# pylint: disable=pointless-statement,too-many-statements
 
 epsg3857 = geometry.CRS("EPSG:3857")
 

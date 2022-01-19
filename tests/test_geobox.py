@@ -19,7 +19,7 @@ from odc.geo.geobox import (
 from odc.geo.math import apply_affine
 from odc.geo.testutils import epsg3577, epsg3857, epsg4326, mkA, xy_from_gbox, xy_norm
 
-# pylint: disable=pointless-statement
+# pylint: disable=pointless-statement,too-many-statements
 
 
 def test_geobox_simple():
