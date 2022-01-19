@@ -296,15 +296,15 @@ def _locate_geo_info(src: XarrayObject) -> GeoState:
     return GeoState(spatial_dims=sdims, transform=transform, crs=crs, geobox=geobox)
 
 
-@xarray.register_dataarray_accessor("odc")
 class ODCExtension:
     """
-    ODC extension for xarray.
+    ODC extension base class.
+
+    Common accessors for both Array/Dataset.
     """
 
-    def __init__(self, xx: xarray.DataArray):
-        self._xx = xx
-        self._state = _locate_geo_info(xx)
+    def __init__(self, state: GeoState):
+        self._state = state
 
     @property
     def spatial_dims(self) -> Optional[Tuple[str, str]]:
@@ -325,9 +325,20 @@ class ODCExtension:
     def geobox(self) -> Optional[GeoBox]:
         return self._state.geobox
 
+
+@xarray.register_dataarray_accessor("odc")
+class ODCExtensionDa(ODCExtension):
+    """
+    ODC extension for :py:class:`xarray.DataArray`.
+    """
+
+    def __init__(self, xx: xarray.DataArray):
+        ODCExtension.__init__(self, _locate_geo_info(xx))
+        self._xx = xx
+
     @property
-    def uncached(self) -> "ODCExtension":
-        return ODCExtension(self._xx)
+    def uncached(self) -> "ODCExtensionDa":
+        return ODCExtensionDa(self._xx)
 
     def assign_crs(
         self, crs: SomeCRS, crs_coord_name: str = "spatial_ref"
@@ -336,33 +347,14 @@ class ODCExtension:
 
 
 @xarray.register_dataset_accessor("odc")
-class ODCExtensionDs:
+class ODCExtensionDs(ODCExtension):
     """
-    ODC extension for xarray.
+    ODC extension for :py:class:`xarray.Dataset`.
     """
 
     def __init__(self, ds: xarray.Dataset):
+        ODCExtension.__init__(self, _locate_geo_info(ds))
         self._ds = ds
-        self._state = _locate_geo_info(ds)
-
-    @property
-    def spatial_dims(self) -> Optional[Tuple[str, str]]:
-        """Return names of spatial dimensions, or ``None``."""
-        return self._state.spatial_dims
-
-    @property
-    def transform(self) -> Optional[Affine]:
-        return self._state.transform
-
-    affine = transform
-
-    @property
-    def crs(self) -> Optional[CRS]:
-        return self._state.crs
-
-    @property
-    def geobox(self) -> Optional[GeoBox]:
-        return self._state.geobox
 
     @property
     def uncached(self) -> "ODCExtensionDs":

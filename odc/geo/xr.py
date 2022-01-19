@@ -13,6 +13,7 @@ For more details see: :py:class:`~odc.geo.xr.ODCExtension` and
 """
 from ._xr_interop import (
     ODCExtension,
+    ODCExtensionDa,
     ODCExtensionDs,
     assign_crs,
     register_geobox,
@@ -22,6 +23,7 @@ from ._xr_interop import (
 
 __all__ = (
     "ODCExtension",
+    "ODCExtensionDa",
     "ODCExtensionDs",
     "assign_crs",
     "register_geobox",
