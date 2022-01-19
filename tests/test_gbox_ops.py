@@ -6,9 +6,11 @@ import numpy as np
 import pytest
 from affine import Affine
 
-from odc import geo as geometry
 from odc.geo import geobox as gbx
+from odc.geo import geom as geometry
 from odc.geo.geobox import GeoBox
+
+# pylint: disable=pointless-statement
 
 epsg3857 = geometry.CRS("EPSG:3857")
 

@@ -10,25 +10,24 @@ import pytest
 import rasterio.crs
 from pytest import approx
 
-from odc import geo as geometry
-from odc.geo import common_crs
-from odc.geo.crs import CRS, CRSMismatchError, crs_units_per_degree
+from odc.geo import geom
+from odc.geo.crs import CRS, CRSError, CRSMismatchError, crs_units_per_degree
+from odc.geo.geom import common_crs
 from odc.geo.testutils import epsg3577, epsg3857, epsg4326
+
+# pylint: disable=missing-class-docstring,use-implicit-booleaness-not-comparison
+# pylint: disable=comparison-with-itself,no-self-use
 
 
 def test_common_crs():
     assert common_crs([]) is None
     assert (
-        common_crs(
-            [geometry.point(0, 0, epsg4326), geometry.line([(0, 0), (1, 1)], epsg4326)]
-        )
+        common_crs([geom.point(0, 0, epsg4326), geom.line([(0, 0), (1, 1)], epsg4326)])
         is epsg4326
     )
 
     with pytest.raises(CRSMismatchError):
-        common_crs(
-            [geometry.point(0, 0, epsg4326), geometry.line([(0, 0), (1, 1)], epsg3857)]
-        )
+        common_crs([geom.point(0, 0, epsg4326), geom.line([(0, 0), (1, 1)], epsg3857)])
 
 
 class TestCRSEqualityComparisons:
@@ -42,7 +41,7 @@ class TestCRSEqualityComparisons:
         assert (a == TestCRSEqualityComparisons) is False
 
     def test_australian_albers_comparison(self):
-        a = geometry.CRS(
+        a = CRS(
             """PROJCS["GDA94_Australian_Albers",GEOGCS["GCS_GDA_1994",
                             DATUM["Geocentric_Datum_of_Australia_1994",SPHEROID["GRS_1980",6378137,298.257222101]],
                             PRIMEM["Greenwich",0],UNIT["Degree",0.017453292519943295]],
@@ -63,8 +62,8 @@ class TestCRSEqualityComparisons:
 
 
 def test_no_epsg():
-    c = geometry.CRS("+proj=longlat +no_defs +ellps=GRS80")
-    b = geometry.CRS(
+    c = CRS("+proj=longlat +no_defs +ellps=GRS80")
+    b = CRS(
         """GEOGCS["GRS 1980(IUGG, 1980)",DATUM["unknown",SPHEROID["GRS80",6378137,298.257222101]],
                         PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433]]"""
     )
@@ -74,8 +73,7 @@ def test_no_epsg():
 
 
 def test_crs():
-    CRS = geometry.CRS
-    custom_crs = geometry.CRS(
+    custom_crs = CRS(
         """PROJCS["unnamed",
                            GEOGCS["Unknown datum based upon the custom spheroid",
                            DATUM["Not specified (based on custom spheroid)", SPHEROID["Custom spheroid",6371007.181,0]],
@@ -108,7 +106,7 @@ def test_crs():
     assert crs2 == crs
     assert crs.proj is crs2.proj
 
-    assert epsg4326.valid_region == geometry.box(-180, -90, 180, 90, epsg4326)
+    assert epsg4326.valid_region == geom.box(-180, -90, 180, 90, epsg4326)
     assert epsg3857.valid_region.crs == epsg4326
     xmin, _, xmax, _ = epsg3857.valid_region.boundingbox
     assert (xmin, xmax) == (-180, 180)
@@ -133,7 +131,7 @@ def test_crs():
     ]
 
     for bad in bad_crs:
-        with pytest.raises(geometry.CRSError):
+        with pytest.raises(CRSError):
             CRS(bad)
 
     with pytest.warns(DeprecationWarning):
@@ -160,7 +158,7 @@ def test_crs_compat():
 
     assert (CRS(crs_rio) == crs_rio) is True
 
-    with pytest.raises(geometry.CRSError):
+    with pytest.raises(CRSError):
         CRS(("random", "tuple"))
 
     crs = CRS("epsg:3857")

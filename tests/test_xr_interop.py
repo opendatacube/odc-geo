@@ -2,20 +2,20 @@
 #
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
-from unittest.mock import MagicMock
-
 import pytest
 import xarray as xr
 
-import odc.geo
+from odc.geo import geom
 from odc.geo._xr_interop import register_geobox, xr_coords
 from odc.geo.geobox import GeoBox
 from odc.geo.testutils import epsg3577, mkA, purge_crs_info, xr_zeros
 
+# pylint: disable=redefined-outer-name
+
 
 @pytest.fixture
 def geobox_epsg4326():
-    _box = odc.geo.box(-20, -10, 20, 10, "epsg:4326")
+    _box = geom.box(-20, -10, 20, 10, "epsg:4326")
     yield GeoBox.from_geopolygon(_box, 5)
 
 
@@ -115,10 +115,10 @@ def test_odc_extension(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox):
     assert _xx.odc.crs == gbox.crs
 
     # 1-d xarrays should report None for everything
-    assert _xx.XX.odc.spatial_dims == None
-    assert _xx.XX.odc.crs == None
-    assert _xx.XX.odc.transform == None
-    assert _xx.XX.odc.geobox == None
+    assert _xx.XX.odc.spatial_dims is None
+    assert _xx.XX.odc.crs is None
+    assert _xx.XX.odc.transform is None
+    assert _xx.XX.odc.geobox is None
 
 
 def test_odc_extension_ds(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox):
@@ -148,10 +148,10 @@ def test_odc_extension_ds(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox):
     assert _xx.odc.crs == gbox.crs
 
     # 1-d xarrays should report None for everything
-    assert _xx.XX.odc.spatial_dims == None
-    assert _xx.XX.odc.crs == None
-    assert _xx.XX.odc.transform == None
-    assert _xx.XX.odc.geobox == None
+    assert _xx.XX.odc.spatial_dims is None
+    assert _xx.XX.odc.crs is None
+    assert _xx.XX.odc.transform is None
+    assert _xx.XX.odc.geobox is None
 
 
 def test_assign_crs(xx_epsg4326: xr.DataArray):
@@ -205,7 +205,7 @@ def test_corrupt_inputs(xx_epsg4326: xr.DataArray):
     xx = xx.assign_coords(_crs2=xx.spatial_ref)
     xx.encoding.pop("grid_mapping")
     with pytest.warns(UserWarning):
-        xx.odc.crs == "epsg:4326"
+        assert xx.odc.crs == "epsg:4326"
 
     # attribute based search with bad CRS string
     xx = purge_crs_info(xx_epsg4326)
@@ -229,7 +229,7 @@ def test_corrupt_inputs(xx_epsg4326: xr.DataArray):
     with pytest.warns(UserWarning):
         _crs = xx.odc.crs
         assert _crs is not None
-        assert _crs == epsg3577 or _crs == "epsg:4326"
+        assert _crs in (epsg3577, "epsg:4326")
 
 
 def test_geobox_hook(xx_epsg4326: xr.DataArray):
