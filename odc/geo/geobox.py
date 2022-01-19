@@ -11,7 +11,7 @@ import numpy
 from affine import Affine
 
 from .crs import CRS, MaybeCRS
-from ._geom import (
+from .geom import (
     BoundingBox,
     Geometry,
     bbox_intersection,

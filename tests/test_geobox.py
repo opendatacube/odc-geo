@@ -7,8 +7,7 @@ import numpy as np
 import pytest
 from affine import Affine
 
-from odc import geo as geometry
-from odc.geo import CRS
+from odc.geo import CRS, geom
 from odc.geo.geobox import (
     GeoBox,
     bounding_box_in_pixel_domain,
@@ -18,14 +17,9 @@ from odc.geo.geobox import (
     scaled_down_geobox,
 )
 from odc.geo.math import apply_affine
-from odc.geo.testutils import (
-    epsg3577,
-    epsg3857,
-    epsg4326,
-    mkA,
-    xy_from_gbox,
-    xy_norm,
-)
+from odc.geo.testutils import epsg3577, epsg3857, epsg4326, mkA, xy_from_gbox, xy_norm
+
+# pylint: disable=pointless-statement
 
 
 def test_geobox_simple():
@@ -141,7 +135,7 @@ def test_geobox():
         ],
     ]
     for points in points_list:
-        polygon = geometry.polygon(points, crs=epsg3577)
+        polygon = geom.polygon(points, crs=epsg3577)
         resolution = (-25, 25)
         geobox = GeoBox.from_geopolygon(polygon, resolution)
 

@@ -10,7 +10,7 @@ from affine import Affine
 
 from .crs import CRS
 from .geobox import GeoBox
-from ._geom import BoundingBox, Geometry, intersects
+from .geom import BoundingBox, Geometry, intersects
 
 
 class GridSpec:

@@ -201,19 +201,19 @@ class CRS:
         return self._crs
 
     @property
-    def valid_region(self) -> Optional["_geom.Geometry"]:
+    def valid_region(self) -> Optional["geom.Geometry"]:
         """Return valid region of this CRS.
 
         Bounding box in Lon/Lat as a 4 point Polygon in EPSG:4326.
         None if not defined
         """
 
-        from . import _geom  # pylint: disable=import-outside-toplevel
+        from . import geom  # pylint: disable=import-outside-toplevel
 
         aou = self._crs.area_of_use
         if aou is None:
             return None
-        return _geom.box(aou.west, aou.south, aou.east, aou.north, "EPSG:4326")
+        return geom.box(aou.west, aou.south, aou.east, aou.north, "EPSG:4326")
 
     @property
     def crs_str(self) -> str:
@@ -291,7 +291,7 @@ def crs_units_per_degree(
     A floating number S such that `S*degrees -> meters`
     """
 
-    from . import _geom  # pylint: disable=import-outside-toplevel
+    from . import geom  # pylint: disable=import-outside-toplevel
 
     if isinstance(lon, tuple):
         lon, lat = lon
@@ -300,11 +300,11 @@ def crs_units_per_degree(
     if lon2 > 180:
         lon2 = lon - step
 
-    ll = _geom.line([(lon, lat), (lon2, lat)], "EPSG:4326")
+    ll = geom.line([(lon, lat), (lon2, lat)], "EPSG:4326")
     xy = ll.to_crs(crs, resolution=math.inf)
 
     return xy.length / step
 
 
 if TYPE_CHECKING:
-    from . import _geom  # pragma: no cover
+    from . import geom  # pragma: no cover

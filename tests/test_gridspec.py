@@ -4,8 +4,12 @@
 # SPDX-License-Identifier: Apache-2.0
 import numpy
 
-from odc.geo import CRS, BoundingBox, polygon
+from odc.geo import CRS, BoundingBox
+from odc.geo.geom import polygon
 from odc.geo.gridspec import GridSpec
+
+# pylint: disable=protected-access,use-implicit-booleaness-not-comparison
+# pylint: disable=comparison-with-itself
 
 
 def test_gridspec():

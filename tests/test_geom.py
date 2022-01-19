@@ -12,16 +12,11 @@ from affine import Affine
 from pytest import approx
 from shapely.errors import ShapelyDeprecationWarning
 
-from odc import geo as geometry
 from odc.geo import (
     CRS,
     BoundingBox,
     CRSMismatchError,
-    bbox_union,
-    chop_along_antimeridian,
-    clip_lon180,
-    multigeom,
-    projected_lon,
+    geom,
     roi_boundary,
     roi_center,
     roi_from_points,
@@ -36,8 +31,6 @@ from odc.geo import (
     scaled_up_roi,
     w_,
 )
-from odc.geo.crs import norm_crs, norm_crs_or_error
-from odc.geo._geom import densify, force_2d
 from odc.geo._overlap import (
     affine_from_pts,
     compute_axis_overlap,
@@ -47,7 +40,17 @@ from odc.geo._overlap import (
     native_pix_transform,
 )
 from odc.geo._roi import polygon_path
+from odc.geo.crs import norm_crs, norm_crs_or_error
 from odc.geo.geobox import GeoBox, _align_pix, _round_to_res, scaled_down_geobox
+from odc.geo.geom import (
+    bbox_union,
+    chop_along_antimeridian,
+    clip_lon180,
+    densify,
+    force_2d,
+    multigeom,
+    projected_lon,
+)
 from odc.geo.math import apply_affine, is_affine_st, split_translation
 from odc.geo.testutils import (
     SAMPLE_WKT_WITHOUT_AUTHORITY,
@@ -62,9 +65,11 @@ from odc.geo.testutils import (
     xy_from_gbox,
 )
 
+# pylint: disable=protected-access, pointless-statement
+
 
 def test_pickleable():
-    poly = geometry.polygon([(10, 20), (20, 20), (20, 10), (10, 20)], crs=epsg4326)
+    poly = geom.polygon([(10, 20), (20, 20), (20, 10), (10, 20)], crs=epsg4326)
     pickled = pickle.dumps(poly, pickle.HIGHEST_PROTOCOL)
     unpickled = pickle.loads(pickled)
     assert poly == unpickled
@@ -73,58 +78,56 @@ def test_pickleable():
 def test_props():
     crs = epsg4326
 
-    box1 = geometry.box(10, 10, 30, 30, crs=crs)
+    box1 = geom.box(10, 10, 30, 30, crs=crs)
     assert box1
     assert box1.is_valid
     assert not box1.is_empty
     assert box1.area == 400.0
     assert box1.boundary.length == 80.0
-    assert box1.centroid == geometry.point(20, 20, crs)
+    assert box1.centroid == geom.point(20, 20, crs)
     assert isinstance(box1.wkt, str)
 
-    triangle = geometry.polygon([(10, 20), (20, 20), (20, 10), (10, 20)], crs=crs)
-    assert triangle.boundingbox == geometry.BoundingBox(10, 10, 20, 20)
+    triangle = geom.polygon([(10, 20), (20, 20), (20, 10), (10, 20)], crs=crs)
+    assert triangle.boundingbox == geom.BoundingBox(10, 10, 20, 20)
     assert triangle.envelope.contains(triangle)
 
     assert box1.length == 80.0
 
-    box1copy = geometry.box(10, 10, 30, 30, crs=crs)
+    box1copy = geom.box(10, 10, 30, 30, crs=crs)
     assert box1 == box1copy
     assert box1.convex_hull == box1copy  # NOTE: this might fail because of point order
 
-    box2 = geometry.box(20, 10, 40, 30, crs=crs)
+    box2 = geom.box(20, 10, 40, 30, crs=crs)
     assert box1 != box2
 
-    bbox = geometry.BoundingBox(1, 0, 10, 13)
+    bbox = geom.BoundingBox(1, 0, 10, 13)
     assert bbox.width == 9
     assert bbox.height == 13
     assert bbox.points == [(1, 0), (1, 13), (10, 0), (10, 13)]
 
     assert bbox.transform(Affine.identity()) == bbox
-    assert bbox.transform(Affine.translation(1, 2)) == geometry.BoundingBox(
-        2, 2, 11, 15
-    )
+    assert bbox.transform(Affine.translation(1, 2)) == geom.BoundingBox(2, 2, 11, 15)
 
-    pt = geometry.point(3, 4, crs)
+    pt = geom.point(3, 4, crs)
     assert pt.json["coordinates"] == (3.0, 4.0)
     assert "Point" in str(pt)
     assert bool(pt) is True
     assert pt.__nonzero__() is True
 
     # check "CRS as string is converted to class automatically"
-    assert isinstance(geometry.point(3, 4, "epsg:3857").crs, geometry.CRS)
+    assert isinstance(geom.point(3, 4, "epsg:3857").crs, geom.CRS)
 
     # constructor with bad input should raise ValueError
     with pytest.raises(ValueError):
-        geometry.Geometry(object())
+        geom.Geometry(object())
 
 
 def test_tests():
-    box1 = geometry.box(10, 10, 30, 30, crs=epsg4326)
-    box2 = geometry.box(20, 10, 40, 30, crs=epsg4326)
-    box3 = geometry.box(30, 10, 50, 30, crs=epsg4326)
-    box4 = geometry.box(40, 10, 60, 30, crs=epsg4326)
-    minibox = geometry.box(15, 15, 25, 25, crs=epsg4326)
+    box1 = geom.box(10, 10, 30, 30, crs=epsg4326)
+    box2 = geom.box(20, 10, 40, 30, crs=epsg4326)
+    box3 = geom.box(30, 10, 50, 30, crs=epsg4326)
+    box4 = geom.box(40, 10, 60, 30, crs=epsg4326)
+    minibox = geom.box(15, 15, 25, 25, crs=epsg4326)
 
     assert not box1.touches(box2)
     assert box1.touches(box3)
@@ -154,10 +157,10 @@ def test_tests():
 
 
 def test_ops():
-    box1 = geometry.box(10, 10, 30, 30, crs=epsg4326)
-    box2 = geometry.box(20, 10, 40, 30, crs=epsg4326)
-    box3 = geometry.box(20, 10, 40, 30, crs=epsg4326)
-    box4 = geometry.box(40, 10, 60, 30, crs=epsg4326)
+    box1 = geom.box(10, 10, 30, 30, crs=epsg4326)
+    box2 = geom.box(20, 10, 40, 30, crs=epsg4326)
+    box3 = geom.box(20, 10, 40, 30, crs=epsg4326)
+    box4 = geom.box(40, 10, 60, 30, crs=epsg4326)
     no_box = None
 
     assert box1 != box2
@@ -167,7 +170,7 @@ def test_ops():
     union1 = box1.union(box2)
     assert union1.area == 600.0
 
-    with pytest.raises(geometry.CRSMismatchError):
+    with pytest.raises(geom.CRSMismatchError):
         box1.union(box2.to_crs(epsg3857))
 
     inter1 = box1.intersection(box2)
@@ -186,12 +189,12 @@ def test_ops():
     assert symdiff1.area == 400.0
 
     # test segmented
-    line = geometry.line([(0, 0), (0, 5), (10, 5)], epsg4326)
+    line = geom.line([(0, 0), (0, 5), (10, 5)], epsg4326)
     line2 = line.segmented(2)
     assert line.crs is line2.crs
     assert line.length == line2.length
     assert len(line.coords) < len(line2.coords)
-    poly = geometry.polygon([(0, 0), (0, 5), (10, 5)], epsg4326)
+    poly = geom.polygon([(0, 0), (0, 5), (10, 5)], epsg4326)
     poly2 = poly.segmented(2)
     assert poly.crs is poly2.crs
     assert poly.length == poly2.length
@@ -218,11 +221,11 @@ def test_ops():
         assert np.array(line).shape == (3, 2)
 
     # test simplify
-    poly = geometry.polygon([(0, 0), (0, 5), (10, 5)], epsg4326)
+    poly = geom.polygon([(0, 0), (0, 5), (10, 5)], epsg4326)
     assert poly.simplify(100) == poly
 
     # test iteration
-    poly_2_parts = geometry.Geometry(
+    poly_2_parts = geom.Geometry(
         {
             "type": "MultiPolygon",
             "coordinates": [
@@ -260,56 +263,56 @@ def test_ops():
     assert all(p.crs == poly_2_parts.crs for p in pp)
 
     # test transform
-    assert geometry.point(0, 0, epsg4326).transform(
+    assert geom.point(0, 0, epsg4326).transform(
         lambda x, y: (x + 1, y + 2)
-    ) == geometry.point(1, 2, epsg4326)
+    ) == geom.point(1, 2, epsg4326)
 
     # test sides
-    box = geometry.box(1, 2, 11, 22, epsg4326)
-    lines = list(geometry.sides(box))
+    box = geom.box(1, 2, 11, 22, epsg4326)
+    lines = list(geom.sides(box))
     assert all(line.crs is epsg4326 for line in lines)
     assert len(lines) == 4
-    assert lines[0] == geometry.line([(1, 2), (1, 22)], epsg4326)
-    assert lines[1] == geometry.line([(1, 22), (11, 22)], epsg4326)
-    assert lines[2] == geometry.line([(11, 22), (11, 2)], epsg4326)
-    assert lines[3] == geometry.line([(11, 2), (1, 2)], epsg4326)
+    assert lines[0] == geom.line([(1, 2), (1, 22)], epsg4326)
+    assert lines[1] == geom.line([(1, 22), (11, 22)], epsg4326)
+    assert lines[2] == geom.line([(11, 22), (11, 2)], epsg4326)
+    assert lines[3] == geom.line([(11, 2), (1, 2)], epsg4326)
 
 
 def test_geom_split():
-    box = geometry.box(0, 0, 10, 30, epsg4326)
-    line = geometry.line([(5, 0), (5, 30)], epsg4326)
+    box = geom.box(0, 0, 10, 30, epsg4326)
+    line = geom.line([(5, 0), (5, 30)], epsg4326)
     bb = list(box.split(line))
     assert len(bb) == 2
     assert box.contains(bb[0] | bb[1])
     assert (box ^ (bb[0] | bb[1])).is_empty
 
     with pytest.raises(CRSMismatchError):
-        list(box.split(geometry.line([(5, 0), (5, 30)], epsg3857)))
+        list(box.split(geom.line([(5, 0), (5, 30)], epsg3857)))
 
 
 def test_multigeom():
     p1, p2 = (0, 0), (1, 2)
     p3, p4 = (3, 4), (5, 6)
-    b1 = geometry.box(*p1, *p2, epsg4326)
-    b2 = geometry.box(*p3, *p4, epsg4326)
+    b1 = geom.box(*p1, *p2, epsg4326)
+    b2 = geom.box(*p3, *p4, epsg4326)
     bb = multigeom([b1, b2])
     assert bb.type == "MultiPolygon"
     assert bb.crs is b1.crs
     assert len(list(bb)) == 2
 
-    assert geometry.multipolygon([b1.boundary.coords, b2.boundary.coords], b1.crs) == bb
+    assert geom.multipolygon([b1.boundary.coords, b2.boundary.coords], b1.crs) == bb
 
-    g1 = geometry.line([p1, p2], None)
-    g2 = geometry.line([p3, p4], None)
+    g1 = geom.line([p1, p2], None)
+    g2 = geom.line([p3, p4], None)
     gg = multigeom(iter([g1, g2, g1]))
     assert gg.type == "MultiLineString"
     assert gg.crs is g1.crs
     assert len(list(gg)) == 3
-    assert geometry.multiline([[p1, p2], [p3, p4], [p1, p2]], None) == gg
+    assert geom.multiline([[p1, p2], [p3, p4], [p1, p2]], None) == gg
 
-    g1 = geometry.point(*p1, epsg3857)
-    g2 = geometry.point(*p2, epsg3857)
-    g3 = geometry.point(*p3, epsg3857)
+    g1 = geom.point(*p1, epsg3857)
+    g2 = geom.point(*p2, epsg3857)
+    g3 = geom.point(*p3, epsg3857)
     gg = multigeom(iter([g1, g2, g3]))
     assert gg.type == "MultiPoint"
     assert gg.crs is g1.crs
@@ -318,17 +321,15 @@ def test_multigeom():
     assert list(gg)[1] == g2
     assert list(gg)[2] == g3
 
-    assert geometry.multipoint([p1, p2, p3], epsg3857) == gg
+    assert geom.multipoint([p1, p2, p3], epsg3857) == gg
 
     # can't mix types
     with pytest.raises(ValueError):
-        multigeom([geometry.line([p1, p2], None), geometry.point(*p1, None)])
+        multigeom([geom.line([p1, p2], None), geom.point(*p1, None)])
 
     # can't mix CRSs
     with pytest.raises(CRSMismatchError):
-        multigeom(
-            [geometry.line([p1, p2], epsg4326), geometry.line([p3, p4], epsg3857)]
-        )
+        multigeom([geom.line([p1, p2], epsg4326), geom.line([p3, p4], epsg3857)])
 
     # only some types are supported on input
     with pytest.raises(ValueError):
@@ -336,7 +337,7 @@ def test_multigeom():
 
 
 def test_shapely_wrappers():
-    poly = geometry.polygon([(0, 0), (0, 5), (10, 5)], epsg4326)
+    poly = geom.polygon([(0, 0), (0, 5), (10, 5)], epsg4326)
 
     assert isinstance(poly.svg(), str)
     assert isinstance(poly._repr_svg_(), str)
@@ -345,7 +346,7 @@ def test_shapely_wrappers():
     assert len(poly.interiors) == 0
     assert len(with_hole.interiors) == 1
     assert isinstance(with_hole.interiors, list)
-    assert isinstance(with_hole.interiors[0], geometry.Geometry)
+    assert isinstance(with_hole.interiors[0], geom.Geometry)
     assert with_hole.interiors[0].crs == with_hole.crs
     assert poly.exterior.crs == poly.crs
 
@@ -361,7 +362,7 @@ def test_shapely_wrappers():
 
 
 def test_to_crs():
-    poly = geometry.polygon([(0, 0), (0, 5), (10, 5)], epsg4326)
+    poly = geom.polygon([(0, 0), (0, 5), (10, 5)], epsg4326)
     num_points = 3
     assert poly.crs is epsg4326
     assert poly.to_crs(epsg3857).crs is epsg3857
@@ -379,14 +380,12 @@ def test_to_crs():
     assert len(poly.to_crs(epsg3857, float("+inf")).exterior.xy[0]) == num_points + 1
 
     # test the segmentation works on multi-polygons
-    mpoly = geometry.box(0, 0, 1, 3, "EPSG:4326") | geometry.box(
-        2, 4, 3, 6, "EPSG:4326"
-    )
+    mpoly = geom.box(0, 0, 1, 3, "EPSG:4326") | geom.box(2, 4, 3, 6, "EPSG:4326")
 
     assert mpoly.type == "MultiPolygon"
     assert mpoly.to_crs(epsg3857).type == "MultiPolygon"
 
-    poly = geometry.polygon([(0, 0), (0, 5), (10, 5)], None)
+    poly = geom.polygon([(0, 0), (0, 5), (10, 5)], None)
     assert poly.crs is None
     with pytest.raises(ValueError):
         poly.to_crs(epsg3857)
@@ -440,66 +439,66 @@ def test_bbox_union():
 
 
 def test_unary_union():
-    box1 = geometry.box(10, 10, 30, 30, crs=epsg4326)
-    box2 = geometry.box(20, 10, 40, 30, crs=epsg4326)
-    box3 = geometry.box(30, 10, 50, 30, crs=epsg4326)
-    box4 = geometry.box(40, 10, 60, 30, crs=epsg4326)
+    box1 = geom.box(10, 10, 30, 30, crs=epsg4326)
+    box2 = geom.box(20, 10, 40, 30, crs=epsg4326)
+    box3 = geom.box(30, 10, 50, 30, crs=epsg4326)
+    box4 = geom.box(40, 10, 60, 30, crs=epsg4326)
 
-    union0 = geometry.unary_union([box1])
+    union0 = geom.unary_union([box1])
     assert union0 == box1
 
-    union1 = geometry.unary_union([box1, box4])
+    union1 = geom.unary_union([box1, box4])
     assert union1.type == "MultiPolygon"
     assert union1.area == 2.0 * box1.area
 
-    union2 = geometry.unary_union([box1, box2])
+    union2 = geom.unary_union([box1, box2])
     assert union2.type == "Polygon"
     assert union2.area == 1.5 * box1.area
 
-    union3 = geometry.unary_union([box1, box2, box3, box4])
+    union3 = geom.unary_union([box1, box2, box3, box4])
     assert union3.type == "Polygon"
     assert union3.area == 2.5 * box1.area
 
-    union4 = geometry.unary_union([union1, box2, box3])
+    union4 = geom.unary_union([union1, box2, box3])
     assert union4.type == "Polygon"
     assert union4.area == 2.5 * box1.area
 
-    assert geometry.unary_union([]) is None
+    assert geom.unary_union([]) is None
 
     with pytest.raises(ValueError):
-        geometry.unary_union([box1, box1.to_crs(epsg3577)])
+        geom.unary_union([box1, box1.to_crs(epsg3577)])
 
 
 def test_unary_intersection():
-    box1 = geometry.box(10, 10, 30, 30, crs=epsg4326)
-    box2 = geometry.box(15, 10, 35, 30, crs=epsg4326)
-    box3 = geometry.box(20, 10, 40, 30, crs=epsg4326)
-    box4 = geometry.box(25, 10, 45, 30, crs=epsg4326)
-    box5 = geometry.box(30, 10, 50, 30, crs=epsg4326)
-    box6 = geometry.box(35, 10, 55, 30, crs=epsg4326)
+    box1 = geom.box(10, 10, 30, 30, crs=epsg4326)
+    box2 = geom.box(15, 10, 35, 30, crs=epsg4326)
+    box3 = geom.box(20, 10, 40, 30, crs=epsg4326)
+    box4 = geom.box(25, 10, 45, 30, crs=epsg4326)
+    box5 = geom.box(30, 10, 50, 30, crs=epsg4326)
+    box6 = geom.box(35, 10, 55, 30, crs=epsg4326)
 
-    inter1 = geometry.unary_intersection([box1])
+    inter1 = geom.unary_intersection([box1])
     assert bool(inter1)
     assert inter1 == box1
 
-    inter2 = geometry.unary_intersection([box1, box2])
+    inter2 = geom.unary_intersection([box1, box2])
     assert bool(inter2)
     assert inter2.area == 300.0
 
-    inter3 = geometry.unary_intersection([box1, box2, box3])
+    inter3 = geom.unary_intersection([box1, box2, box3])
     assert bool(inter3)
     assert inter3.area == 200.0
 
-    inter4 = geometry.unary_intersection([box1, box2, box3, box4])
+    inter4 = geom.unary_intersection([box1, box2, box3, box4])
     assert bool(inter4)
     assert inter4.area == 100.0
 
-    inter5 = geometry.unary_intersection([box1, box2, box3, box4, box5])
+    inter5 = geom.unary_intersection([box1, box2, box3, box4, box5])
     assert bool(inter5)
     assert inter5.type == "LineString"
     assert inter5.length == 20.0
 
-    inter6 = geometry.unary_intersection([box1, box2, box3, box4, box5, box6])
+    inter6 = geom.unary_intersection([box1, box2, box3, box4, box5, box6])
     assert not bool(inter6)
     assert inter6.is_empty
 
@@ -592,29 +591,29 @@ def test_projected_lon():
 
 
 def test_chop():
-    poly = geometry.box(618300, -1876800, 849000, -1642500, "EPSG:32660")
+    poly = geom.box(618300, -1876800, 849000, -1642500, "EPSG:32660")
 
     chopped = chop_along_antimeridian(poly)
     assert chopped.crs is poly.crs
     assert chopped.type == "MultiPolygon"
     assert len([g for g in chopped]) == 2
 
-    poly = geometry.box(0, 0, 10, 20, "EPSG:4326")._to_crs(epsg3857)
+    poly = geom.box(0, 0, 10, 20, "EPSG:4326")._to_crs(epsg3857)
     assert poly.crs is epsg3857
     assert chop_along_antimeridian(poly) is poly
 
     with pytest.raises(ValueError):
-        chop_along_antimeridian(geometry.box(0, 1, 2, 3, None))
+        chop_along_antimeridian(geom.box(0, 1, 2, 3, None))
 
 
 def test_clip_lon180():
     err = 1e-9
 
     def b(rside):
-        return geometry.box(170, 0, rside, 10, epsg4326)
+        return geom.box(170, 0, rside, 10, epsg4326)
 
     def b_neg(lside):
-        return geometry.box(lside, 0, -170, 10, epsg4326)
+        return geom.box(lside, 0, -170, 10, epsg4326)
 
     assert clip_lon180(b(180 - err)) == b(180)
     assert clip_lon180(b(-180 + err)) == b(180)
@@ -632,7 +631,7 @@ def test_wrap_dateline():
     albers_crs = epsg3577
     geog_crs = epsg4326
 
-    wrap = geometry.polygon(
+    wrap = geom.polygon(
         [
             (3658653.1976781483, -4995675.379595791),
             (4025493.916030875, -3947239.249752495),
@@ -644,10 +643,10 @@ def test_wrap_dateline():
     )
     wrapped = wrap.to_crs(geog_crs)
     assert wrapped.type == "Polygon"
-    assert wrapped.intersects(geometry.line([(0, -90), (0, 90)], crs=geog_crs))
+    assert wrapped.intersects(geom.line([(0, -90), (0, 90)], crs=geog_crs))
     wrapped = wrap.to_crs(geog_crs, wrapdateline=True)
     assert wrapped.type == "MultiPolygon"
-    assert not wrapped.intersects(geometry.line([(0, -90), (0, 90)], crs=geog_crs))
+    assert not wrapped.intersects(geom.line([(0, -90), (0, 90)], crs=geog_crs))
 
 
 @pytest.mark.parametrize(
@@ -677,7 +676,7 @@ def test_wrap_dateline():
     ],
 )
 def test_wrap_dateline_sinusoidal(pts):
-    sinus_crs = geometry.CRS(
+    sinus_crs = geom.CRS(
         """PROJCS["unnamed",
                            GEOGCS["Unknown datum based upon the custom spheroid",
                            DATUM["Not specified (based on custom spheroid)", SPHEROID["Custom spheroid",6371007.181,0]],
@@ -689,23 +688,23 @@ def test_wrap_dateline_sinusoidal(pts):
                            UNIT["Meter",1]]"""
     )
 
-    wrap = geometry.polygon(pts, crs=sinus_crs)
+    wrap = geom.polygon(pts, crs=sinus_crs)
     wrapped = wrap.to_crs(epsg4326)
     assert wrapped.type == "Polygon"
     wrapped = wrap.to_crs(epsg4326, wrapdateline=True)
     assert wrapped.type == "MultiPolygon"
-    assert not wrapped.intersects(geometry.line([(0, -90), (0, 90)], crs=epsg4326))
+    assert not wrapped.intersects(geom.line([(0, -90), (0, 90)], crs=epsg4326))
 
 
 def test_wrap_dateline_utm():
-    poly = geometry.box(618300, -1876800, 849000, -1642500, "EPSG:32660")
+    poly = geom.box(618300, -1876800, 849000, -1642500, "EPSG:32660")
 
     wrapped = poly.to_crs(epsg4326)
     assert wrapped.type == "Polygon"
-    assert wrapped.intersects(geometry.line([(0, -90), (0, 90)], crs=epsg4326))
+    assert wrapped.intersects(geom.line([(0, -90), (0, 90)], crs=epsg4326))
     wrapped = poly.to_crs(epsg4326, wrapdateline=True)
     assert wrapped.type == "MultiPolygon"
-    assert not wrapped.intersects(geometry.line([(0, -90), (0, 90)], crs=epsg4326))
+    assert not wrapped.intersects(geom.line([(0, -90), (0, 90)], crs=epsg4326))
 
 
 def test_3d_geometry_converted_to_2d_geometry():
@@ -720,8 +719,8 @@ def test_3d_geometry_converted_to_2d_geometry():
     geom_3d = {"coordinates": [coordinates], "type": "Polygon"}
     geom_2d = {"coordinates": [[(x, y) for x, y, z in coordinates]], "type": "Polygon"}
 
-    g_2d = geometry.Geometry(geom_2d)
-    g_3d = geometry.Geometry(geom_3d)
+    g_2d = geom.Geometry(geom_2d)
+    g_3d = geom.Geometry(geom_3d)
 
     assert {2} == {len(pt) for pt in g_3d.boundary.coords}  # All coordinates are 2D
 
@@ -734,8 +733,8 @@ def test_3d_point_converted_to_2d_point():
     point_3d = {"coordinates": point, "type": "Point"}
     point_2d = {"coordinates": (point[0], point[1]), "type": "Point"}
 
-    p_2d = geometry.Geometry(point_2d)
-    p_3d = geometry.Geometry(point_3d)
+    p_2d = geom.Geometry(point_2d)
+    p_3d = geom.Geometry(point_3d)
 
     assert len(p_3d.coords[0]) == 2
 
@@ -743,12 +742,10 @@ def test_3d_point_converted_to_2d_point():
 
 
 def test_mid_longitude():
-    assert geometry.mid_longitude(geometry.point(10, 3, "epsg:4326")) == 10
-    assert geometry.mid_longitude(geometry.point(10, 3, "epsg:4326").buffer(3)) == 10
+    assert geom.mid_longitude(geom.point(10, 3, "epsg:4326")) == 10
+    assert geom.mid_longitude(geom.point(10, 3, "epsg:4326").buffer(3)) == 10
     assert (
-        geometry.mid_longitude(
-            geometry.point(10, 3, "epsg:4326").buffer(3).to_crs("epsg:3857")
-        )
+        geom.mid_longitude(geom.point(10, 3, "epsg:4326").buffer(3).to_crs("epsg:3857"))
         == 10
     )
 
@@ -844,9 +841,7 @@ def test_point_transformer():
     pts = [(0, 0), (0, 1), (1, 2), (10, 11)]
     x, y = np.vstack(pts).astype("float64").T
 
-    pts_expect = [
-        geometry.point(*pt, epsg3857).to_crs(epsg4326).points[0] for pt in pts
-    ]
+    pts_expect = [geom.point(*pt, epsg3857).to_crs(epsg4326).points[0] for pt in pts]
 
     x_expect = [pt[0] for pt in pts_expect]
     y_expect = [pt[1] for pt in pts_expect]
@@ -967,7 +962,7 @@ def test_scale_at_point():
 def test_pix_transform():
     pt = tuple(
         int(x / 10) * 10
-        for x in geometry.point(145, -35, epsg4326).to_crs(epsg3577).coords[0]
+        for x in geom.point(145, -35, epsg4326).to_crs(epsg3577).coords[0]
     )
 
     A = mkA(scale=(20, -20), translation=pt)
@@ -1158,6 +1153,7 @@ def test_axis_overlap():
 
 def test_base_internals():
     no_epsg_crs = CRS(SAMPLE_WKT_WITHOUT_AUTHORITY)
+    assert no_epsg_crs.epsg is None
 
     gjson_bad = {"type": "a", "coordinates": [1, [2, 3, 4]]}
     assert force_2d(gjson_bad) == {"type": "a", "coordinates": [1, [2, 3]]}
@@ -1176,16 +1172,16 @@ def test_base_internals():
 
 
 def test_geom_clone():
-    b = geometry.box(0, 0, 10, 20, epsg4326)
+    b = geom.box(0, 0, 10, 20, epsg4326)
     assert b == b.clone()
     assert b.geom is not b.clone().geom
 
-    assert b == geometry.Geometry(b)
-    assert b.geom is not geometry.Geometry(b).geom
+    assert b == geom.Geometry(b)
+    assert b.geom is not geom.Geometry(b).geom
 
 
 @pytest.mark.parametrize(
-    "left, right, off, res, expect",
+    "left, right, res, off, expect",
     [
         (20, 30, 10, 0, (20, 1)),
         (20, 30.5, 10, 0, (20, 1)),
@@ -1199,26 +1195,26 @@ def test_geom_clone():
         (20, 30, -10, -3, (37, 2)),
     ],
 )
-def test_align_pix(left, right, off, res, expect):
-    assert _align_pix(left, right, off, res) == expect
+def test_align_pix(left, right, res, off, expect):
+    assert _align_pix(left, right, res, off) == expect
 
 
 def test_lonlat_bounds():
     # example from landsat scene: spans lon=180
-    poly = geometry.box(618300, -1876800, 849000, -1642500, "EPSG:32660")
+    poly = geom.box(618300, -1876800, 849000, -1642500, "EPSG:32660")
 
-    bb = geometry.lonlat_bounds(poly)
+    bb = geom.lonlat_bounds(poly)
     assert bb.left < 180 < bb.right
-    assert geometry.lonlat_bounds(poly) == geometry.lonlat_bounds(poly, resolution=1e8)
+    assert geom.lonlat_bounds(poly) == geom.lonlat_bounds(poly, resolution=1e8)
 
-    bb = geometry.lonlat_bounds(poly, mode="quick")
+    bb = geom.lonlat_bounds(poly, mode="quick")
     assert bb.right - bb.left > 180
 
-    poly = geometry.box(1, -10, 2, 20, "EPSG:4326")
-    assert geometry.lonlat_bounds(poly) == poly.boundingbox
+    poly = geom.box(1, -10, 2, 20, "EPSG:4326")
+    assert geom.lonlat_bounds(poly) == poly.boundingbox
 
     with pytest.raises(ValueError):
-        geometry.lonlat_bounds(geometry.box(0, 0, 1, 1, None))
+        geom.lonlat_bounds(geom.box(0, 0, 1, 1, None))
 
     multi = {
         "type": "MultiPolygon",
@@ -1228,11 +1224,11 @@ def test_lonlat_bounds():
         ],
     }
 
-    multi_geom = geometry.Geometry(multi, "epsg:4326")
+    multi_geom = geom.Geometry(multi, "epsg:4326")
     multi_geom_projected = multi_geom.to_crs("epsg:32659", math.inf)
 
-    ll_bounds = geometry.lonlat_bounds(multi_geom)
-    ll_bounds_projected = geometry.lonlat_bounds(multi_geom_projected)
+    ll_bounds = geom.lonlat_bounds(multi_geom)
+    ll_bounds_projected = geom.lonlat_bounds(multi_geom_projected)
 
     assert ll_bounds == approx(ll_bounds_projected)
 
@@ -1241,7 +1237,7 @@ def test_lonlat_bounds():
     True, reason="Bounds computation for large geometries in safe mode is broken"
 )
 def test_lonalt_bounds_more_than_180():
-    poly = geometry.box(-150, -30, 150, 30, epsg4326).to_crs(epsg3857, math.inf)
+    poly = geom.box(-150, -30, 150, 30, epsg4326).to_crs(epsg3857, math.inf)
 
-    assert geometry.lonlat_bounds(poly, "quick") == approx((-150, -30, 150, 30))
-    assert geometry.lonlat_bounds(poly, "safe") == approx((-150, -30, 150, 30))
+    assert geom.lonlat_bounds(poly, "quick") == approx((-150, -30, 150, 30))
+    assert geom.lonlat_bounds(poly, "safe") == approx((-150, -30, 150, 30))
