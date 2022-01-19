@@ -15,7 +15,7 @@ from affine import Affine
 from shapely import geometry, ops
 from shapely.geometry import base
 
-from ._crs import CRS, CRSMismatchError, MaybeCRS, SomeCRS, norm_crs, norm_crs_or_error
+from .crs import CRS, CRSMismatchError, MaybeCRS, SomeCRS, norm_crs, norm_crs_or_error
 
 _BoundingBox = namedtuple("_BoundingBox", ("left", "bottom", "right", "top"))
 CoordList = List[Tuple[float, float]]

@@ -13,7 +13,7 @@ import numpy
 import xarray
 from affine import Affine
 
-from ._crs import CRS, CRSError, SomeCRS, norm_crs_or_error
+from .crs import CRS, CRSError, SomeCRS, norm_crs_or_error
 from .geobox import Coordinate, GeoBox
 from .math import affine_from_axis
 

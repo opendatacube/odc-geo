@@ -10,15 +10,12 @@
 
 from ._version import __version__
 
-from ._crs import (
+from .crs import (
     CRS,
     CRSError,
     CRSMismatchError,
     MaybeCRS,
     SomeCRS,
-    crs_units_per_degree,
-    norm_crs,
-    norm_crs_or_error,
 )
 
 from ._geom import (
@@ -74,7 +71,6 @@ __all__ = [
     "clip_lon180",
     "common_crs",
     "CoordList",
-    "crs_units_per_degree",
     "CRS",
     "CRSError",
     "CRSMismatchError",
@@ -88,8 +84,6 @@ __all__ = [
     "multiline",
     "multipoint",
     "multipolygon",
-    "norm_crs",
-    "norm_crs_or_error",
     "point",
     "polygon_from_transform",
     "polygon",

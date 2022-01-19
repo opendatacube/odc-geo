@@ -36,7 +36,7 @@ from odc.geo import (
     scaled_up_roi,
     w_,
 )
-from odc.geo._crs import norm_crs, norm_crs_or_error
+from odc.geo.crs import norm_crs, norm_crs_or_error
 from odc.geo._geom import densify, force_2d
 from odc.geo._overlap import (
     affine_from_pts,
