@@ -11,7 +11,8 @@ import rasterio.crs
 from pytest import approx
 
 from odc import geo as geometry
-from odc.geo import CRS, CRSMismatchError, common_crs, crs_units_per_degree
+from odc.geo import common_crs
+from odc.geo.crs import CRS, CRSMismatchError, crs_units_per_degree
 from odc.geo.testutils import epsg3577, epsg3857, epsg4326
 
 

@@ -10,7 +10,7 @@ from typing import Dict, Iterable, List, Optional, Tuple, Union
 import numpy
 from affine import Affine
 
-from ._crs import CRS, MaybeCRS
+from .crs import CRS, MaybeCRS
 from ._geom import (
     BoundingBox,
     Geometry,
