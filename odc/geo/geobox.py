@@ -18,7 +18,7 @@ from .geom import (
     bbox_union,
     polygon_from_transform,
 )
-from ._roi import align_up, polygon_path, roi_normalise, roi_shape
+from .roi import align_up, polygon_path, roi_normalise, roi_shape
 from .math import clamp, is_affine_st, is_almost_int
 
 # pylint: disable=invalid-name
