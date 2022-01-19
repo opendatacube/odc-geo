@@ -740,12 +740,11 @@ def test_3d_point_converted_to_2d_point():
 
 
 def test_mid_longitude():
-    assert geom.mid_longitude(geom.point(10, 3, "epsg:4326")) == 10
-    assert geom.mid_longitude(geom.point(10, 3, "epsg:4326").buffer(3)) == 10
-    assert (
-        geom.mid_longitude(geom.point(10, 3, "epsg:4326").buffer(3).to_crs("epsg:3857"))
-        == 10
-    )
+    assert geom.mid_longitude(geom.point(10, 3, "epsg:4326")) == approx(10)
+    assert geom.mid_longitude(geom.point(10, 3, "epsg:4326").buffer(3)) == approx(10)
+    assert geom.mid_longitude(
+        geom.point(10, 3, "epsg:4326").buffer(3).to_crs("epsg:3857")
+    ) == approx(10)
 
 
 def test_polygon_path():
