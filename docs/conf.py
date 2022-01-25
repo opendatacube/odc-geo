@@ -69,6 +69,7 @@ intersphinx_mapping = {
     "xarray": ("https://xarray.pydata.org/en/stable/", None),
     "xr": ("https://xarray.pydata.org/en/stable/", None),
     "rasterio": ("https://rasterio.readthedocs.io/en/latest/", None),
+    "shapely": ("https://shapely.readthedocs.io/en/latest/", None),
 }
 
 # -- Options for HTML output -------------------------------------------------

@@ -30,6 +30,9 @@ odc.geo.geom
 .. autosummary::
    :toctree: _api/
 
+   Geometry
+   BoundingBox
+
    box
    line
    point

@@ -44,39 +44,46 @@ class BoundingBox(_BoundingBox):
 
     @property
     def span_x(self) -> float:
+        """Span of the bounding box along x axis."""
         return self.right - self.left
 
     @property
     def span_y(self) -> float:
+        """Span of the bounding box along y axis."""
         return self.top - self.bottom
 
     @property
     def width(self) -> int:
+        """``int(span_x)``"""
         return int(self.right - self.left)
 
     @property
     def height(self) -> int:
+        """``int(span_y)``"""
         return int(self.top - self.bottom)
 
     @property
     def range_x(self) -> Tuple[float, float]:
+        """``left, right``"""
         return (self.left, self.right)
 
     @property
     def range_y(self) -> Tuple[float, float]:
+        """``bottom, top``"""
         return (self.bottom, self.top)
 
     @property
     def points(self) -> CoordList:
-        """Extract four corners of the bounding box"""
+        """Extract four corners of the bounding box."""
         x0, y0, x1, y1 = self
         return list(itertools.product((x0, x1), (y0, y1)))
 
     def transform(self, transform: Affine) -> "BoundingBox":
-        """Transform bounding box through a linear transform
+        """
+        Map bounding box through a linear transform.
 
-        Apply linear transform on 4 points of the bounding box and compute
-        bounding box of these four points.
+        Apply linear transform on four points of the bounding box and compute bounding box of these
+        four points.
         """
         pts = [transform * pt for pt in self.points]
         xx = [x for x, _ in pts]
@@ -85,7 +92,8 @@ class BoundingBox(_BoundingBox):
 
     @staticmethod
     def from_xy(x: Tuple[float, float], y: Tuple[float, float]) -> "BoundingBox":
-        """BoundingBox from x and y ranges
+        """
+        Construct :py:class:`~odc.geo.geom.BoundingBox` from x and y ranges.
 
         :param x: (left, right)
         :param y: (bottom, top)
@@ -96,7 +104,9 @@ class BoundingBox(_BoundingBox):
 
     @staticmethod
     def from_points(p1: Tuple[float, float], p2: Tuple[float, float]) -> "BoundingBox":
-        """BoundingBox from 2 points
+        """
+        Construct :py:class:`~odc.geo.geom.BoundingBox` from two points.
+
         :param p1: (x, y)
         :param p2: (x, y)
         """
@@ -105,9 +115,8 @@ class BoundingBox(_BoundingBox):
 
 def wrap_shapely(method):
     """
-    Takes a method that expects shapely geometry arguments
-    and converts it to a method that operates on `Geometry`
-    objects that carry their CRSs.
+    Takes a method that expects shapely geometry arguments and converts it to a method that operates
+    on :py:class:`odc.geo.geom.Geometry` objects that carry their CRSs.
     """
 
     @functools.wraps(method, assigned=("__doc__",))
@@ -177,11 +186,12 @@ def _clone_shapely_geom(geom: base.BaseGeometry) -> base.BaseGeometry:
 
 class Geometry:
     """
-    2D Geometry with CRS
+    2D Geometry with CRS.
 
-    Instantiate with a GeoJSON structure
+    This is a wrapper around :py:class:`shapely.geometry.BaseGeometry` that adds projection information.
 
-    If 3D coordinates are supplied, they are converted to 2D by dropping the Z points.
+    Instantiate with a GeoJSON structure. If 3D coordinates are supplied, they are converted to 2D
+    by dropping the Z points.
     """
 
     # pylint: disable=protected-access, too-many-public-methods
@@ -354,7 +364,9 @@ class Geometry:
 
     def segmented(self, resolution: float) -> "Geometry":
         """
-        Possibly add more points to the geometry so that no edge is longer than `resolution`.
+        Increase resolution of the geometry.
+
+        Possibly add more points to the geometry so that no edge is longer than ``resolution``.
         """
 
         def segmentize_shapely(geom: base.BaseGeometry) -> base.BaseGeometry:
@@ -379,8 +391,9 @@ class Geometry:
 
     def interpolate(self, distance: float) -> "Geometry":
         """
-        Returns a point distance units along the line.
-        Raises TypeError if geometry doesn't support this operation.
+        Returns a point ``distance`` units along the line.
+
+        @raises :py:class:`TypeError` if geometry doesn't support this operation.
         """
         return Geometry(self.geom.interpolate(distance), self.crs)
 
@@ -393,13 +406,15 @@ class Geometry:
         )
 
     def transform(self, func) -> "Geometry":
-        """Applies func to all coordinates of Geometry and returns a new Geometry
-        of the same type and in the same projection from the transformed coordinates.
+        """
+        Map through arbitrary transform.
 
-        func maps x, y, and optionally z to output xp, yp, zp. The input
-        parameters may be iterable types like lists or arrays or single values.
-        The output shall be of the same type: scalars in, scalars out; lists
-        in, lists out.
+        Applies ``func`` to all coordinates of :py:class:`~odc.geo.geom.Geometry` and returns a new
+        Geometry of the same type and in the same projection from the transformed coordinates.
+
+        ``func`` maps ``x, y``, and optionally ``z`` to output ``xp, yp, zp``. The input parameters
+        may be iterable types like lists or arrays or single values. The output shall be of the same
+        type: scalars in, scalars out; lists in, lists out.
         """
         return Geometry(ops.transform(func, self.geom), self.crs)
 
@@ -414,17 +429,20 @@ class Geometry:
         wrapdateline: bool = False,
     ) -> "Geometry":
         """
-        Convert geometry to a different Coordinate Reference System
+        Convert geometry to a different Coordinate Reference System.
 
-        :param crs: CRS to convert to
+        :param crs:
+          CRS to convert to
 
-        :param resolution: Subdivide the geometry such it has no segment longer then the given distance.
-                           Defaults to 1 degree for geographic and 100km for projected. To disable
-                           completely use Infinity float('+inf')
+        :param resolution:
+          Subdivide the geometry such it has no segment longer then the given distance.  Defaults to
+          1 degree for geographic and 100km for projected. To disable completely use Infinity
+          ``float('+inf')``
 
-        :param wrapdateline: Attempt to gracefully handle geometry that intersects the dateline
-                                  when converting to geographic projections.
-                                  Currently only works in few specific cases (source CRS is smooth over the dateline).
+        :param wrapdateline:
+           Attempt to gracefully handle geometry that intersects the dateline when converting to
+           geographic projections. Currently only works in few specific cases (source CRS is smooth
+           over the dateline).
         """
         crs = norm_crs_or_error(crs)
         if self.crs == crs:
@@ -491,7 +509,14 @@ class Geometry:
 
 
 def common_crs(geoms: Iterable[Geometry]) -> Optional[CRS]:
-    """Return CRS common across geometries, or raise CRSMismatchError"""
+    """
+    Compute common CRS.
+
+    :return: CRS common across geometries.
+    :return: ``None`` when input was empty
+
+    :raises: :py:class:`odc.geo.crs.CRSMismatchError` when there are multiple.
+    """
     all_crs = [g.crs for g in geoms]
     if len(all_crs) == 0:
         return None
@@ -508,7 +533,14 @@ def projected_lon(
     lat: Tuple[float, float] = (-90.0, 90.0),
     step: float = 1.0,
 ) -> Geometry:
-    """Project vertical line along some longitude into given CRS."""
+    """
+    Project vertical line along some longitude into a given CRS.
+
+    :param crs: Destination CRS
+    :param lon: Longitude to project
+    :param lat: Optionally limit range of the line
+    :param step: Line "resolution" in degrees
+    """
     crs = norm_crs_or_error(crs)
     yy = numpy.arange(lat[0], lat[1], step, dtype="float32")
     xx = numpy.full_like(yy, lon)
@@ -523,12 +555,19 @@ def projected_lon(
 
 
 def clip_lon180(geom: Geometry, tol=1e-6) -> Geometry:
-    """For every point in the ``lon=180|-180`` band clip to either 180 or -180
-    180|-180 is decided based on where the majority of other points lie.
+    """
+    Tweak Geometry in the vicinity of longitude discontinuity.
 
-    NOTE: this will only do "right thing" for chopped geometries,
-          expectation is that all the points are to one side of lon=180
-          line, or in the the capture zone of lon=(+/-)180
+    For every point within ``tol`` degress of ``lon=180|-180``, clip to either ``lon=180`` or
+    ``lon=-180``. Which one is decided based on where the majority of other points lie.
+
+    .. note::
+
+      This will only do the "right thing" for "chopped" geometries. Expectation is that all the
+      points are to one side of ``lon=180`` line, but some might have moved just beyond due to
+      numeric tolerance issues.
+
+    .. seealso:: :py:meth:`odc.geo.geom.chop_along_antimeridian`
     """
     thresh = 180 - tol
 
@@ -554,7 +593,7 @@ def clip_lon180(geom: Geometry, tol=1e-6) -> Geometry:
 
 def chop_along_antimeridian(geom: Geometry, precision: float = 0.1) -> Geometry:
     """
-    Chop a geometry along the antimeridian
+    Chop a geometry along the antimeridian.
 
     :param geom: Geometry to maybe partition
     :param precision: in degrees
@@ -578,7 +617,7 @@ def chop_along_antimeridian(geom: Geometry, precision: float = 0.1) -> Geometry:
 
 def point(x: float, y: float, crs: MaybeCRS) -> Geometry:
     """
-    Create a 2D Point
+    Create a 2D Point.
 
     >>> point(10, 10, crs=None)
     Geometry(POINT (10 10), None)
@@ -588,7 +627,7 @@ def point(x: float, y: float, crs: MaybeCRS) -> Geometry:
 
 def multipoint(coords: CoordList, crs: MaybeCRS) -> Geometry:
     """
-    Create a 2D MultiPoint Geometry
+    Create a 2D MultiPoint Geometry.
 
     >>> multipoint([(10, 10), (20, 20)], None)
     Geometry(MULTIPOINT (10 10, 20 20), None)
@@ -600,7 +639,7 @@ def multipoint(coords: CoordList, crs: MaybeCRS) -> Geometry:
 
 def line(coords: CoordList, crs: MaybeCRS) -> Geometry:
     """
-    Create a 2D LineString (Connected set of lines)
+    Create a 2D LineString (Connected set of lines).
 
     >>> line([(10, 10), (20, 20), (30, 40)], None)
     Geometry(LINESTRING (10 10, 20 20, 30 40), None)
@@ -612,7 +651,7 @@ def line(coords: CoordList, crs: MaybeCRS) -> Geometry:
 
 def multiline(coords: List[CoordList], crs: MaybeCRS) -> Geometry:
     """
-    Create a 2D MultiLineString (Multiple disconnected sets of lines)
+    Create a 2D MultiLineString (Multiple disconnected sets of lines).
 
     >>> multiline([[(10, 10), (20, 20), (30, 40)], [(50, 60), (70, 80), (90, 99)]], None)
     Geometry(MULTILINESTRING ((10 10, 20 20, 30 40), (50 60, 70 80, 90 99)), None)
@@ -624,7 +663,7 @@ def multiline(coords: List[CoordList], crs: MaybeCRS) -> Geometry:
 
 def polygon(outer, crs: MaybeCRS, *inners) -> Geometry:
     """
-    Create a 2D Polygon
+    Create a 2D Polygon.
 
     >>> polygon([(10, 10), (20, 20), (20, 10), (10, 10)], None)
     Geometry(POLYGON ((10 10, 20 20, 20 10, 10 10)), None)
@@ -636,7 +675,7 @@ def polygon(outer, crs: MaybeCRS, *inners) -> Geometry:
 
 def multipolygon(coords: List[CoordList], crs: MaybeCRS) -> Geometry:
     """
-    Create a 2D MultiPolygon
+    Create a 2D MultiPolygon.
 
     :param coords: list of lists of x,y coordinate tuples
     """
@@ -649,7 +688,7 @@ def box(
     left: float, bottom: float, right: float, top: float, crs: MaybeCRS
 ) -> Geometry:
     """
-    Create a 2D Box (Polygon)
+    Create a 2D Box (Polygon).
 
     >>> box(10, 10, 20, 20, None)
     Geometry(POLYGON ((10 10, 10 20, 20 20, 20 10, 10 10)), None)
@@ -668,7 +707,7 @@ def polygon_from_transform(
     width: float, height: float, transform: Affine, crs: MaybeCRS
 ) -> Geometry:
     """
-    Create a 2D Polygon from an affine transform
+    Create a 2D Polygon from an affine transform.
 
     :param width:
     :param height:
@@ -681,7 +720,8 @@ def polygon_from_transform(
 
 
 def sides(poly: Geometry) -> Iterable[Geometry]:
-    """Returns a sequence of Geometry[Line] objects.
+    """
+    Returns a sequence of Geometry[Line] objects.
 
     One for each side of the exterior ring of the input polygon.
     """
@@ -692,7 +732,7 @@ def sides(poly: Geometry) -> Iterable[Geometry]:
 
 
 def multigeom(geoms: Iterable[Geometry]) -> Geometry:
-    """Construct Multi{Polygon|LineString|Point}"""
+    """Construct ``Multi{Polygon|LineString|Point}``."""
     geoms = list(geoms)  # force into list
     src_type = {g.type for g in geoms}
     if len(src_type) > 1:
@@ -718,7 +758,7 @@ def multigeom(geoms: Iterable[Geometry]) -> Geometry:
 
 def unary_union(geoms: Iterable[Geometry]) -> Optional[Geometry]:
     """
-    compute union of multiple (multi)polygons efficiently
+    Compute union of multiple (multi)polygons efficiently.
     """
     geoms = list(geoms)
     if len(geoms) == 0:
@@ -735,18 +775,26 @@ def unary_union(geoms: Iterable[Geometry]) -> Optional[Geometry]:
 
 def unary_intersection(geoms: Iterable[Geometry]) -> Geometry:
     """
-    compute intersection of multiple (multi)polygons
+    Compute intersection of multiple (multi)polygons.
     """
     return functools.reduce(Geometry.intersection, geoms)
 
 
 def intersects(a: Geometry, b: Geometry) -> bool:
-    """Returns True if geometries intersect, else False"""
+    """
+    Check for intersection.
+
+    :return: ``True`` if geometries intersect, else ``False``
+    """
     return a.intersects(b) and not a.touches(b)
 
 
 def bbox_union(bbs: Iterable[BoundingBox]) -> BoundingBox:
-    """Given a stream of bounding boxes compute enclosing BoundingBox"""
+    """
+    Compute union of bounding boxes.
+
+    Given a stream of bounding boxes compute enclosing :py:class:`~odc.geo.geom.BoundingBox`.
+    """
     # pylint: disable=invalid-name
 
     L = B = float("+inf")
@@ -763,7 +811,11 @@ def bbox_union(bbs: Iterable[BoundingBox]) -> BoundingBox:
 
 
 def bbox_intersection(bbs: Iterable[BoundingBox]) -> BoundingBox:
-    """Given a stream of bounding boxes compute the overlap BoundingBox"""
+    """
+    Compute intersection of boudning boxes.
+
+    Given a stream of bounding boxes compute the overlap :py:class:`~odc.geo.geom.BoundingBox`.
+    """
     # pylint: disable=invalid-name
 
     L = B = float("-inf")
@@ -783,12 +835,15 @@ def lonlat_bounds(
     geom: Geometry, mode: str = "safe", resolution: Optional[float] = None
 ) -> BoundingBox:
     """
-    Return the bounding box of a geometry
+    Return the bounding box of a geometry.
 
-    :param geom: Geometry in any projection
-    :param mode: safe|quick
-    :param resolution: If supplied will first segmentize input geometry to have no segment longer than ``resolution``,
-                       this increases accuracy at the cost of computation
+    :param geom:
+       Geometry in any projection
+    :param mode:
+       safe|quick
+    :param resolution:
+       If supplied will first segmentize input geometry to have no segment longer than
+       ``resolution``, this increases accuracy at the cost of computation
     """
     assert mode in ("safe", "quick")
     if geom.crs is None:
@@ -825,7 +880,7 @@ def lonlat_bounds(
 
 def mid_longitude(geom: Geometry) -> float:
     """
-    Compute longitude of the center point of a geometry
+    Compute longitude of the center point of a geometry.
     """
     ((lon,), _) = geom.centroid.to_crs("epsg:4326").xy
     return lon
