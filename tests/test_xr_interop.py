@@ -163,7 +163,8 @@ def test_assign_crs(xx_epsg4326: xr.DataArray):
 
     # non-cf complaint CRS
     yy = xx.odc.assign_crs("epsg:3857")
-    assert yy.spatial_ref.attrs["grid_mapping_name"] == "??"
+    assert yy.spatial_ref.attrs.get("grid_mapping_name") is None
+    assert yy.odc.crs == "epsg:3857"
 
 
 def test_assign_crs_ds(xx_epsg4326: xr.DataArray):
@@ -177,7 +178,8 @@ def test_assign_crs_ds(xx_epsg4326: xr.DataArray):
 
     # non-cf complaint CRS
     yy = xx.odc.assign_crs("epsg:3857")
-    assert yy.spatial_ref.attrs["grid_mapping_name"] == "??"
+    assert yy.spatial_ref.attrs.get("grid_mapping_name") is None
+    assert yy.odc.crs == "epsg:3857"
 
 
 def test_corrupt_inputs(xx_epsg4326: xr.DataArray):
