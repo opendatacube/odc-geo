@@ -17,11 +17,14 @@ class GridSpec:
     """
     Definition for a regular spatial grid.
 
-    :param CRS crs: Coordinate System used to define the grid
-    :param [float,float] tile_size: (Y, X) size of each tile, in CRS units
-    :param [float,float] resolution: (Y, X) size of each data point in the grid, in CRS units. Y will
-                                   usually be negative.
-    :param [float,float] origin: (Y, X) coordinates of a corner of the (0,0) tile in CRS units. default is (0.0, 0.0)
+    :param CRS crs:
+       Coordinate System used to define the grid
+    :param [float,float] tile_size:
+      ``(Y, X)`` size of each tile, in CRS units
+    :param [float,float] resolution:
+      ``(Y, X)`` size of each data point in the grid, in CRS units. ``Y`` will usually be negative.
+    :param [float,float] origin:
+      ``(Y, X)`` coordinates of a corner of the ``(0,0)`` tile in CRS units. default is ``(0.0, 0.0)``
     """
 
     def __init__(
@@ -49,30 +52,24 @@ class GridSpec:
 
     @property
     def dimensions(self) -> Tuple[str, str]:
-        """
-        List of dimension names of the grid spec
-        """
+        """List of dimension names of the grid spec."""
         return self.crs.dimensions
 
     @property
     def alignment(self) -> Tuple[float, float]:
-        """
-        Pixel boundary alignment
-        """
+        """Pixel boundary alignment."""
         y, x = (orig % abs(res) for orig, res in zip(self.origin, self.resolution))
         return (y, x)
 
     @property
     def tile_shape(self) -> Tuple[int, int]:
-        """
-        Tile shape in pixels in Y,X order, like numpy
-        """
+        """Tile shape in pixels (Y,X order, like numpy)."""
         y, x = (int(abs(ts / res)) for ts, res in zip(self.tile_size, self.resolution))
         return (y, x)
 
     def tile_coords(self, tile_index: Tuple[int, int]) -> Tuple[float, float]:
         """
-        Coordinate of the top-left corner of the tile in (Y,X) order
+        Coordinate of the top-left corner of the tile in (Y,X) order.
 
         :param tile_index: in X,Y order
         """
@@ -106,17 +103,21 @@ class GridSpec:
         self, bounds: BoundingBox, geobox_cache: Optional[dict] = None
     ) -> Iterator[Tuple[Tuple[int, int], GeoBox]]:
         """
-        Returns an iterator of tile_index, :py:class:`GeoBox` tuples across
-        the grid and overlapping with the specified `bounds` rectangle.
+        Query tiles overlapping with bounding box.
+
+        Output is a sequence of ``tile_index``, :py:class:`odc.geo.geobox.GeoBox` tuples.
 
         .. note::
 
-           Grid cells are referenced by coordinates `(x, y)`, which is the opposite to the usual CRS
-           dimension order.
+           Grid cells are referenced by coordinates ``(x, y)``, which is the opposite to the usual
+           CRS dimension order.
 
-        :param BoundingBox bounds: Boundary coordinates of the required grid
-        :param dict geobox_cache: Optional cache to re-use geoboxes instead of creating new one each time
-        :return: iterator of grid cells with :py:class:`GeoBox` tiles
+        :param bounds:
+           Boundary coordinates of the required grid
+        :param geobox_cache:
+           Optional cache to re-use geoboxes instead of creating new one each time
+        :return:
+          Iterator of tuples of grid index and corresponding :py:class:`odc.geo.geobox.GeoBox`
         """
 
         def geobox(tile_index):
@@ -147,19 +148,18 @@ class GridSpec:
         geobox_cache: Optional[dict] = None,
     ) -> Iterator[Tuple[Tuple[int, int], GeoBox]]:
         """
-        Returns an iterator of tile_index, :py:class:`GeoBox` tuples across
-        the grid and overlapping with the specified `geopolygon`.
+        Query tiles overlapping with a gievn polygon.
 
-        .. note::
+        Output is a sequence of ``tile_index``, :py:class:`odc.geo.geobox.GeoBox` tuples.
 
-           Grid cells are referenced by coordinates `(x, y)`, which is the opposite to the usual CRS
-           dimension order.
-
-        :param Geometry geopolygon: Polygon to tile
-        :param tile_buffer: Optional <float,float> tuple, (extra padding for the query
-                            in native units of this GridSpec)
-        :param dict geobox_cache: Optional cache to re-use geoboxes instead of creating new one each time
-        :return: iterator of grid cells with :py:class:`GeoBox` tiles
+        :param geopolygon:
+          Polygon to tile
+        :param tile_buffer:
+          Optional ``<float,float>`` tuple, (extra padding for the query in native units of this
+          GridSpec)
+        :param geobox_cache:
+          Optional cache to re-use geoboxes instead of creating new one each turn: iterator of grid
+          cells with :py:class:`odc.geo.geobox.GeoBox` tiles
         """
         geopolygon = geopolygon.to_crs(self.crs)
         bbox = geopolygon.boundingbox

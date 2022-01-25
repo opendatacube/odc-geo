@@ -85,3 +85,19 @@ odc.geo.geom
    unary_intersection
    unary_union
 
+
+odc.geo.gridspec
+****************
+
+.. currentmodule:: odc.geo.gridspec
+.. autosummary::
+   :toctree: _api/
+
+   GridSpec
+   GridSpec.alignment
+   GridSpec.dimensions
+   GridSpec.tile_coords
+   GridSpec.tile_geobox
+   GridSpec.tile_shape
+   GridSpec.tiles
+   GridSpec.tiles_from_geopolygon
