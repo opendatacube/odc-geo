@@ -30,30 +30,30 @@ def test_geobox_xr_coords():
     w, h = 512, 256
     gbox = GeoBox(w, h, A, epsg3577)
 
-    cc = xr_coords(gbox, with_crs=False)
+    cc = xr_coords(gbox, crs_coord_name=None)
     assert list(cc) == ["y", "x"]
     assert cc["y"].shape == (gbox.shape[0],)
     assert cc["x"].shape == (gbox.shape[1],)
     assert "crs" in cc["y"].attrs
     assert "crs" in cc["x"].attrs
 
-    cc = xr_coords(gbox, with_crs=True)
+    cc = xr_coords(gbox)
     assert list(cc) == ["y", "x", "spatial_ref"]
     assert cc["spatial_ref"].shape == ()
     assert cc["spatial_ref"].attrs["spatial_ref"] == gbox.crs.wkt
     assert isinstance(cc["spatial_ref"].attrs["grid_mapping_name"], str)
 
-    # with_crs should be default True
-    assert list(xr_coords(gbox)) == list(xr_coords(gbox, with_crs=True))
+    # crs_coord_name should be default "spatial_ref"
+    assert list(xr_coords(gbox)) == list(xr_coords(gbox, crs_coord_name="spatial_ref"))
 
-    cc = xr_coords(gbox, with_crs="Albers")
+    cc = xr_coords(gbox, crs_coord_name="Albers")
     assert list(cc) == ["y", "x", "Albers"]
 
     # geographic CRS
     A = mkA(0, scale=(0.1, -0.1), translation=(10, 30))
     gbox = GeoBox(w, h, A, "epsg:4326")
 
-    cc = xr_coords(gbox, with_crs=True)
+    cc = xr_coords(gbox)
     assert list(cc) == ["latitude", "longitude", "spatial_ref"]
     assert cc["spatial_ref"].shape == ()
     assert cc["spatial_ref"].attrs["spatial_ref"] == gbox.crs.wkt
@@ -71,7 +71,7 @@ def test_xr_zeros(geobox_epsg4326: GeoBox):
     assert xx.spatial_ref.attrs["grid_mapping_name"] == "latitude_longitude"
 
     # check custom name for crs coordinate
-    xx = xr_zeros(gbox, dtype="uint16", with_crs="_crs")
+    xx = xr_zeros(gbox, dtype="uint16", crs_coord_name="_crs")
     assert "_crs" in xx.coords
     assert xx.encoding["grid_mapping"] == "_crs"
     assert (xx.values == 0).all()
