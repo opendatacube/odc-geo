@@ -51,16 +51,20 @@ def _make_crs_transform(from_crs, to_crs, always_xy):
 
 class CRS:
     """
-    Wrapper around py:class:`pyproj.CRS` for backwards compatibility.
+    Wrapper around :py:class:`pyproj.crs.CRS` for backwards compatibility.
     """
 
     DEFAULT_WKT_VERSION = WktVersion.WKT2_2019
+    """Default version for WKT: WKT2_2019"""
+
     __slots__ = ("_crs", "_epsg", "_str")
 
     def __init__(self, crs_spec: Any):
         """
+        Construct CRS object from *something*.
+
         :param crs_spec:
-           String representation of a CRS, often an EPSG code like 'EPSG:4326'. Can also be any
+           String representation of a CRS, often an EPSG code like ``'EPSG:4326'``. Can also be any
            object that implements ``.to_epsg()`` or ``.to_wkt()``.
 
         :raises: :py:class:`pyproj.exceptions.CRSError`
@@ -98,7 +102,10 @@ class CRS:
 
     def to_wkt(self, pretty: bool = False, version: Optional[WktVersion] = None) -> str:
         """
-        WKT representation of the CRS
+        Generate WKT representation of this CRS.
+
+        :param pretty: If ``True`` generate multi-line WKT.
+        :param version: Specify WKT version.
         """
         if version is None:
             version = self.DEFAULT_WKT_VERSION
@@ -107,43 +114,54 @@ class CRS:
 
     @property
     def wkt(self) -> str:
+        """WKT representation of this CRS."""
         return self.to_wkt()
 
     def to_epsg(self) -> Optional[int]:
         """
-        EPSG Code of the CRS or None.
+        EPSG Code of the CRS or ``None``.
         """
         return self._epsg
 
     @property
     def epsg(self) -> Optional[int]:
+        """
+        EPSG Code of the CRS or ``None``.
+        """
         return self._epsg
 
     @property
     def semi_major_axis(self):
+        """Semi-major axis of the ellipsoid."""
         return self._crs.ellipsoid.semi_major_metre
 
     @property
     def semi_minor_axis(self):
+        """Semi-minor axis of the ellipsoid."""
         return self._crs.ellipsoid.semi_minor_metre
 
     @property
     def inverse_flattening(self):
+        """Inverse flattening of the ellipsoid."""
         return self._crs.ellipsoid.inverse_flattening
 
     @property
     def geographic(self) -> bool:
+        """True if CRS is geographic."""
         return self._crs.is_geographic
 
     @property
     def projected(self) -> bool:
+        """True if CRS is projected."""
         return self._crs.is_projected
 
     @property
     def dimensions(self) -> Tuple[str, str]:
         """
         List of dimension names of the CRS.
-        The ordering of the names is intended to reflect the `numpy` array axis order of the loaded raster.
+
+        The ordering of the names is intended to reflect the :py:class:`numpy.ndarray` axis order of the
+        loaded raster.
         """
         if self.geographic:
             return "latitude", "longitude"
@@ -157,7 +175,9 @@ class CRS:
     def units(self) -> Tuple[str, str]:
         """
         List of dimension units of the CRS.
-        The ordering of the units is intended to reflect the `numpy` array axis order of the loaded raster.
+
+        The ordering of the units is intended to reflect the :py:class:`numpy.ndarray` axis order of the
+        loaded raster.
         """
         if self.geographic:
             return "degrees_north", "degrees_east"
@@ -197,15 +217,16 @@ class CRS:
 
     @property
     def proj(self) -> _CRS:
-        """Access proj.CRS object that this wraps"""
+        """Access :py:class:`pyproj.crs.CRS` object that this wraps."""
         return self._crs
 
     @property
     def valid_region(self) -> Optional["geom.Geometry"]:
-        """Return valid region of this CRS.
+        """
+        Return valid region of this CRS.
 
-        Bounding box in Lon/Lat as a 4 point Polygon in EPSG:4326.
-        None if not defined
+        :returns: Bounding box in Lon/Lat as a 4 point Polygon in EPSG:4326.
+        :returns: ``None`` if valid region is not defined for this CRS
         """
 
         from . import geom  # pylint: disable=import-outside-toplevel
@@ -225,12 +246,22 @@ class CRS:
         return self._str
 
     def transformer_to_crs(
-        self, other: "CRS", always_xy=True
+        self, other: "CRS", always_xy: bool = True
     ) -> Callable[[Any, Any], Tuple[Any, Any]]:
         """
-        Returns a function that maps x, y -> x', y' where x, y are coordinates in
-        this stored either as scalars or ndarray objects and x', y' are the same
-        points in the `other` CRS.
+        Build coordinate transformer to other projection.
+
+        Returns a function that maps ``x, y -> x', y'`` where ``x, y`` are coordinates in this CRS,
+        stored either as scalars or :py:class:`numpy.ndarray` objects, and ``x', y'`` are the same
+        points in the ``other`` CRS.
+
+        :param other:
+              Destination CRS
+
+        :param always_xy:
+              If true, the transform method will accept as input and return as output coordinates
+              using the traditional GIS order, that is longitude, latitude for geographic CRS and
+              easting, northing for most projected CRS.
         """
 
         # pylint: disable=protected-access
@@ -252,6 +283,8 @@ class CRS:
 
 class CRSMismatchError(ValueError):
     """
+    CRS Mismatch Error.
+
     Raised when geometry operation is attempted on geometries in different
     coordinate references.
     """
@@ -281,14 +314,20 @@ def crs_units_per_degree(
     lat: float = 0,
     step: float = 0.1,
 ) -> float:
-    """Compute number of CRS units per degree for a projected CRS at a given location
+    """
+    Helper method for converting resolution between meters/degrees.
+
+    Compute number of CRS units per degree for a projected CRS at a given location
     in lon/lat.
 
     Location can be supplied as a tuple or as two arguments.
 
-    Returns
-    -------
-    A floating number S such that `S*degrees -> meters`
+    :param crs: CRS
+    :param lon: Either longitude or ``(lon, lat)`` tuple
+    :param lat: Latitude or ignored if ``lon`` was a tuple
+    :param step: Length of the segment in degrees used to estimate relative scale change
+
+    :returns:  A floating number ``S`` such that ``S*degrees -> meters``
     """
 
     from . import geom  # pylint: disable=import-outside-toplevel
