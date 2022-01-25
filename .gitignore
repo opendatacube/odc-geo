@@ -146,3 +146,5 @@ cython_debug/
 
 .idea/
 .vscode/
+
+docs/_api/
