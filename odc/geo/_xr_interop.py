@@ -123,21 +123,16 @@ def spatial_dims(
 def _mk_crs_coord(crs: CRS, name: str = "spatial_ref") -> xarray.DataArray:
     # pylint: disable=protected-access
 
-    if crs.projected:
-        grid_mapping_name = crs._crs.to_cf().get("grid_mapping_name")
-        if grid_mapping_name is None:
-            grid_mapping_name = "??"
-        grid_mapping_name = grid_mapping_name.lower()
-    else:
-        grid_mapping_name = "latitude_longitude"
-
+    cf = crs.proj.to_cf()
+    cf.setdefault("grid_mapping_name", "??")
     epsg = 0 if crs.epsg is None else crs.epsg
+    crs_wkt = cf.get("crs_wkt", None) or crs.wkt
 
     return xarray.DataArray(
         numpy.asarray(epsg, "int32"),
         name=name,
         dims=(),
-        attrs={"spatial_ref": crs.wkt, "grid_mapping_name": grid_mapping_name},
+        attrs={"spatial_ref": crs_wkt, **cf},
     )
 
 
@@ -242,16 +237,19 @@ def _locate_crs_coords(xx: XarrayObject) -> List[xarray.DataArray]:
             return []
         return [coord]
 
-    # Find all dimensionless coordinates with `spatial_ref` attribute present
+    # Find all dimensionless coordinates with `spatial_ref|crs_wkt` attribute present
     return [
         coord
         for coord in xx.coords.values()
-        if coord.ndim == 0 and "spatial_ref" in coord.attrs
+        if coord.ndim == 0
+        and ("spatial_ref" in coord.attrs or "crs_wkt" in coord.attrs)
     ]
 
 
 def _extract_crs(crs_coord: xarray.DataArray) -> Optional[CRS]:
-    _wkt = crs_coord.attrs.get("spatial_ref", None)
+    _wkt = crs_coord.attrs.get("spatial_ref", None)  # GDAL convention?
+    if _wkt is None:
+        _wkt = crs_coord.attrs.get("crs_wkt", None)  # CF convention
     if _wkt is None:
         return None
     try:
