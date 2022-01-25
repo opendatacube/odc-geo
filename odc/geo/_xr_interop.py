@@ -183,15 +183,14 @@ def assign_crs(
 
 
 def xr_coords(
-    gbox: GeoBox, with_crs: Union[bool, str] = True
+    gbox: GeoBox, crs_coord_name: Optional[str] = "spatial_ref"
 ) -> Dict[Hashable, xarray.DataArray]:
     """
     Dictionary of Coordinates in xarray format.
 
-    :param with_crs:
-       By default includes netcdf/cf style CRS Coordinate
-       with default name 'spatial_ref', if with_crs is a string then treat
-       the string as a name of the coordinate. To disable pass in ``False``.
+    :param crs_coord_name:
+       Use custom name for CRS coordinate, default is "spatial_ref".
+       Set to ``None`` to not generate CRS coordinate at all.
 
     Returns
     =======
@@ -201,11 +200,6 @@ def xr_coords(
     where names are either ``y,x`` for projected or ``latitude, longitude`` for geographic.
 
     """
-    spatial_ref = "spatial_ref"
-    if isinstance(with_crs, str):
-        spatial_ref = with_crs
-        with_crs = True
-
     attrs = {}
     crs = gbox.crs
     if crs is not None:
@@ -216,8 +210,8 @@ def xr_coords(
         for name, coord in gbox.coordinates.items()
     }
 
-    if with_crs and crs is not None:
-        coords[spatial_ref] = _mk_crs_coord(crs, spatial_ref)
+    if crs_coord_name is not None and crs is not None:
+        coords[crs_coord_name] = _mk_crs_coord(crs, crs_coord_name)
 
     return coords
 
