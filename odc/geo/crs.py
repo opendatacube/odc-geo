@@ -107,7 +107,7 @@ class CRS:
 
     @property
     def wkt(self) -> str:
-        return self.to_wkt(version=WktVersion.WKT1_GDAL)
+        return self.to_wkt()
 
     def to_epsg(self) -> Optional[int]:
         """
