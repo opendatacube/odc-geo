@@ -190,14 +190,21 @@ def test_corrupt_inputs(xx_epsg4326: xr.DataArray):
         # it will still get it from attributes
         assert xx.odc.uncached.crs == "epsg:4326"
 
+    # missing spatial_ref, but have crs_wkt
+    xx = xx_epsg4326.copy()
+    xx.spatial_ref.attrs.pop("spatial_ref")
+    assert xx.odc.crs == "epsg:4326"
+
     # missing wkt text
     xx = xx_epsg4326.copy()
     xx.spatial_ref.attrs.pop("spatial_ref")
+    xx.spatial_ref.attrs.pop("crs_wkt")
     assert xx.odc.crs is None
 
     # bad CRS string
     xx = xx_epsg4326.copy()
     xx.spatial_ref.attrs["spatial_ref"] = "this is not a CRS!!!"
+    xx.spatial_ref.attrs["crs_wkt"] = "this is not a CRS!!!"
     assert xx.odc.crs is None
 
     # duplicated crs coords and no grid_mapping pointer
