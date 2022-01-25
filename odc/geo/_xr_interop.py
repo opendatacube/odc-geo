@@ -124,7 +124,6 @@ def _mk_crs_coord(crs: CRS, name: str = "spatial_ref") -> xarray.DataArray:
     # pylint: disable=protected-access
 
     cf = crs.proj.to_cf()
-    cf.setdefault("grid_mapping_name", "??")
     epsg = 0 if crs.epsg is None else crs.epsg
     crs_wkt = cf.get("crs_wkt", None) or crs.wkt
 
