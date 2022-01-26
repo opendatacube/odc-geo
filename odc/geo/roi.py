@@ -2,6 +2,12 @@
 #
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
+"""
+Tools for dealing with ROIs (Regions of Interest).
+
+In this context ROI is a 2d slice of an image. For example a top left corner of 10 pixels square
+will have an ROI that can be constructed with :py:func:`numpy.s_` like this: ``s_[0:10, 0:10]``.
+"""
 import collections.abc
 
 import numpy as np
@@ -36,17 +42,24 @@ w_ = WindowFromSlice()
 
 
 def polygon_path(x, y=None):
-    """A little bit like numpy.meshgrid, except returns only boundary values and
-    limited to 2d case only.
+    """
+    Points along axis aligned polygon.
 
-    Examples:
-      [0,1], [3,4] =>
-      array([[0, 1, 1, 0, 0],
-             [3, 3, 4, 4, 3]])
+    A little bit like :py:func:`numpy.meshgrid`, except returns only boundary points and limited to
+    a 2d case only.
 
-      [0,1] =>
-      array([[0, 1, 1, 0, 0],
-             [0, 0, 1, 1, 0]])
+    .. rubric:: Examples
+
+    .. code-block::
+
+       [0,1] - unit square
+       [0,1], [0,1] => [[0, 1, 1, 0, 0],
+                        [0, 0, 1, 1, 0]])
+
+       # three points per X, two point per Y side
+       [0,1,2], [7,9] => [[0, 1, 2, 2, 1, 0, 0],
+                          [7, 7, 7, 9, 9, 9, 7]]
+
     """
 
     if y is None:
@@ -66,9 +79,12 @@ def roi_boundary(roi, pts_per_side=2):
     """
     Get boundary points from a 2d roi.
 
-    roi needs to be in the normalised form, i.e. no open-ended start/stop, see roi_normalise
+    roi needs to be in the normalised form, i.e. no open-ended start/stop,
 
-    :returns: Nx2 float32 array of X,Y points on the perimeter of the envelope defined by `roi`
+    :returns:
+      ``Nx2`` ``float32`` array of ``X,Y`` points on the perimeter of the envelope defined by ``roi``
+
+    .. seealso:: :py:func:`~odc.geo.roi.roi_normalise`
     """
     yy, xx = roi
     xx = np.linspace(xx.start, xx.stop, pts_per_side, dtype="float32")
@@ -78,10 +94,28 @@ def roi_boundary(roi, pts_per_side=2):
 
 
 def scaled_down_roi(roi, scale: int):
+    """
+    Compute ROI for a scaled down image.
+
+    Given a crop region of the original image compute equivalent crop in the overview image.
+
+    :param roi: ROI in the original image
+    :param scale: integer scale to get scaled down image
+    :return: ROI in the scaled down image
+    """
     return tuple(slice(s.start // scale, align_up(s.stop, scale) // scale) for s in roi)
 
 
 def scaled_up_roi(roi, scale: int, shape=None):
+    """
+    Compute ROI for a scaled up image.
+
+    Given a crop region in the original image compute equivalent crop in the upsampled image.
+
+    :param roi: ROI in the original image
+    :param scale: integer scale to get scaled up image
+    :return: ROI in the scaled upimage
+    """
     roi = tuple(slice(s.start * scale, s.stop * scale) for s in roi)
     if shape is not None:
         roi = tuple(
@@ -91,10 +125,23 @@ def scaled_up_roi(roi, scale: int, shape=None):
 
 
 def scaled_down_shape(shape, scale: int):
+    """
+    Compute shape of the overview image.
+
+    :param shape: Original shape
+    :param scale: Shrink factor
+    :return: shape of the overview image
+    """
     return tuple(align_up(s, scale) // scale for s in shape)
 
 
 def roi_shape(roi):
+    """
+    Shape of an array after cropping with ``roi``.
+
+    Same as ``xx[roi].shape``.
+    """
+
     def slice_dim(s):
         return s.stop if s.start is None else s.stop - s.start
 
@@ -105,6 +152,11 @@ def roi_shape(roi):
 
 
 def roi_is_empty(roi):
+    """
+    Check if ROI is "empty".
+
+    ROI is empty if any dimension is 0 elements wide.
+    """
     return any(d <= 0 for d in roi_shape(roi))
 
 
@@ -112,8 +164,8 @@ def roi_is_full(roi, shape):
     """
     Check if ROI covers the entire region.
 
-    :returns: True if roi covers region from (0,..) -> shape
-              False otherwise
+    :returns: ``True`` if ``roi`` covers region from ``(0,..) -> shape``
+    :returns: ``False`` if ``roi`` actually crops an image
     """
 
     def slice_full(s, n):
@@ -128,14 +180,19 @@ def roi_is_full(roi, shape):
 
 def roi_normalise(roi, shape):
     """
-    Fill in missing .start/.stop, also deal with negative values, which are
-    treated as offsets from the end.
+    Normalise ROI.
 
-    .step parameter is left unchanged.
+    Fill in missing ``.start/.stop``, also deal with negative values, which are treated as offsets
+    from the end.
 
-    Example:
-          np.s_[:3, 4:  ], (10, 20) -> np._s[0:3, 4:20]
-          np.s_[:3,  :-3], (10, 20) -> np._s[0:3, 0:17]
+    ``.step`` parameter is left unchanged.
+
+    .. rubric:: Example
+
+    .. code-block::
+
+       np.s_[:3, 4:  ], (10, 20) => np.s_[0:3, 4:20]
+       np.s_[:3,  :-3], (10, 20) => np.s_[0:3, 0:17]
 
     """
 
@@ -159,7 +216,9 @@ def roi_normalise(roi, shape):
 
 def roi_pad(roi, pad, shape):
     """
-    Pad ROI on each side, with clamping (0,..) -> shape
+    Pad ROI on each side, with clamping.
+
+    Returned ROI is guarnteed to be within ``(0,..) -> shape``.
     """
 
     def pad_slice(s, n):
@@ -173,7 +232,18 @@ def roi_pad(roi, pad, shape):
 
 def roi_intersect(a, b):
     """
-    Compute intersection of two ROIs
+    Compute intersection of two ROIs.
+
+    .. rubric:: Examples
+
+    .. code-block::
+
+       s_[1:30], s_[20:40] => s_[20:30]
+       s_[1:10], s_[20:40] => s_[10:10]
+
+       # works for N dimensions
+       s_[1:10, 11:21], s_[8:12, 10:30] => s_[8:10, 11:21]
+
     """
 
     def slice_intersect(a, b):
@@ -198,7 +268,7 @@ def roi_intersect(a, b):
 
 
 def roi_center(roi):
-    """Return center point of roi"""
+    """Return center point of an ``roi``."""
 
     def slice_center(s):
         return (s.start + s.stop) * 0.5
@@ -211,10 +281,12 @@ def roi_center(roi):
 
 def roi_from_points(xy, shape, padding=0, align=None):
     """
-    Compute envelope around a bunch of points and return it as roi (tuple of
+    Build ROI from sample points.
+
+    Compute envelope around a bunch of points and return it as an ROI (tuple of
     row/col slices)
 
-    Returned roi is clipped (0,0) --> shape, so it won't stick outside of the
+    Returned roi is clipped ``(0,0) --> shape``, so it won't stick outside of the
     valid region.
     """
 

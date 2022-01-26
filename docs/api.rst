@@ -85,6 +85,26 @@ odc.geo.geom
    unary_intersection
    unary_union
 
+odc.geo.roi
+***********
+
+.. currentmodule:: odc.geo.roi
+.. autosummary::
+   :toctree: _api/
+
+   polygon_path
+   roi_boundary
+   roi_center
+   roi_from_points
+   roi_intersect
+   roi_is_empty
+   roi_is_full
+   roi_normalise
+   roi_pad
+   roi_shape
+   scaled_down_roi
+   scaled_down_shape
+   scaled_up_roi
 
 odc.geo.gridspec
 ****************
