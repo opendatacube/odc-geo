@@ -218,7 +218,7 @@ def roi_pad(roi, pad, shape):
     """
     Pad ROI on each side, with clamping.
 
-    Returned ROI is guarnteed to be within ``(0,..) -> shape``.
+    Returned ROI is guaranteed to be within ``(0,..) -> shape``.
     """
 
     def pad_slice(s, n):
