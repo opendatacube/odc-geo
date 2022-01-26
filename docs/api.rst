@@ -22,6 +22,33 @@ odc.geo.crs
 
 .. include:: crs.rst
 
+odc.geo.geobox
+**************
+
+.. currentmodule:: odc.geo.geobox
+.. autosummary::
+   :toctree: _api/
+
+   GeoBox
+   GeoboxTiles
+
+   affine_transform_pix
+   bounding_box_in_pixel_domain
+   flipx
+   flipy
+   gbox_boundary
+   geobox_intersection_conservative
+   geobox_union_conservative
+   pad
+   pad_wh
+   rotate
+   scaled_down_geobox
+   translate_pix
+   zoom_out
+   zoom_to
+
+.. include:: geobox.rst
+
 
 odc.geo.geom
 ************

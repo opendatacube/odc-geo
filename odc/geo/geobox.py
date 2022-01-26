@@ -18,8 +18,8 @@ from .geom import (
     bbox_union,
     polygon_from_transform,
 )
-from .roi import align_up, polygon_path, roi_normalise, roi_shape
 from .math import clamp, is_affine_st, is_almost_int
+from .roi import align_up, polygon_path, roi_normalise, roi_shape
 
 # pylint: disable=invalid-name
 MaybeInt = Optional[int]
@@ -43,7 +43,7 @@ def _align_pix(left: float, right: float, res: float, off: float) -> Tuple[float
 class GeoBox:
     """
     Defines the location and resolution of a rectangular grid of data,
-    including it's :py:class:`CRS`.
+    including it's :py:class:`~odc.geo.crs.CRS`.
 
     :param crs: Coordinate Reference System
     :param affine: Affine transformation defining the location of the geobox
@@ -66,6 +66,8 @@ class GeoBox:
         align: Optional[Tuple[float, float]] = None,
     ) -> "GeoBox":
         """
+        Construct :py:class:`~odc.geo.geobox.GeoBox` from a polygon.
+
         :param resolution: (y_resolution, x_resolution)
         :param crs: CRS to use, if different from the geopolygon
         :param align: Align geobox such that point 'align' lies on the pixel boundary.
@@ -103,7 +105,7 @@ class GeoBox:
 
     def buffered(self, xbuff: float, ybuff: Optional[float] = None) -> "GeoBox":
         """
-        Produce a tile buffered by xbuff, ybuff (in CRS units)
+        Produce a tile buffered by ``xbuff, ybuff`` (in CRS units).
         """
         if ybuff is None:
             ybuff = xbuff
@@ -150,6 +152,7 @@ class GeoBox:
         return geobox_intersection_conservative([self, other])
 
     def is_empty(self) -> bool:
+        """Check if geobox is "empty"."""
         return self.width == 0 or self.height == 0
 
     def __bool__(self) -> bool:
@@ -160,21 +163,22 @@ class GeoBox:
 
     @property
     def transform(self) -> Affine:
+        """Linear mapping from pixel space to CRS."""
         return self.affine
 
     @property
     def shape(self) -> Tuple[int, int]:
+        """Shape in pixels ``(height, width)``."""
         return self.height, self.width
 
     @property
     def crs(self) -> Optional[CRS]:
+        """Coordinate Reference System of the GeoBox."""
         return self.extent.crs
 
     @property
     def dimensions(self) -> Tuple[str, str]:
-        """
-        List of dimension names of the GeoBox
-        """
+        """List of dimension names of the GeoBox."""
         crs = self.crs
         if crs is None:
             return ("y", "x")
@@ -182,16 +186,12 @@ class GeoBox:
 
     @property
     def resolution(self) -> Tuple[float, float]:
-        """
-        Resolution in Y,X dimensions
-        """
+        """Resolution in Y,X dimension order."""
         return self.affine.e, self.affine.a
 
     @property
     def alignment(self) -> Tuple[float, float]:
-        """
-        Alignment of pixel boundaries in Y,X dimensions
-        """
+        """Alignment of pixel boundaries in Y,X dimension order."""
         return self.affine.yoff % abs(self.affine.e), self.affine.xoff % abs(
             self.affine.a
         )
@@ -199,7 +199,10 @@ class GeoBox:
     @property
     def coordinates(self) -> Dict[str, Coordinate]:
         """
-        dict of coordinate labels
+        Query coordinates.
+
+        :return:
+          Mapping from coordinate name to :py:class:`~odc.geo.geobox.Coordinate`.
         """
         yres, xres = self.resolution
         yoff, xoff = self.affine.yoff, self.affine.xoff
@@ -218,7 +221,7 @@ class GeoBox:
 
     @property
     def geographic_extent(self) -> Geometry:
-        """GeoBox extent in EPSG:4326"""
+        """GeoBox extent in EPSG:4326."""
         if self.crs is None or self.crs.geographic:
             return self.extent
         return self.extent.to_crs(CRS("EPSG:4326"))
@@ -243,8 +246,13 @@ class GeoBox:
         )
 
 
-def gbox_boundary(gbox: GeoBox, pts_per_side: int = 16) -> Geometry:
-    """Return points in pixel space along the perimeter of a GeoBox, or a 2d array."""
+def gbox_boundary(gbox: GeoBox, pts_per_side: int = 16) -> numpy.ndarray:
+    """
+    Boundary of a :py:class:`~odc.geo.geobox.GeoBox`.
+
+    :return:
+      Points in pixel space along the perimeter of a GeoBox as a 2d array.
+    """
     H, W = gbox.shape[:2]
     xx = numpy.linspace(0, W, pts_per_side, dtype="float32")
     yy = numpy.linspace(0, H, pts_per_side, dtype="float32")
@@ -254,11 +262,15 @@ def gbox_boundary(gbox: GeoBox, pts_per_side: int = 16) -> Geometry:
 
 def bounding_box_in_pixel_domain(geobox: GeoBox, reference: GeoBox) -> BoundingBox:
     """
-    Returns the bounding box of `geobox` with respect to the pixel grid
-    defined by `reference` when their coordinate grids are compatible,
-    that is, have the same CRS, same pixel size and orientation, and
-    are related by whole pixel translation,
-    otherwise raises `ValueError`.
+    Bounding box of ``geobox`` in pixel space of ``reference``.
+
+    :return:
+      The bounding box of ``geobox`` with respect to the pixel grid defined by ``reference`` when
+      their coordinate grids are compatible. Two geoboxes are compatible when they have the same
+      CRS, same pixel size and orientation, and are related by whole pixel translation.
+
+    :raises:
+      :py:class:`ValueError` when two geoboxes are not pixel-aligned.
     """
     tol = 1.0e-8
 
@@ -282,7 +294,11 @@ def bounding_box_in_pixel_domain(geobox: GeoBox, reference: GeoBox) -> BoundingB
 
 
 def geobox_union_conservative(geoboxes: List[GeoBox]) -> GeoBox:
-    """Union of geoboxes. Fails whenever incompatible grids are encountered."""
+    """
+    Union of geoboxes as a geobox.
+
+    Fails whenever incompatible grids are encountered.
+    """
     if len(geoboxes) == 0:
         raise ValueError("No geoboxes supplied")
 
@@ -301,7 +317,9 @@ def geobox_union_conservative(geoboxes: List[GeoBox]) -> GeoBox:
 
 def geobox_intersection_conservative(geoboxes: List[GeoBox]) -> GeoBox:
     """
-    Intersection of geoboxes. Fails whenever incompatible grids are encountered.
+    Intersection of geoboxes.
+
+    Fails whenever incompatible grids are encountered.
     """
     if len(geoboxes) == 0:
         raise ValueError("No geoboxes supplied")
@@ -330,13 +348,17 @@ def geobox_intersection_conservative(geoboxes: List[GeoBox]) -> GeoBox:
 
 
 def scaled_down_geobox(src_geobox: GeoBox, scaler: int) -> GeoBox:
-    """Given a source geobox and integer scaler compute geobox of a scaled down image.
+    """
+    Compute :py:class:`~odc.geo.geobox.GeoBox` of a zoomed image.
+
+    Given a source geobox and an integer scaler compute geobox of a scaled down image.
 
     Output geobox will be padded when shape is not a multiple of scaler.
-    Example: 5x4, scaler=2 -> 3x2
+    Example: ``5x4, scaler=2 -> 3x2``
 
-    NOTE: here we assume that pixel coordinates are 0,0 at the top-left
-          corner of a top-left pixel.
+    .. note::
+
+       We assume that pixel coordinates are ``0,0`` at the top-left corner of a top-left pixel.
 
     """
     assert scaler > 1
@@ -357,6 +379,8 @@ def _round_to_res(value: float, res: float) -> int:
 
 def flipy(gbox: GeoBox) -> GeoBox:
     """
+    Flip along Y axis.
+
     :returns: GeoBox covering the same region but with Y-axis flipped
     """
     H, W = gbox.shape
@@ -367,6 +391,8 @@ def flipy(gbox: GeoBox) -> GeoBox:
 
 def flipx(gbox: GeoBox) -> GeoBox:
     """
+    Flip along X axis.
+
     :returns: GeoBox covering the same region but with X-axis flipped
     """
     H, W = gbox.shape
@@ -377,8 +403,10 @@ def flipx(gbox: GeoBox) -> GeoBox:
 
 def translate_pix(gbox: GeoBox, tx: float, ty: float) -> GeoBox:
     """
-    Shift GeoBox in pixel plane. (0,0) of the new GeoBox will be at the same
-    location as pixel (tx, ty) in the original GeoBox.
+    Shift GeoBox in pixel plane.
+
+    ``(0,0)`` of the new GeoBox will be at the same location as pixel ``(tx, ty)`` in the original
+    GeoBox.
     """
     H, W = gbox.shape
     A = gbox.affine * Affine.translation(tx, ty)
@@ -387,6 +415,8 @@ def translate_pix(gbox: GeoBox, tx: float, ty: float) -> GeoBox:
 
 def pad(gbox: GeoBox, padx: int, pady: MaybeInt = None) -> GeoBox:
     """
+    Pad geobox.
+
     Expand GeoBox by fixed number of pixels on each side
     """
     # false positive for -pady, it's never None by the time it runs
@@ -411,10 +441,13 @@ def pad_wh(gbox: GeoBox, alignx: int = 16, aligny: MaybeInt = None) -> GeoBox:
 
 def zoom_out(gbox: GeoBox, factor: float) -> GeoBox:
     """
-    factor > 1 --> smaller width/height, fewer but bigger pixels
-    factor < 1 --> bigger width/height, more but smaller pixels
+    Compute :py:class:`~odc.geo.geobox.GeoBox` with changed resolution.
 
-    :returns: GeoBox covering the same region but with bigger pixels (i.e. lower resolution)
+    - ``factor > 1`` implies smaller width/height, fewer but bigger pixels
+    - ``factor < 1`` implies bigger width/height, more but smaller pixels
+
+    :returns:
+       GeoBox covering the same region but with different pixels (i.e. lower or higher resolution)
     """
 
     H, W = (max(1, math.ceil(s / factor)) for s in gbox.shape)
@@ -424,8 +457,10 @@ def zoom_out(gbox: GeoBox, factor: float) -> GeoBox:
 
 def zoom_to(gbox: GeoBox, shape: Tuple[int, int]) -> GeoBox:
     """
-    :returns: GeoBox covering the same region but with different number of pixels
-              and therefore resolution.
+    Change GeoBox shape.
+
+    :returns:
+      GeoBox covering the same region but with different number of pixels and therefore resolution.
     """
     H, W = gbox.shape
     h, w = shape
@@ -457,13 +492,14 @@ def affine_transform_pix(gbox: GeoBox, transform: Affine) -> GeoBox:
     """
     Apply affine transform on pixel side.
 
-    :param transform: Affine matrix mapping from new pixel coordinate space to
-    pixel coordinate space of input gbox
+    :param transform:
+       Affine matrix mapping from new pixel coordinate space to pixel coordinate space of input gbox
 
-    :returns: GeoBox of the same pixel shape but covering different region,
-    pixels in the output gbox relate to input geobox via `transform`
+    :returns:
+      GeoBox of the same pixel shape but covering different region, pixels in the output gbox relate
+      to input geobox via ``transform``
 
-    X_old_pix = transform * X_new_pix
+    ``X_old_pix = transform * X_new_pix``
 
     """
     H, W = gbox.shape
@@ -472,13 +508,14 @@ def affine_transform_pix(gbox: GeoBox, transform: Affine) -> GeoBox:
 
 
 class GeoboxTiles:
-    """Partition GeoBox into sub geoboxes"""
+    """Partition GeoBox into sub geoboxes."""
 
     def __init__(self, box: GeoBox, tile_shape: Tuple[int, int]):
-        """Construct from a ``GeoBox``.
+        """
+        Construct from a :py:class:`~odc.geo.GeoBox`.
 
-        :param box: source :class:`~odc.geo.GeoBox`
-        :param tile_shape: Shape of sub-tiles in pixels (rows, cols)
+        :param box: source :py:class:`~odc.geo.GeoBox`
+        :param tile_shape: Shape of sub-tiles in pixels ``(rows, cols)``
         """
         self._gbox = box
         self._tile_shape = tile_shape
@@ -489,11 +526,12 @@ class GeoboxTiles:
 
     @property
     def base(self) -> GeoBox:
+        """Access base Geobox"""
         return self._gbox
 
     @property
     def shape(self):
-        """Number of tiles along each dimension"""
+        """Number of tiles along each dimension."""
         return self._shape
 
     def _idx_to_slice(self, idx: Tuple[int, int]) -> Tuple[slice, slice]:
@@ -509,11 +547,12 @@ class GeoboxTiles:
         return (ir, ic)
 
     def chunk_shape(self, idx: Tuple[int, int]) -> Tuple[int, int]:
-        """Chunk shape for a given chunk index.
+        """
+        Query chunk shape for a given chunk.
 
-        :param idx: (row, col) index
-        :returns: (nrow, ncols) shape of a tile (edge tiles might be smaller)
-        :raises: IndexError when index is outside of [(0,0) -> .shape)
+        :param idx: ``(row, col)`` chunk index
+        :returns: ``(nrows, ncols)`` shape of a tile (edge tiles might be smaller)
+        :raises: :py:class:`IndexError` when index is outside of ``[(0,0) -> .shape)``.
         """
 
         def _sz(i: int, n: int, tile_sz: int, total_sz: int) -> int:
@@ -542,7 +581,11 @@ class GeoboxTiles:
         return self._cache.setdefault(idx, self._gbox[roi])
 
     def range_from_bbox(self, bbox: BoundingBox) -> Tuple[range, range]:
-        """Compute rows and columns overlapping with a given ``BoundingBox``"""
+        """
+        Intersect with a bounding box.
+
+        Compute rows and columns overlapping with a given :py:class:`~odc.geo.geom.BoundingBox`.
+        """
 
         def clamped_range(v1: float, v2: float, N: int) -> range:
             _in = clamp(math.floor(v1), 0, N)
