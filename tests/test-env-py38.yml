@@ -30,3 +30,8 @@ dependencies:
   - pytest
   - pytest-cov
   - pytest-timeout
+
+  # for docs
+  - sphinx
+  - sphinx_rtd_theme
+  - sphinx-autodoc-typehints
