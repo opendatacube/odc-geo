@@ -2,11 +2,16 @@
 #
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
-import numpy
+import math
 
-from odc.geo import CRS, BoundingBox
+import numpy
+import pytest
+from pytest import approx
+
+from odc.geo import CRS
 from odc.geo.geom import polygon
 from odc.geo.gridspec import GridSpec
+from odc.geo.testutils import SAMPLE_WKT_WITHOUT_AUTHORITY
 
 # pylint: disable=protected-access,use-implicit-booleaness-not-comparison
 # pylint: disable=comparison-with-itself,unnecessary-comprehension
@@ -15,10 +20,13 @@ from odc.geo.gridspec import GridSpec
 def test_gridspec():
     gs = GridSpec(
         crs=CRS("EPSG:4326"),
-        tile_size=(1, 1),
+        tile_shape=(10, 10),
         resolution=(-0.1, 0.1),
         origin=(10, 10),
     )
+    assert gs.tile_shape == (10, 10)
+    assert gs.tile_size == (1, 1)
+
     poly = polygon(
         [(10, 12.2), (10.8, 13), (13, 10.8), (12.2, 10), (10, 12.2)],
         crs=CRS("EPSG:4326"),
@@ -36,7 +44,7 @@ def test_gridspec():
 
     # check geobox_cache
     cache = {}
-    poly = gs.tile_geobox((3, 4)).extent
+    poly = gs[3, 4].extent
     ((c1, gbox1),) = list(gs.tiles_from_geopolygon(poly, geobox_cache=cache))
     ((c2, gbox2),) = list(gs.tiles_from_geopolygon(poly, geobox_cache=cache))
 
@@ -49,46 +57,52 @@ def test_gridspec():
     assert (gs == {}) is False
     assert gs.dimensions == ("latitude", "longitude")
 
-    assert GridSpec(CRS("epsg:3857"), (100, 100), (1, 1)).alignment == (0, 0)
-    assert GridSpec(CRS("epsg:3857"), (100, 100), (1, 1)).dimensions == ("y", "x")
+    assert GridSpec("epsg:3857", (100, 100), (1, 1)).alignment == (0, 0)
+    assert GridSpec("epsg:3857", (100, 100), (1, 1)).dimensions == ("y", "x")
 
-
-def test_gridspec_upperleft():
-    """Test to ensure grid indexes can be counted correctly from bottom left or top left"""
-    tile_bbox = BoundingBox(
-        left=1934400.0, top=2414800.0, right=2084400.000, bottom=2264800.000
+    assert GridSpec("epsg:3857", (10, 20), 11.0) == GridSpec(
+        "epsg:3857", (10, 20), (-11, 11)
     )
-    bbox = BoundingBox(left=1934615, top=2379460, right=1937615, bottom=2376460)
-    # Upper left - validated against WELD product tile calculator
-    # http://globalmonitoring.sdstate.edu/projects/weld/tilecalc.php
-    gs = GridSpec(
-        crs=CRS("EPSG:5070"),
-        tile_size=(-150000, 150000),
-        resolution=(-30, 30),
-        origin=(3314800.0, -2565600.0),
+    assert GridSpec("epsg:3857", (10, 20), 11) == GridSpec(
+        "epsg:3857", (10, 20), (-11, 11)
     )
-    cells = {index: geobox for index, geobox in list(gs.tiles(bbox))}
-    assert set(cells.keys()) == {(30, 6)}
-    assert cells[(30, 6)].extent.boundingbox == tile_bbox
 
-    gs = GridSpec(
-        crs=CRS("EPSG:5070"),
-        tile_size=(150000, 150000),
-        resolution=(-30, 30),
-        origin=(14800.0, -2565600.0),
+    # missing shape parameter
+    with pytest.raises(ValueError):
+        GridSpec.from_sample_tile(poly)
+
+
+def test_web_tiles():
+    TSZ0 = 6_378_137 * 2 * math.pi
+    epsg3857 = CRS("epsg:3857")
+
+    gs = GridSpec.web_tiles(0)
+    assert gs.crs == epsg3857
+    assert gs.tile_shape == (256, 256)
+    assert gs.tile_size == approx((TSZ0, TSZ0))
+
+    gs = GridSpec.web_tiles(1)
+    assert gs.crs == epsg3857
+    assert gs.tile_shape == (256, 256)
+    assert gs.tile_size == approx((TSZ0 / 2, TSZ0 / 2))
+
+
+def test_geojson():
+    gs = GridSpec.web_tiles(3)
+    gjson = gs.geojson()
+
+    assert gjson["type"] == "FeatureCollection"
+    assert len(gjson["features"]) == (2 ** 3) ** 2
+
+    gjson = gs.geojson(geopolygon=gs.crs.valid_region.buffer(-0.1))
+    assert len(gjson["features"]) == (2 ** 3) ** 2
+
+    gjson = gs.geojson(
+        bbox=gs.crs.valid_region.buffer(-0.1).to_crs("epsg:3857").boundingbox
     )
-    cells = {index: geobox for index, geobox in list(gs.tiles(bbox))}
-    assert set(cells.keys()) == {
-        (30, 15)
-    }  # WELD grid spec has 21 vertical cells -- 21 - 6 = 15
-    assert cells[(30, 15)].extent.boundingbox == tile_bbox
+    assert len(gjson["features"]) == (2 ** 3) ** 2
 
-
-def test_grid_range():
-    assert list(GridSpec._grid_range(-4.0, -1.0, 3.0)) == [-2, -1]
-    assert list(GridSpec._grid_range(+1.0, 4.0, -3.0)) == [-2, -1]
-    assert list(GridSpec._grid_range(-3.0, 0.0, 3.0)) == [-1]
-    assert list(GridSpec._grid_range(-2.0, 1.0, 3.0)) == [-1, 0]
-    assert list(GridSpec._grid_range(-1.0, 2.0, 3.0)) == [-1, 0]
-    assert list(GridSpec._grid_range(+0.0, 3.0, 3.0)) == [0]
-    assert list(GridSpec._grid_range(+1.0, 4.0, 3.0)) == [0, 1]
+    crs = CRS(SAMPLE_WKT_WITHOUT_AUTHORITY)
+    gs = GridSpec(crs, (10, 10), resolution=6_378_137 * 2 * math.pi)
+    gjson = gs.geojson()
+    assert len(gjson["features"]) > 0
