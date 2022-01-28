@@ -116,10 +116,17 @@ odc.geo.gridspec
    :toctree: _api/
 
    GridSpec
+   GridSpec.from_sample_tile
+   GridSpec.web_tiles
+
    GridSpec.alignment
    GridSpec.dimensions
-   GridSpec.tile_coords
-   GridSpec.tile_geobox
    GridSpec.tile_shape
+
+   GridSpec.pt2idx
+   GridSpec.tile_geobox
+   GridSpec.__getitem__
    GridSpec.tiles
    GridSpec.tiles_from_geopolygon
+
+   GridSpec.geojson
