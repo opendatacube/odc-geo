@@ -189,32 +189,23 @@ class GridSpec:
     def tiles_from_geopolygon(
         self,
         geopolygon: Geometry,
-        tile_buffer: Optional[Tuple[float, float]] = None,
         geobox_cache: Optional[dict] = None,
     ) -> Iterator[Tuple[Tuple[int, int], GeoBox]]:
         """
-        Query tiles overlapping with a gievn polygon.
+        Query tiles overlapping with a given polygon.
 
         Output is a sequence of ``tile_index``, :py:class:`odc.geo.geobox.GeoBox` tuples.
 
         :param geopolygon:
           Polygon to tile
-        :param tile_buffer:
-          Optional ``<float,float>`` tuple, (extra padding for the query in native units of this
-          GridSpec)
         :param geobox_cache:
           Optional cache to re-use geoboxes instead of creating new one each turn: iterator of grid
           cells with :py:class:`odc.geo.geobox.GeoBox` tiles
         """
         geopolygon = geopolygon.to_crs(self.crs)
         bbox = geopolygon.boundingbox
-        bbox = bbox.buffered(*tile_buffer) if tile_buffer else bbox
 
         for tile_index, tile_geobox in self.tiles(bbox, geobox_cache):
-            tile_geobox = (
-                tile_geobox.buffered(*tile_buffer) if tile_buffer else tile_geobox
-            )
-
             if intersects(tile_geobox.extent, geopolygon):
                 yield (tile_index, tile_geobox)
 
