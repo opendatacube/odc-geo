@@ -2,8 +2,8 @@
 #
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
-from math import fmod
-from typing import Tuple, Union
+from math import floor, fmod
+from typing import Literal, Tuple, Union
 
 import numpy as np
 from affine import Affine
@@ -194,3 +194,75 @@ def is_affine_st(A, tol=1e-10):
     (_, wx, _, wy, _, _, *_) = A
 
     return abs(wx) < tol and abs(wy) < tol
+
+
+class Bin1D:
+    """
+    Class for translating continous coordinates to bin index.
+
+    Binning is defined using following parameters:
+
+    - Bin size (floating point number)
+    - Location of the left edge of bin ``0``
+    - Direction of the bin index +1|-1
+    """
+
+    __slots__ = ("sz", "origin", "direction")
+
+    def __init__(self, sz: float, origin: float = 0.0, direction: Literal[1, -1] = 1):
+        """
+        Construct :py:class:`~odc.geo.math.Bin1D` object.
+
+        :param sz:
+           Size of each bin, must be positive
+        :param origin:
+           Location of the left edge of bin ``0``, defaults to 0.0
+        :param direction:
+           Default is to increment bin index left to right, supply ``-1`` to go the other way
+        """
+        assert direction in (-1, 1)
+        assert sz > 0
+        self.sz = sz
+        self.origin = origin
+        self.direction = direction
+
+    def __getitem__(self, idx: int) -> Tuple[float, float]:
+        """Convert index to interval."""
+        _x = idx * self.sz * self.direction + self.origin
+        return _x, _x + self.sz
+
+    def bin(self, x: float) -> int:
+        """Lookup bin index that ``x`` falls into."""
+        ix = floor((x - self.origin) / self.sz)
+        return int(self.direction * ix)
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Bin1D):
+            return False
+        return (
+            self.sz == other.sz
+            and self.origin == other.origin
+            and self.direction == other.direction
+        )
+
+    # pylint: disable=redefined-builtin
+    @staticmethod
+    def from_sample_bin(
+        idx: int, bin: Tuple[float, float], direction: Literal[1, -1] = 1
+    ) -> "Bin1D":
+        """
+        Construct :py:class:`~odc.geo.math.Bin1D` from a sample.
+
+        :param idx:
+           Index of a sample bin
+        :param bin:
+           ``x0, x1`` bin edges
+        :param direction:
+           Default is to increment bin index left to right, supply ``-1`` to go the other way
+        """
+        x0, x1 = bin
+        assert x0 < x1
+        sz = x1 - x0
+        origin = x0 - sz * idx * direction
+
+        return Bin1D(sz, origin, direction=direction)
