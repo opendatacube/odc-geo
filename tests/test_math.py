@@ -3,6 +3,7 @@ import pytest
 from affine import Affine
 
 from odc.geo.math import (
+    Bin1D,
     affine_from_axis,
     align_down,
     align_up,
@@ -88,3 +89,54 @@ def test_affine_from_axis():
     assert affine_from_axis(xx[:1], yy[:1], (res, res)) == Affine(
         res, 0, x0, 0, res, y0
     )
+
+
+def _check_bin(b: Bin1D, idx, tol=1e-8, nsteps=10):
+    if isinstance(idx, int):
+        idx = [idx]
+
+    for _idx in idx:
+        _in, _out = b[_idx]
+        for x in np.linspace(_in + tol, _out - tol, nsteps):
+            assert b.bin(x) == _idx
+
+
+def test_bin1d_basic():
+    b = Bin1D(sz=10, origin=20)
+    assert b[0] == (20, 30)
+    assert b[1] == (30, 40)
+    assert b[-1] == (10, 20)
+    assert b.bin(20) == 0
+    assert b.bin(10) == -1
+    assert b.bin(20 - 0.1) == -1
+
+    for idx in [-3, -1, 0, 1, 2, 11, 23]:
+        assert Bin1D.from_sample_bin(idx, b[idx], b.direction) == b
+
+    _check_bin(b, [-3, 5])
+
+    b = Bin1D(sz=10, origin=20, direction=-1)
+    assert b[0] == (20, 30)
+    assert b[-1] == (30, 40)
+    assert b[1] == (10, 20)
+    assert b.bin(20) == 0
+    assert b.bin(10) == 1
+    assert b.bin(20 - 0.1) == 1
+    _check_bin(b, [-3, 5])
+
+    assert Bin1D(10) == Bin1D(10, 0)
+    assert Bin1D(10) == Bin1D(10, 0, 1)
+    assert Bin1D(11) != Bin1D(10, 0, 1)
+    assert Bin1D(10, 3) != Bin1D(10, 0, 1)
+    assert Bin1D(10, 0, -1) != Bin1D(10, 0, 1)
+
+    for idx in [-3, -1, 0, 1, 2, 11, 23]:
+        assert Bin1D.from_sample_bin(idx, b[idx], b.direction) == b
+
+    assert Bin1D(10) != []
+
+
+def test_bin1d():
+    _ii = [-3, -1, 0, 1, 2, 7]
+    _check_bin(Bin1D(13.3, 23.5), _ii)
+    _check_bin(Bin1D(13.3, 23.5, -1), _ii)
