@@ -466,6 +466,43 @@ class Geometry:
 
         return geom._to_crs(crs)
 
+    def geojson(
+        self,
+        properties: Optional[Dict[str, Any]] = None,
+        simplify: float = 0.05,
+        resolution: Optional[float] = float("+inf"),
+        wrapdateline: bool = False,
+        **props,
+    ) -> Dict[str, Any]:
+        """
+        Render geometry to GeoJSON.
+
+        Convert geometry to ``ESPG:4326`` and wrap it in GeoJSON Feature with supplied properties.
+
+        :param properties:
+            Properties to include in the GeoJSON output.
+
+        :param simplify:
+            Tolerance in degrees for simplifying geometry after changing to lon/lat. Larger number
+            will result in a smaller (fewer points) and hence faster to display, but less precise
+            geometry. Default is ``0.05`` of a degree. To disable set to ``0``.
+
+        :param resolution:
+           When supplied, extra points will be added to the original geometry such that no segment
+           is longer than ``resolution`` units. Passed on to
+           :py:meth:`~odc.geo.geom.Geometry.to_crs`.
+
+        :param wrapdateline: Passed on to :py:meth:`~odc.geo.geom.Geometry.to_crs`
+
+        :return: GeoJSON Feature dictionary
+        """
+        gg = self.to_crs("epsg:4326", resolution=resolution, wrapdateline=wrapdateline)
+        if simplify > 0:
+            gg = gg.simplify(simplify)
+        if properties is None:
+            properties = dict(**props)
+        return {"type": "Feature", "geometry": gg.json, "properties": properties}
+
     def split(self, splitter: "Geometry") -> Iterable["Geometry"]:
         """shapely.ops.split"""
         if splitter.crs != self.crs:
