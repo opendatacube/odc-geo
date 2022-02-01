@@ -58,6 +58,8 @@ odc.geo.geom
    :toctree: _api/
 
    Geometry
+   Geometry.to_crs
+   Geometry.geojson
    BoundingBox
 
    box

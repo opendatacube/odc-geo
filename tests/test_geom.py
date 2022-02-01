@@ -1230,6 +1230,24 @@ def test_lonlat_bounds():
     assert ll_bounds == approx(ll_bounds_projected)
 
 
+def test_geojson():
+    b = geom.box(0, 0, 10, 20, epsg4326)
+    gjson = b.geojson()
+    assert set(list(gjson)) == set(["type", "geometry", "properties"])
+    assert gjson["type"] == "Feature"
+    assert gjson["properties"] == {}
+    _b = geom.Geometry(gjson["geometry"], crs=epsg4326)
+    assert (b - _b).area < 1e-6
+
+    gjson = b.to_crs(epsg3857).geojson(region_code="33")
+    assert set(list(gjson)) == set(["type", "geometry", "properties"])
+    assert gjson["type"] == "Feature"
+    assert gjson["properties"] == {"region_code": "33"}
+
+    _b = geom.Geometry(gjson["geometry"], crs=epsg4326)
+    assert (b - _b).area < 1e-6
+
+
 @pytest.mark.xfail(
     True, reason="Bounds computation for large geometries in safe mode is broken"
 )
