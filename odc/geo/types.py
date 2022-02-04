@@ -11,6 +11,8 @@ from typing import (
     overload,
 )
 
+MaybeInt = Optional[int]
+MaybeFloat = Optional[float]
 T = TypeVar("T")
 
 
