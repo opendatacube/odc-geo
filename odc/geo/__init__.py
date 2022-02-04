@@ -10,6 +10,19 @@
 
 from ._version import __version__
 
+from .types import (
+    XY,
+    Index2d,
+    Resolution,
+    xy_,
+    yx_,
+    res_,
+    resxy_,
+    resyx_,
+    ixy_,
+    iyx_,
+)
+
 from .crs import (
     CRS,
     CRSError,
@@ -26,6 +39,9 @@ from .geom import (
 
 __all__ = [
     "__version__",
+    "XY",
+    "Index2d",
+    "Resolution",
     "BoundingBox",
     "CoordList",
     "CRS",
@@ -34,4 +50,11 @@ __all__ = [
     "Geometry",
     "MaybeCRS",
     "SomeCRS",
+    "xy_",
+    "yx_",
+    "res_",
+    "resxy_",
+    "resyx_",
+    "ixy_",
+    "iyx_",
 ]
