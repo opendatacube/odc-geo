@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from affine import Affine
 
-from odc.geo import CRS, geom
+from odc.geo import CRS, geom, ixy_
 from odc.geo.geobox import (
     GeoBox,
     bounding_box_in_pixel_domain,
@@ -23,7 +23,9 @@ from odc.geo.testutils import epsg3577, epsg3857, epsg4326, mkA, xy_from_gbox, x
 
 
 def test_geobox_simple():
-    t = GeoBox(4000, 4000, Affine(0.00025, 0.0, 151.0, 0.0, -0.00025, -29.0), epsg4326)
+    t = GeoBox(
+        (4000, 4000), Affine(0.00025, 0.0, 151.0, 0.0, -0.00025, -29.0), epsg4326
+    )
 
     expect_lon = np.asarray(
         [
@@ -68,14 +70,14 @@ def test_geobox_simple():
     # ensure GeoBox accepts string CRS
     assert isinstance(
         GeoBox(
-            4000, 4000, Affine(0.00025, 0.0, 151.0, 0.0, -0.00025, -29.0), "epsg:4326"
+            (4000, 4000), Affine(0.00025, 0.0, 151.0, 0.0, -0.00025, -29.0), "epsg:4326"
         ).crs,
         CRS,
     )
 
     # Check GeoBox class is hashable
-    t_copy = GeoBox(t.width, t.height, t.transform, t.crs)
-    t_other = GeoBox(t.width + 1, t.height, t.transform, t.crs)
+    t_copy = GeoBox(t.shape, t.transform, t.crs)
+    t_other = GeoBox(ixy_(t.width + 1, t.height), t.transform, t.crs)
     assert t_copy is not t
     assert t == t_copy
     assert len({t, t, t_copy}) == 1
@@ -83,7 +85,7 @@ def test_geobox_simple():
 
 
 def test_xy_from_geobox():
-    gbox = GeoBox(3, 7, Affine.translation(10, 1000), epsg3857)
+    gbox = GeoBox(ixy_(3, 7), Affine.translation(10, 1000), epsg3857)
     xx, yy = xy_from_gbox(gbox)
 
     assert xx.shape == gbox.shape
@@ -161,7 +163,7 @@ def test_geobox():
     A = mkA(0, scale=(10, -10), translation=(-48800, -2983006))
 
     w, h = 512, 256
-    gbox = GeoBox(w, h, A, epsg3577)
+    gbox = GeoBox(ixy_(w, h), A, epsg3577)
 
     assert gbox.shape == (h, w)
     assert gbox.transform == A
@@ -173,8 +175,8 @@ def test_geobox():
     assert isinstance(str(gbox), str)
     assert "EPSG:3577" in repr(gbox)
 
-    assert GeoBox(1, 1, mkA(0), epsg4326).geographic_extent.crs == epsg4326
-    assert GeoBox(1, 1, mkA(0), None).dimensions == ("y", "x")
+    assert GeoBox((1, 1), mkA(0), epsg4326).geographic_extent.crs == epsg4326
+    assert GeoBox((1, 1), mkA(0), None).dimensions == ("y", "x")
 
     g2 = gbox[:-10, :-20]
     assert g2.shape == (gbox.height - 10, gbox.width - 20)
@@ -214,7 +216,7 @@ def test_geobox():
     # can not combine across CRSs
     with pytest.raises(ValueError):
         bounding_box_in_pixel_domain(
-            GeoBox(1, 1, mkA(0), epsg4326), GeoBox(2, 3, mkA(0), epsg3577)
+            GeoBox((1, 1), mkA(0), epsg4326), GeoBox(ixy_(2, 3), mkA(0), epsg3577)
         )
 
 
@@ -234,7 +236,7 @@ def test_geobox_scale_down():
 
     A = mkA(0, (111.2, 111.2), translation=(125671, 251465))
     for s in [2, 3, 4, 8, 13, 16]:
-        gbox = GeoBox(233 * s, 755 * s, A, crs)
+        gbox = GeoBox(ixy_(233 * s, 755 * s), A, crs)
         gbox_ = scaled_down_geobox(gbox, s)
 
         assert gbox_.width == 233
@@ -243,7 +245,7 @@ def test_geobox_scale_down():
         assert gbox_.extent.contains(gbox.extent)
         assert gbox.extent.difference(gbox.extent).area == 0.0
 
-    gbox = GeoBox(1, 1, A, crs)
+    gbox = GeoBox((1, 1), A, crs)
     for s in [2, 3, 5]:
         gbox_ = scaled_down_geobox(gbox, 3)
 

@@ -20,6 +20,7 @@ from .geom import (
 )
 from .math import clamp, is_affine_st, is_almost_int
 from .roi import align_up, polygon_path, roi_normalise, roi_shape
+from .types import XY
 
 # pylint: disable=invalid-name
 MaybeInt = Optional[int]
@@ -45,18 +46,25 @@ class GeoBox:
     Defines the location and resolution of a rectangular grid of data,
     including it's :py:class:`~odc.geo.crs.CRS`.
 
+    :param shape: Shape in pixels ``(ny, nx)``
     :param crs: Coordinate Reference System
     :param affine: Affine transformation defining the location of the geobox
     """
 
-    def __init__(self, width: int, height: int, affine: Affine, crs: MaybeCRS):
+    def __init__(
+        self, shape: Union[Tuple[int, int], XY[int]], affine: Affine, crs: MaybeCRS
+    ):
         assert is_affine_st(
             affine
         ), "Only axis-aligned geoboxes are currently supported"
-        self.width = width
-        self.height = height
+        if isinstance(shape, XY):
+            shape = shape.shape
+
+        self._shape = shape
         self.affine = affine
-        self.extent = polygon_from_transform(width, height, affine, crs=crs)
+
+        ny, nx = shape
+        self.extent = polygon_from_transform(nx, ny, affine, crs=crs)
 
     @staticmethod
     def from_geopolygon(
@@ -92,16 +100,16 @@ class GeoBox:
             geopolygon = geopolygon.to_crs(crs)
 
         bounding_box = geopolygon.boundingbox
-        offx, width = _align_pix(
+        offx, nx = _align_pix(
             bounding_box.left, bounding_box.right, resolution[1], align[1]
         )
-        offy, height = _align_pix(
+        offy, ny = _align_pix(
             bounding_box.bottom, bounding_box.top, resolution[0], align[0]
         )
         affine = Affine.translation(offx, offy) * Affine.scale(
             resolution[1], resolution[0]
         )
-        return GeoBox(crs=crs, affine=affine, width=width, height=height)
+        return GeoBox((ny, nx), crs=crs, affine=affine)
 
     def buffered(self, xbuff: float, ybuff: Optional[float] = None) -> "GeoBox":
         """
@@ -115,9 +123,10 @@ class GeoBox:
         )
         affine = self.affine * Affine.translation(-bx, -by)
 
+        ny, nx = (sz + 2 * b for sz, b in zip(self.shape, (by, bx)))
+
         return GeoBox(
-            width=self.width + 2 * bx,
-            height=self.height + 2 * by,
+            (ny, nx),
             affine=affine,
             crs=self.crs,
         )
@@ -137,11 +146,11 @@ class GeoBox:
 
         roi = roi_normalise(roi, self.shape)
         ty, tx = (s.start for s in roi)
-        h, w = roi_shape(roi)
+        ny, nx = roi_shape(roi)
 
         affine = self.affine * Affine.translation(tx, ty)
 
-        return GeoBox(width=w, height=h, affine=affine, crs=self.crs)
+        return GeoBox(shape=(ny, nx), affine=affine, crs=self.crs)
 
     def __or__(self, other) -> "GeoBox":
         """A geobox that encompasses both self and other."""
@@ -153,7 +162,7 @@ class GeoBox:
 
     def is_empty(self) -> bool:
         """Check if geobox is "empty"."""
-        return self.width == 0 or self.height == 0
+        return self._shape == (0, 0)
 
     def __bool__(self) -> bool:
         return not self.is_empty()
@@ -167,9 +176,19 @@ class GeoBox:
         return self.affine
 
     @property
+    def width(self) -> int:
+        """Width in pixels (nx)."""
+        return self._shape[1]
+
+    @property
+    def height(self) -> int:
+        """Height in pixels (ny)."""
+        return self._shape[0]
+
+    @property
     def shape(self) -> Tuple[int, int]:
         """Shape in pixels ``(height, width)``."""
-        return self.height, self.width
+        return self._shape
 
     @property
     def crs(self) -> Optional[CRS]:
@@ -206,9 +225,10 @@ class GeoBox:
         """
         yres, xres = self.resolution
         yoff, xoff = self.affine.yoff, self.affine.xoff
+        ny, nx = self.shape
 
-        xs = numpy.arange(self.width) * xres + (xoff + xres / 2)
-        ys = numpy.arange(self.height) * yres + (yoff + yres / 2)
+        xs = numpy.arange(nx) * xres + (xoff + xres / 2)
+        ys = numpy.arange(ny) * yres + (yoff + yres / 2)
 
         units = self.crs.units if self.crs is not None else ("1", "1")
 
@@ -233,14 +253,16 @@ class GeoBox:
         return f"GeoBox({self.geographic_extent})"
 
     def __repr__(self):
-        return f"GeoBox({self.width}, {self.height}, {self.affine!r}, {self.crs})"
+        return (
+            f"GeoBox(({self._shape[0], self._shape[1]}), {self.affine!r}, {self.crs})"
+        )
 
     def __eq__(self, other):
         if not isinstance(other, GeoBox):
             return False
 
         return (
-            self.shape == other.shape
+            self._shape == other._shape
             and self.transform == other.transform
             and self.crs == other.crs
         )
@@ -290,7 +312,8 @@ def bounding_box_in_pixel_domain(geobox: GeoBox, reference: GeoBox) -> BoundingB
         raise ValueError("Incompatible grids")
 
     tx, ty = round(c), round(f)
-    return BoundingBox(tx, ty, tx + geobox.width, ty + geobox.height)
+    ny, nx = geobox.shape
+    return BoundingBox(tx, ty, tx + nx, ty + ny)
 
 
 def geobox_union_conservative(geoboxes: List[GeoBox]) -> GeoBox:
@@ -309,10 +332,7 @@ def geobox_union_conservative(geoboxes: List[GeoBox]) -> GeoBox:
     )
 
     affine = reference.affine * Affine.translation(*bbox[:2])
-
-    return GeoBox(
-        width=bbox.width, height=bbox.height, affine=affine, crs=reference.crs
-    )
+    return GeoBox(shape=bbox.shape, affine=affine, crs=reference.crs)
 
 
 def geobox_intersection_conservative(geoboxes: List[GeoBox]) -> GeoBox:
@@ -342,9 +362,7 @@ def geobox_intersection_conservative(geoboxes: List[GeoBox]) -> GeoBox:
 
     affine = reference.affine * Affine.translation(*bbox[:2])
 
-    return GeoBox(
-        width=bbox.width, height=bbox.height, affine=affine, crs=reference.crs
-    )
+    return GeoBox(shape=bbox.shape, affine=affine, crs=reference.crs)
 
 
 def scaled_down_geobox(src_geobox: GeoBox, scaler: int) -> GeoBox:
@@ -363,13 +381,13 @@ def scaled_down_geobox(src_geobox: GeoBox, scaler: int) -> GeoBox:
     """
     assert scaler > 1
 
-    H, W = (X // scaler + (1 if X % scaler else 0) for X in src_geobox.shape)
+    ny, nx = (X // scaler + (1 if X % scaler else 0) for X in src_geobox.shape)
 
     # Since 0,0 is at the corner of a pixel, not center, there is no
     # translation between pixel plane coords due to scaling
     A = src_geobox.transform * Affine.scale(scaler, scaler)
 
-    return GeoBox(W, H, A, src_geobox.crs)
+    return GeoBox((ny, nx), A, src_geobox.crs)
 
 
 def _round_to_res(value: float, res: float) -> int:
@@ -383,10 +401,10 @@ def flipy(gbox: GeoBox) -> GeoBox:
 
     :returns: GeoBox covering the same region but with Y-axis flipped
     """
-    H, W = gbox.shape
-    A = Affine.translation(0, H) * Affine.scale(1, -1)
+    ny, _ = gbox.shape
+    A = Affine.translation(0, ny) * Affine.scale(1, -1)
     A = gbox.affine * A
-    return GeoBox(W, H, A, gbox.crs)
+    return GeoBox(gbox.shape, A, gbox.crs)
 
 
 def flipx(gbox: GeoBox) -> GeoBox:
@@ -395,10 +413,10 @@ def flipx(gbox: GeoBox) -> GeoBox:
 
     :returns: GeoBox covering the same region but with X-axis flipped
     """
-    H, W = gbox.shape
-    A = Affine.translation(W, 0) * Affine.scale(-1, 1)
+    _, nx = gbox.shape
+    A = Affine.translation(nx, 0) * Affine.scale(-1, 1)
     A = gbox.affine * A
-    return GeoBox(W, H, A, gbox.crs)
+    return GeoBox(gbox.shape, A, gbox.crs)
 
 
 def translate_pix(gbox: GeoBox, tx: float, ty: float) -> GeoBox:
@@ -408,9 +426,8 @@ def translate_pix(gbox: GeoBox, tx: float, ty: float) -> GeoBox:
     ``(0,0)`` of the new GeoBox will be at the same location as pixel ``(tx, ty)`` in the original
     GeoBox.
     """
-    H, W = gbox.shape
     A = gbox.affine * Affine.translation(tx, ty)
-    return GeoBox(W, H, A, gbox.crs)
+    return GeoBox(gbox.shape, A, gbox.crs)
 
 
 def pad(gbox: GeoBox, padx: int, pady: MaybeInt = None) -> GeoBox:
@@ -424,9 +441,10 @@ def pad(gbox: GeoBox, padx: int, pady: MaybeInt = None) -> GeoBox:
 
     pady = padx if pady is None else pady
 
-    H, W = gbox.shape
+    ny, nx = gbox.shape
     A = gbox.affine * Affine.translation(-padx, -pady)
-    return GeoBox(W + padx * 2, H + pady * 2, A, gbox.crs)
+    shape = (ny + pady * 2, nx + padx * 2)
+    return GeoBox(shape, A, gbox.crs)
 
 
 def pad_wh(gbox: GeoBox, alignx: int = 16, aligny: MaybeInt = None) -> GeoBox:
@@ -434,9 +452,9 @@ def pad_wh(gbox: GeoBox, alignx: int = 16, aligny: MaybeInt = None) -> GeoBox:
     Expand GeoBox such that width and height are multiples of supplied number.
     """
     aligny = alignx if aligny is None else aligny
-    H, W = gbox.shape
+    ny, nx = (align_up(sz, n) for sz, n in zip(gbox.shape, (aligny, alignx)))
 
-    return GeoBox(align_up(W, alignx), align_up(H, aligny), gbox.affine, gbox.crs)
+    return GeoBox((ny, nx), gbox.affine, gbox.crs)
 
 
 def zoom_out(gbox: GeoBox, factor: float) -> GeoBox:
@@ -450,9 +468,9 @@ def zoom_out(gbox: GeoBox, factor: float) -> GeoBox:
        GeoBox covering the same region but with different pixels (i.e. lower or higher resolution)
     """
 
-    H, W = (max(1, math.ceil(s / factor)) for s in gbox.shape)
+    ny, nx = (max(1, math.ceil(s / factor)) for s in gbox.shape)
     A = gbox.affine * Affine.scale(factor, factor)
-    return GeoBox(W, H, A, gbox.crs)
+    return GeoBox((ny, nx), A, gbox.crs)
 
 
 def zoom_to(gbox: GeoBox, shape: Tuple[int, int]) -> GeoBox:
@@ -462,12 +480,9 @@ def zoom_to(gbox: GeoBox, shape: Tuple[int, int]) -> GeoBox:
     :returns:
       GeoBox covering the same region but with different number of pixels and therefore resolution.
     """
-    H, W = gbox.shape
-    h, w = shape
-
-    sx, sy = W / float(w), H / float(h)
+    sy, sx = (N / float(n) for N, n in zip(gbox.shape, shape))
     A = gbox.affine * Affine.scale(sx, sy)
-    return GeoBox(w, h, A, gbox.crs)
+    return GeoBox(shape, A, gbox.crs)
 
 
 def rotate(gbox: GeoBox, deg: float) -> GeoBox:
@@ -482,10 +497,10 @@ def rotate(gbox: GeoBox, deg: float) -> GeoBox:
     in that view arrow should point down (this is assuming usual case of inverted
     y-axis)
     """
-    h, w = gbox.shape
-    c0 = gbox.transform * (w * 0.5, h * 0.5)
+    ny, nx = gbox.shape
+    c0 = gbox.transform * (nx * 0.5, ny * 0.5)
     A = Affine.rotation(deg, c0) * gbox.transform
-    return GeoBox(w, h, A, gbox.crs)
+    return GeoBox(gbox.shape, A, gbox.crs)
 
 
 def affine_transform_pix(gbox: GeoBox, transform: Affine) -> GeoBox:
@@ -502,9 +517,8 @@ def affine_transform_pix(gbox: GeoBox, transform: Affine) -> GeoBox:
     ``X_old_pix = transform * X_new_pix``
 
     """
-    H, W = gbox.shape
     A = gbox.affine * transform
-    return GeoBox(W, H, A, gbox.crs)
+    return GeoBox(gbox.shape, A, gbox.crs)
 
 
 class GeoboxTiles:

@@ -12,7 +12,7 @@ from affine import Affine
 from pytest import approx
 from shapely.errors import ShapelyDeprecationWarning
 
-from odc.geo import CRS, BoundingBox, CRSMismatchError, geom
+from odc.geo import CRS, BoundingBox, CRSMismatchError, geom, ixy_
 from odc.geo._overlap import (
     affine_from_pts,
     compute_axis_overlap,
@@ -503,7 +503,7 @@ def test_unary_intersection():
 
 
 def test_gen_test_image_xy():
-    gbox = GeoBox(3, 7, Affine.translation(10, 1000), epsg3857)
+    gbox = GeoBox(ixy_(3, 7), Affine.translation(10, 1000), epsg3857)
 
     xy, denorm = gen_test_image_xy(gbox, "float64")
     assert xy.dtype == "float64"
@@ -965,7 +965,7 @@ def test_pix_transform():
 
     A = mkA(scale=(20, -20), translation=pt)
 
-    src = GeoBox(1024, 512, A, epsg3577)
+    src = GeoBox((512, 1024), A, epsg3577)
     dst = GeoBox.from_geopolygon(src.geographic_extent, (0.0001, -0.0001))
 
     tr = native_pix_transform(src, dst)
@@ -1053,10 +1053,10 @@ def test_compute_reproject_roi_issue647():
     """
 
     src = GeoBox(
-        10980, 10980, Affine(10, 0, 300000, 0, -10, 5900020), CRS("epsg:32756")
+        (10980, 10980), Affine(10, 0, 300000, 0, -10, 5900020), CRS("epsg:32756")
     )
 
-    dst = GeoBox(976, 976, Affine(10, 0, 1730240, 0, -10, -4170240), CRS("EPSG:3577"))
+    dst = GeoBox((976, 976), Affine(10, 0, 1730240, 0, -10, -4170240), CRS("EPSG:3577"))
 
     assert src.extent.overlaps(dst.extent.to_crs(src.crs)) is False
 
@@ -1074,8 +1074,7 @@ def test_compute_reproject_roi_issue1047():
     Test this issue is resolved.
     """
     geobox = GeoBox(
-        3000,
-        3000,
+        (3000, 3000),
         Affine(
             0.00027778, 0.0, 148.72673054908861, 0.0, -0.00027778, -34.98825802556622
         ),

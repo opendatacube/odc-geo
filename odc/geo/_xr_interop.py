@@ -280,9 +280,9 @@ def _locate_geo_info(src: XarrayObject) -> GeoState:
         crs = _get_crs_from_attrs(src, sdims)
 
     if transform is not None:
-        width = _xx.shape[0]
-        height = _yy.shape[0]
-        geobox = GeoBox(width, height, transform, crs)
+        nx = _xx.shape[0]
+        ny = _yy.shape[0]
+        geobox = GeoBox((ny, nx), transform, crs)
 
     return GeoState(spatial_dims=sdims, transform=transform, crs=crs, geobox=geobox)
 

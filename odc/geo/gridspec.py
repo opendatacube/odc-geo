@@ -123,11 +123,7 @@ class GridSpec:
         """
         ry, rx = self.resolution
         tx, ty = self._tile_txy(tile_index)
-        h, w = self._shape
-        geobox = GeoBox(
-            width=w, height=h, crs=self.crs, affine=Affine(rx, 0, tx, 0, ry, ty)
-        )
-        return geobox
+        return GeoBox(self._shape, crs=self.crs, affine=Affine(rx, 0, tx, 0, ry, ty))
 
     def __getitem__(self, idx: Tuple[int, int]) -> GeoBox:
         """Lookup :py:class:`~odc.geo.geobox.GeoBox` of a given tile."""
