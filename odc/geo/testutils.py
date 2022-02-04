@@ -23,8 +23,7 @@ epsg3857 = CRS("EPSG:3857")
 AlbersGS = GridSpec(
     crs=epsg3577,
     tile_shape=(4000, 4000),
-    resolution=(-25, 25),
-    origin=(0.0, 0.0),
+    resolution=25,
 )
 
 SAMPLE_WKT_WITHOUT_AUTHORITY = """PROJCS["unnamed",

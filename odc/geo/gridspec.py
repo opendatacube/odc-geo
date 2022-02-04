@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """GridSpec class."""
 import math
-from typing import Any, Dict, Iterator, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, Optional, Tuple
 
 from affine import Affine
 
@@ -13,6 +13,18 @@ from .crs import SomeCRS, norm_crs_or_error
 from .geobox import GeoBox
 from .geom import BoundingBox, Geometry, intersects
 from .math import Bin1D
+from .types import (
+    XY,
+    Index2d,
+    SomeIndex2d,
+    SomeResolution,
+    SomeShape,
+    ixy_,
+    res_,
+    resyx_,
+    xy_,
+    yx_,
+)
 
 
 class GridSpec:
@@ -22,12 +34,12 @@ class GridSpec:
     :param crs:
        Coordinate System used to define the grid
     :param tile_shape:
-       ``(Y, X)`` size of each tile in pixels
+       Size of each tile in pixels
     :param resolution:
-       ``(Y, X)`` size of each data point in the grid, in CRS units. ``Y`` will usually be negative
+       Size of each data point in the grid, in CRS units. ``Y`` will usually be negative.
     :param origin:
-       ``(X, Y)`` coordinate of a bottom-left corner of the ``(0,0)`` tile in CRS units. Default is
-       ``(0.0, 0.0)``
+       Coordinate of a bottom-left corner of the ``(0,0)`` tile in CRS units. Default is
+       ``xy_(0.0, 0.0)``
     :param flipx: when ``True`` grid index for X axis increments left to right
     :param flipy: when ``True`` grid index for Y axis increments top to bottom
     """
@@ -35,33 +47,34 @@ class GridSpec:
     def __init__(
         self,
         crs: SomeCRS,
-        tile_shape: Tuple[int, int],
-        resolution: Union[float, Tuple[float, float]],
-        origin: Optional[Tuple[float, float]] = None,
+        tile_shape: SomeShape,
+        resolution: SomeResolution,
+        origin: Optional[XY[float]] = None,
         flipx: bool = False,
         flipy: bool = False,
     ):
-        if isinstance(resolution, (int, float)):
-            resolution = (-resolution, resolution)
-        resolution = float(resolution[0]), float(resolution[1])
+        resolution = res_(resolution)
 
         if origin is None:
-            origin = (0.0, 0.0)
+            origin = xy_(0.0, 0.0)
         else:
-            origin = float(origin[0]), float(origin[1])
+            assert isinstance(origin, XY)
+
+        if isinstance(tile_shape, tuple):
+            tile_shape = yx_(tile_shape)
 
         self.crs = norm_crs_or_error(crs)
         self._shape = tile_shape
         self.resolution = resolution
-        self.tile_size = (
-            tile_shape[0] * abs(resolution[0]),
-            tile_shape[1] * abs(resolution[1]),
+        self.tile_size = xy_(
+            tile_shape.x * abs(resolution.x),
+            tile_shape.x * abs(resolution.y),
         )
         self.origin = origin
 
-        ox, oy = origin
-        self._ybin = Bin1D(self.tile_size[0], oy, -1 if flipy else 1)
-        self._xbin = Bin1D(self.tile_size[1], ox, -1 if flipx else 1)
+        ox, oy = origin.xy
+        self._ybin = Bin1D(self.tile_size.y, oy, -1 if flipy else 1)
+        self._xbin = Bin1D(self.tile_size.x, ox, -1 if flipx else 1)
 
     def __eq__(self, other):
         if not isinstance(other, GridSpec):
@@ -82,13 +95,15 @@ class GridSpec:
     @property
     def alignment(self) -> Tuple[float, float]:
         """Pixel boundary alignment."""
-        y, x = (orig % abs(res) for orig, res in zip(self.origin, self.resolution))
+        y, x = (
+            orig % abs(res) for orig, res in zip(self.origin.yx, self.resolution.yx)
+        )
         return (y, x)
 
     @property
     def tile_shape(self) -> Tuple[int, int]:
         """Tile shape in pixels (Y,X order, like numpy)."""
-        return self._shape
+        return self._shape.shape
 
     def pt2idx(self, x: float, y: float) -> Tuple[int, int]:
         """
@@ -101,11 +116,11 @@ class GridSpec:
         """
         return self._xbin.bin(x), self._ybin.bin(y)
 
-    def _tile_txy(self, tile_index: Tuple[int, int]) -> Tuple[float, float]:
+    def _tile_txy(self, tile_index: Index2d) -> XY[float]:
         """Location of 0,0 pixel in CRS units."""
 
-        ix, iy = tile_index
-        ry, rx = self.resolution
+        ix, iy = tile_index.xy
+        rx, ry = self.resolution.xy
 
         x0, x1 = self._xbin[ix]
         tx = x0 if rx > 0 else x1
@@ -113,19 +128,20 @@ class GridSpec:
         y0, y1 = self._ybin[iy]
         ty = y0 if ry > 0 else y1
 
-        return tx, ty
+        return xy_(tx, ty)
 
-    def tile_geobox(self, tile_index: Tuple[int, int]) -> GeoBox:
+    def tile_geobox(self, tile_index: SomeIndex2d) -> GeoBox:
         """
         Tile geobox.
 
         :param tile_index: ``(ix, iy)``
         """
-        ry, rx = self.resolution
-        tx, ty = self._tile_txy(tile_index)
+        tile_index = ixy_(tile_index)
+        tx, ty = self._tile_txy(tile_index).xy
+        rx, ry = self.resolution.xy
         return GeoBox(self._shape, crs=self.crs, affine=Affine(rx, 0, tx, 0, ry, ty))
 
-    def __getitem__(self, idx: Tuple[int, int]) -> GeoBox:
+    def __getitem__(self, idx: SomeIndex2d) -> GeoBox:
         """Lookup :py:class:`~odc.geo.geobox.GeoBox` of a given tile."""
         return self.tile_geobox(idx)
 
@@ -284,8 +300,8 @@ class GridSpec:
         xbin = Bin1D.from_sample_bin(ix, bbox.range_x, -1 if flipx else 1)
         ybin = Bin1D.from_sample_bin(iy, bbox.range_y, -1 if flipy else 1)
 
-        origin = (xbin.origin, ybin.origin)
-        resolution = (-ybin.sz / ny, xbin.sz / nx)
+        origin = xy_(xbin.origin, ybin.origin)
+        resolution = resyx_(-ybin.sz / ny, xbin.sz / nx)
         return GridSpec(
             crs, shape, resolution=resolution, origin=origin, flipx=flipx, flipy=flipy
         )
