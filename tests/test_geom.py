@@ -12,7 +12,7 @@ from affine import Affine
 from pytest import approx
 from shapely.errors import ShapelyDeprecationWarning
 
-from odc.geo import CRS, BoundingBox, CRSMismatchError, geom, ixy_
+from odc.geo import CRS, BoundingBox, CRSMismatchError, geom, ixy_, resyx_
 from odc.geo._overlap import (
     affine_from_pts,
     compute_axis_overlap,
@@ -966,7 +966,7 @@ def test_pix_transform():
     A = mkA(scale=(20, -20), translation=pt)
 
     src = GeoBox((512, 1024), A, epsg3577)
-    dst = GeoBox.from_geopolygon(src.geographic_extent, (0.0001, -0.0001))
+    dst = GeoBox.from_geopolygon(src.geographic_extent, resyx_(0.0001, -0.0001))
 
     tr = native_pix_transform(src, dst)
 
