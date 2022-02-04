@@ -28,7 +28,8 @@ def test_geobox_xr_coords():
     A = mkA(0, scale=(10, -10), translation=(-48800, -2983006))
 
     w, h = 512, 256
-    gbox = GeoBox(w, h, A, epsg3577)
+    _shape = h, w
+    gbox = GeoBox(_shape, A, epsg3577)
 
     cc = xr_coords(gbox, crs_coord_name=None)
     assert list(cc) == ["y", "x"]
@@ -51,7 +52,7 @@ def test_geobox_xr_coords():
 
     # geographic CRS
     A = mkA(0, scale=(0.1, -0.1), translation=(10, 30))
-    gbox = GeoBox(w, h, A, "epsg:4326")
+    gbox = GeoBox(_shape, A, "epsg:4326")
 
     cc = xr_coords(gbox)
     assert list(cc) == ["latitude", "longitude", "spatial_ref"]
