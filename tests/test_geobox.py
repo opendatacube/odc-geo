@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from affine import Affine
 
-from odc.geo import CRS, geom, ixy_
+from odc.geo import CRS, geom, ixy_, resyx_
 from odc.geo.geobox import (
     GeoBox,
     bounding_box_in_pixel_domain,
@@ -56,12 +56,12 @@ def test_geobox_simple():
             -29.002375,
         ]
     )
-    expect_resolution = np.asarray([-0.00025, 0.00025])
+    expect_resolution = pytest.approx((-0.00025, 0.00025))
+    assert t.resolution.yx == expect_resolution
 
     assert t.coordinates["latitude"].values.shape == (4000,)
     assert t.coordinates["longitude"].values.shape == (4000,)
 
-    np.testing.assert_almost_equal(t.resolution, expect_resolution)
     np.testing.assert_almost_equal(t.coords["latitude"].values[:10], expect_lat)
     np.testing.assert_almost_equal(t.coords["longitude"].values[:10], expect_lon)
 
@@ -138,7 +138,7 @@ def test_geobox():
     ]
     for points in points_list:
         polygon = geom.polygon(points, crs=epsg3577)
-        resolution = (-25, 25)
+        resolution = resyx_(-25, 25)
         geobox = GeoBox.from_geopolygon(polygon, resolution)
 
         # check single value resolution equivalence
@@ -147,16 +147,17 @@ def test_geobox():
 
         assert GeoBox.from_geopolygon(polygon, resolution, crs=geobox.crs) == geobox
 
-        assert abs(resolution[0]) > abs(
+        # check that extra padding added by alignment is smaller than pixel size
+        assert abs(resolution.x) > abs(
             geobox.extent.boundingbox.left - polygon.boundingbox.left
         )
-        assert abs(resolution[0]) > abs(
+        assert abs(resolution.x) > abs(
             geobox.extent.boundingbox.right - polygon.boundingbox.right
         )
-        assert abs(resolution[1]) > abs(
+        assert abs(resolution.y) > abs(
             geobox.extent.boundingbox.top - polygon.boundingbox.top
         )
-        assert abs(resolution[1]) > abs(
+        assert abs(resolution.y) > abs(
             geobox.extent.boundingbox.bottom - polygon.boundingbox.bottom
         )
 
@@ -171,7 +172,7 @@ def test_geobox():
     assert gbox.geographic_extent.crs == epsg4326
     assert gbox.extent.boundingbox.height == h * 10.0
     assert gbox.extent.boundingbox.width == w * 10.0
-    assert gbox.alignment == (4, 0)  # 4 because -2983006 % 10 is 4
+    assert gbox.alignment.yx == (4, 0)  # 4 because -2983006 % 10 is 4
     assert isinstance(str(gbox), str)
     assert "EPSG:3577" in repr(gbox)
 

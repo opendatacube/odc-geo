@@ -5,7 +5,7 @@
 import itertools
 import math
 from collections import OrderedDict, namedtuple
-from typing import Dict, Iterable, List, Optional, Tuple, Union
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import numpy
 from affine import Affine
@@ -20,7 +20,20 @@ from .geom import (
 )
 from .math import clamp, is_affine_st, is_almost_int
 from .roi import align_up, polygon_path, roi_normalise, roi_shape
-from .types import XY, MaybeInt
+from .types import (
+    XY,
+    Index2d,
+    MaybeInt,
+    Resolution,
+    SomeIndex2d,
+    SomeResolution,
+    SomeShape,
+    iyx_,
+    res_,
+    resxy_,
+    xy_,
+    yx_,
+)
 
 # pylint: disable=invalid-name
 Coordinate = namedtuple("Coordinate", ("values", "units", "resolution"))
@@ -47,27 +60,24 @@ class GeoBox:
     :param affine: Affine transformation defining the location of the geobox
     """
 
-    def __init__(
-        self, shape: Union[Tuple[int, int], XY[int]], affine: Affine, crs: MaybeCRS
-    ):
+    def __init__(self, shape: SomeShape, affine: Affine, crs: MaybeCRS):
         assert is_affine_st(
             affine
         ), "Only axis-aligned geoboxes are currently supported"
-        if isinstance(shape, XY):
-            shape = shape.shape
+        shape = yx_(shape)
 
         self._shape = shape
         self.affine = affine
 
-        ny, nx = shape
+        ny, nx = shape.yx
         self.extent = polygon_from_transform(nx, ny, affine, crs=crs)
 
     @staticmethod
     def from_geopolygon(
         geopolygon: Geometry,
-        resolution: Union[float, int, Tuple[float, float]],
+        resolution: SomeResolution,
         crs: MaybeCRS = None,
-        align: Optional[Tuple[float, float]] = None,
+        align: Optional[XY[float]] = None,
     ) -> "GeoBox":
         """
         Construct :py:class:`~odc.geo.geobox.GeoBox` from a polygon.
@@ -76,18 +86,15 @@ class GeoBox:
         :param crs: CRS to use, if different from the geopolygon
         :param align: Align geobox such that point 'align' lies on the pixel boundary.
         """
+        resolution = res_(resolution)
+        if align is None:
+            align = xy_(0.0, 0.0)
 
-        if isinstance(resolution, float):
-            resolution = -resolution, resolution
-        elif isinstance(resolution, int):
-            resolution = float(-resolution), float(resolution)
-
-        align = align or (0.0, 0.0)
         assert (
-            0.0 <= align[1] <= abs(resolution[1])
+            0.0 <= align.x <= abs(resolution.x)
         ), "X align must be in [0, abs(x_resolution)] range"
         assert (
-            0.0 <= align[0] <= abs(resolution[0])
+            0.0 <= align.y <= abs(resolution.y)
         ), "Y align must be in [0, abs(y_resolution)] range"
 
         if crs is None:
@@ -95,16 +102,11 @@ class GeoBox:
         else:
             geopolygon = geopolygon.to_crs(crs)
 
-        bounding_box = geopolygon.boundingbox
-        offx, nx = _align_pix(
-            bounding_box.left, bounding_box.right, resolution[1], align[1]
-        )
-        offy, ny = _align_pix(
-            bounding_box.bottom, bounding_box.top, resolution[0], align[0]
-        )
-        affine = Affine.translation(offx, offy) * Affine.scale(
-            resolution[1], resolution[0]
-        )
+        bbox = geopolygon.boundingbox
+        rx, ry = resolution.xy
+        offx, nx = _align_pix(bbox.left, bbox.right, rx, align.x)
+        offy, ny = _align_pix(bbox.bottom, bbox.top, ry, align.y)
+        affine = Affine.translation(offx, offy) * Affine.scale(rx, ry)
         return GeoBox((ny, nx), crs=crs, affine=affine)
 
     def buffered(self, xbuff: float, ybuff: Optional[float] = None) -> "GeoBox":
@@ -115,7 +117,8 @@ class GeoBox:
             ybuff = xbuff
 
         by, bx = (
-            _round_to_res(buf, res) for buf, res in zip((ybuff, xbuff), self.resolution)
+            _round_to_res(buf, res)
+            for buf, res in zip((ybuff, xbuff), self.resolution.yx)
         )
         affine = self.affine * Affine.translation(-bx, -by)
 
@@ -158,7 +161,7 @@ class GeoBox:
 
     def is_empty(self) -> bool:
         """Check if geobox is "empty"."""
-        return self._shape == (0, 0)
+        return self._shape.shape == (0, 0)
 
     def __bool__(self) -> bool:
         return not self.is_empty()
@@ -174,17 +177,17 @@ class GeoBox:
     @property
     def width(self) -> int:
         """Width in pixels (nx)."""
-        return self._shape[1]
+        return self._shape.x
 
     @property
     def height(self) -> int:
         """Height in pixels (ny)."""
-        return self._shape[0]
+        return self._shape.y
 
     @property
     def shape(self) -> Tuple[int, int]:
         """Shape in pixels ``(height, width)``."""
-        return self._shape
+        return self._shape.shape
 
     @property
     def crs(self) -> Optional[CRS]:
@@ -200,16 +203,16 @@ class GeoBox:
         return crs.dimensions
 
     @property
-    def resolution(self) -> Tuple[float, float]:
+    def resolution(self) -> Resolution:
         """Resolution in Y,X dimension order."""
-        return self.affine.e, self.affine.a
+        rx, _, _, _, ry, *_ = self.affine
+        return resxy_(rx, ry)
 
     @property
-    def alignment(self) -> Tuple[float, float]:
+    def alignment(self) -> XY[float]:
         """Alignment of pixel boundaries in Y,X dimension order."""
-        return self.affine.yoff % abs(self.affine.e), self.affine.xoff % abs(
-            self.affine.a
-        )
+        rx, _, tx, _, ry, ty, *_ = self.affine
+        return xy_(tx % abs(rx), ty % abs(ry))
 
     @property
     def coordinates(self) -> Dict[str, Coordinate]:
@@ -219,19 +222,18 @@ class GeoBox:
         :return:
           Mapping from coordinate name to :py:class:`~odc.geo.geobox.Coordinate`.
         """
-        yres, xres = self.resolution
-        yoff, xoff = self.affine.yoff, self.affine.xoff
+        rx, _, tx, _, ry, ty, *_ = self.affine
         ny, nx = self.shape
 
-        xs = numpy.arange(nx) * xres + (xoff + xres / 2)
-        ys = numpy.arange(ny) * yres + (yoff + yres / 2)
+        xs = numpy.arange(nx) * rx + (tx + rx / 2)
+        ys = numpy.arange(ny) * ry + (ty + ry / 2)
 
         units = self.crs.units if self.crs is not None else ("1", "1")
 
         return OrderedDict(
             (dim, Coordinate(labels, units, res))
             for dim, labels, units, res in zip(
-                self.dimensions, (ys, xs), units, (yres, xres)
+                self.dimensions, (ys, xs), units, (ry, rx)
             )
         )
 
@@ -249,9 +251,7 @@ class GeoBox:
         return f"GeoBox({self.geographic_extent})"
 
     def __repr__(self):
-        return (
-            f"GeoBox(({self._shape[0], self._shape[1]}), {self.affine!r}, {self.crs})"
-        )
+        return f"GeoBox(({self._shape.y, self._shape.x}), {self.affine!r}, {self.crs})"
 
     def __eq__(self, other):
         if not isinstance(other, GeoBox):
@@ -259,7 +259,7 @@ class GeoBox:
 
         return (
             self._shape == other._shape
-            and self.transform == other.transform
+            and self.affine == other.affine
             and self.crs == other.crs
         )
 
@@ -469,14 +469,15 @@ def zoom_out(gbox: GeoBox, factor: float) -> GeoBox:
     return GeoBox((ny, nx), A, gbox.crs)
 
 
-def zoom_to(gbox: GeoBox, shape: Tuple[int, int]) -> GeoBox:
+def zoom_to(gbox: GeoBox, shape: SomeShape) -> GeoBox:
     """
     Change GeoBox shape.
 
     :returns:
       GeoBox covering the same region but with different number of pixels and therefore resolution.
     """
-    sy, sx = (N / float(n) for N, n in zip(gbox.shape, shape))
+    shape = yx_(shape)
+    sy, sx = (N / float(n) for N, n in zip(gbox.shape, shape.shape))
     A = gbox.affine * Affine.scale(sx, sy)
     return GeoBox(shape, A, gbox.crs)
 
@@ -520,19 +521,20 @@ def affine_transform_pix(gbox: GeoBox, transform: Affine) -> GeoBox:
 class GeoboxTiles:
     """Partition GeoBox into sub geoboxes."""
 
-    def __init__(self, box: GeoBox, tile_shape: Tuple[int, int]):
+    def __init__(self, box: GeoBox, tile_shape: SomeShape):
         """
         Construct from a :py:class:`~odc.geo.GeoBox`.
 
         :param box: source :py:class:`~odc.geo.GeoBox`
         :param tile_shape: Shape of sub-tiles in pixels ``(rows, cols)``
         """
+        tile_shape = yx_(tile_shape)
         self._gbox = box
         self._tile_shape = tile_shape
-        self._shape = tuple(
-            math.ceil(float(N) / n) for N, n in zip(box.shape, tile_shape)
+        self._shape = yx_(
+            int(math.ceil(float(N) / n)) for N, n in zip(box.shape, tile_shape.shape)
         )
-        self._cache: Dict[Tuple[int, int], GeoBox] = {}
+        self._cache: Dict[Index2d, GeoBox] = {}
 
     @property
     def base(self) -> GeoBox:
@@ -542,21 +544,22 @@ class GeoboxTiles:
     @property
     def shape(self):
         """Number of tiles along each dimension."""
-        return self._shape
+        return self._shape.shape
 
-    def _idx_to_slice(self, idx: Tuple[int, int]) -> Tuple[slice, slice]:
+    def _idx_to_slice(self, idx: Index2d) -> Tuple[slice, slice]:
         def _slice(i, N, n) -> slice:
             _in = i * n
             if 0 <= _in < N:
                 return slice(_in, min(_in + n, N))
-            raise IndexError(f"Index ({idx[0]},{idx[1]})is out of range")
+            raise IndexError(f"Index {idx} is out of range")
 
         ir, ic = (
-            _slice(i, N, n) for i, N, n in zip(idx, self._gbox.shape, self._tile_shape)
+            _slice(i, N, n)
+            for i, N, n in zip(idx.yx, self._gbox.shape, self._tile_shape.yx)
         )
         return (ir, ic)
 
-    def chunk_shape(self, idx: Tuple[int, int]) -> Tuple[int, int]:
+    def chunk_shape(self, idx: SomeIndex2d) -> Tuple[int, int]:
         """
         Query chunk shape for a given chunk.
 
@@ -564,6 +567,7 @@ class GeoboxTiles:
         :returns: ``(nrows, ncols)`` shape of a tile (edge tiles might be smaller)
         :raises: :py:class:`IndexError` when index is outside of ``[(0,0) -> .shape)``.
         """
+        idx = iyx_(idx)
 
         def _sz(i: int, n: int, tile_sz: int, total_sz: int) -> int:
             if 0 <= i < n - 1:  # not edge tile
@@ -571,18 +575,19 @@ class GeoboxTiles:
             if i == n - 1:  # edge tile
                 return total_sz - (i * tile_sz)
             # out of index case
-            raise IndexError(f"Index ({idx[0]},{idx[1]}) is out of range")
+            raise IndexError(f"Index {idx} is out of range")
 
-        n1, n2 = map(_sz, idx, self._shape, self._tile_shape, self._gbox.shape)
+        n1, n2 = map(_sz, idx.yx, self._shape.yx, self._tile_shape.yx, self._gbox.shape)
         return (n1, n2)
 
-    def __getitem__(self, idx: Tuple[int, int]) -> GeoBox:
+    def __getitem__(self, idx: SomeIndex2d) -> GeoBox:
         """Lookup tile by index, index is in matrix access order: (row, col)
 
         :param idx: (row, col) index
         :returns: GeoBox of a tile
         :raises: IndexError when index is outside of [(0,0) -> .shape)
         """
+        idx = iyx_(idx)
         sub_gbox = self._cache.get(idx, None)
         if sub_gbox is not None:
             return sub_gbox
@@ -602,7 +607,7 @@ class GeoboxTiles:
             _out = clamp(math.ceil(v2), 0, N)
             return range(_in, _out)
 
-        sy, sx = self._tile_shape
+        sy, sx = self._tile_shape.yx
         A = Affine.scale(1.0 / sx, 1.0 / sy) * (~self._gbox.transform)
         # A maps from X,Y in meters to chunk index
         bbox = bbox.transform(A)

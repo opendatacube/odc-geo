@@ -23,7 +23,7 @@ def test_gbox_ops():
     d = gbx.flipy(s)
     assert d.shape == s.shape
     assert d.crs is s.crs
-    assert d.resolution == (-s.resolution[0], s.resolution[1])
+    assert d.resolution.yx == (-s.resolution.y, s.resolution.x)
     assert d.extent.contains(s.extent)
     with pytest.raises(ValueError):
         # flipped grid
@@ -35,7 +35,7 @@ def test_gbox_ops():
     d = gbx.flipx(s)
     assert d.shape == s.shape
     assert d.crs is s.crs
-    assert d.resolution == (s.resolution[0], -s.resolution[1])
+    assert d.resolution.yx == (s.resolution.y, -s.resolution.x)
     assert d.extent.contains(s.extent)
 
     assert gbx.flipy(gbx.flipy(s)).affine == s.affine
@@ -45,7 +45,7 @@ def test_gbox_ops():
     assert d.shape == (50, 500)
     assert d.crs is s.crs
     assert d.extent.contains(s.extent)
-    assert d.resolution == (s.resolution[0] * 2, s.resolution[1] * 2)
+    assert d.resolution.yx == (s.resolution.y * 2, s.resolution.x * 2)
 
     d = gbx.zoom_out(s, 2 * max(s.shape))
     assert d.shape == (1, 1)
