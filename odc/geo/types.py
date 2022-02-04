@@ -220,9 +220,13 @@ def yx_(y: Union[T, XY[T], Iterable[T]], x: Optional[T] = None, /) -> XY[T]:
     return XY(x=x, y=y)
 
 
-def res_(x: float, /) -> Resolution:
+def res_(x: Union[Resolution, float, int], /) -> Resolution:
     """Resolution for square pixels with inverted Y axis."""
-    return Resolution(x)
+    if isinstance(x, Resolution):
+        return x
+    if isinstance(x, (int, float)):
+        return Resolution(float(x))
+    raise ValueError("Unsupported input type: res_(x: {type(x)})")
 
 
 def resxy_(x: float, y: float, /) -> Resolution:
@@ -235,11 +239,66 @@ def resyx_(y: float, x: float, /) -> Resolution:
     return Resolution(x=x, y=y)
 
 
-def ixy_(x: int, y: int, /) -> Index2d:
+# fmt: off
+@overload
+def ixy_(x: int, y: int, /) -> Index2d: ...
+@overload
+def ixy_(x: Tuple[int, int], y: Literal[None] = None, /) -> Index2d: ...
+@overload
+def ixy_(x: Index2d, y: Literal[None] = None, /) -> Index2d: ...
+@overload
+def ixy_(x: XY[int], y: Literal[None] = None, /) -> Index2d: ...
+# fmt: on
+
+
+def ixy_(
+    x: Union[int, Tuple[int, int], XY[int], Index2d], y: Optional[int] = None, /
+) -> Index2d:
     """Construct 2d index in X,Y order."""
-    return Index2d(x=x, y=y)
+    if y is not None:
+        assert isinstance(x, int)
+        return Index2d(x=x, y=y)
+    if isinstance(x, tuple):
+        x, y = x
+        return Index2d(x=x, y=y)
+    if isinstance(x, Index2d):
+        return x
+    if isinstance(x, XY):
+        x, y = x.xy
+        return Index2d(x=x, y=y)
+    raise ValueError("Expect 2 values or a single tuple/XY/Index2d object")
 
 
-def iyx_(y: int, x: int, /) -> Index2d:
+# fmt: off
+@overload
+def iyx_(y: int, x: int, /) -> Index2d: ...
+@overload
+def iyx_(y: Tuple[int, int], x: Literal[None] = None, /) -> Index2d: ...
+@overload
+def iyx_(y: Index2d, x: Literal[None] = None, /) -> Index2d: ...
+@overload
+def iyx_(y: XY[int], x: Literal[None] = None, /) -> Index2d: ...
+# fmt: on
+
+
+def iyx_(
+    y: Union[int, Tuple[int, int], XY[int], Index2d], x: Optional[int] = None, /
+) -> Index2d:
     """Construct 2d index in Y,X order."""
-    return Index2d(x=x, y=y)
+    if x is not None:
+        assert isinstance(y, int)
+        return Index2d(x=x, y=y)
+    if isinstance(y, tuple):
+        y, x = y
+        return Index2d(x=x, y=y)
+    if isinstance(y, Index2d):
+        return y
+    if isinstance(y, XY):
+        y, x = y.yx
+        return Index2d(x=x, y=y)
+    raise ValueError("Expect 2 values or a single tuple/XY/Index2d object")
+
+
+SomeShape = Union[Tuple[int, int], XY[int], Index2d]
+SomeIndex2d = Union[Tuple[int, int], XY[int], Index2d]
+SomeResolution = Union[float, int, Resolution]
