@@ -33,6 +33,14 @@ def test_basics():
     assert ixy_(0, 3) == xy_(0, 3)
     assert iyx_(0, 3) == yx_(0, 3)
 
+    tt = ixy_(0, 1)
+    assert ixy_(tt.xy) == tt
+    assert iyx_(tt.yx) == tt
+    assert ixy_(tt) is tt
+    assert iyx_(tt) is tt
+    assert ixy_(xy_(tt.xy)) == tt
+    assert iyx_(yx_(tt.yx)) == tt
+
     assert repr(ixy_(0, 1)) == "Index2d(x=0, y=1)"
     assert str(ixy_(0, 1)) == "Index2d(x=0, y=1)"
 
@@ -54,6 +62,10 @@ def test_bad_inputs():
         _ = xy_(3.1, 2).wh
 
     # not enough arguments
-    for op in (xy_, yx_):
+    for op in (xy_, yx_, ixy_, iyx_):
         with pytest.raises(ValueError):
             _ = op(0)
+
+    # making resolution from tuple should raise an error
+    with pytest.raises(ValueError):
+        _ = res_((-1, 2))
