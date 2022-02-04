@@ -20,13 +20,9 @@ from .geom import (
 )
 from .math import clamp, is_affine_st, is_almost_int
 from .roi import align_up, polygon_path, roi_normalise, roi_shape
-from .types import XY
+from .types import XY, MaybeInt
 
 # pylint: disable=invalid-name
-MaybeInt = Optional[int]
-MaybeFloat = Optional[float]
-
-
 Coordinate = namedtuple("Coordinate", ("values", "units", "resolution"))
 
 
