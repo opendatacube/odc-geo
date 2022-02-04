@@ -63,6 +63,11 @@ class BoundingBox(_BoundingBox):
         return int(self.top - self.bottom)
 
     @property
+    def shape(self) -> Tuple[int, int]:
+        """``(int(span_y), int(span_x))``."""
+        return (self.height, self.width)
+
+    @property
     def range_x(self) -> Tuple[float, float]:
         """``left, right``"""
         return (self.left, self.right)

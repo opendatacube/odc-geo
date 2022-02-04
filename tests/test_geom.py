@@ -395,6 +395,7 @@ def test_boundingbox():
     assert bb.height == 1
     assert bb.width == bb.span_x
     assert bb.height == bb.span_y
+    assert bb.shape == (bb.height, bb.width)
 
     bb = BoundingBox(0, 3, 2.1, 4)
     assert bb.width == 2
