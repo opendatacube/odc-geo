@@ -8,7 +8,7 @@ import numpy
 import pytest
 from pytest import approx
 
-from odc.geo import CRS
+from odc.geo import CRS, res_, resyx_, xy_
 from odc.geo.geom import polygon
 from odc.geo.gridspec import GridSpec
 from odc.geo.testutils import SAMPLE_WKT_WITHOUT_AUTHORITY
@@ -21,11 +21,16 @@ def test_gridspec():
     gs = GridSpec(
         crs=CRS("EPSG:4326"),
         tile_shape=(10, 10),
-        resolution=(-0.1, 0.1),
-        origin=(10, 10),
+        resolution=0.1,
+        origin=xy_(10, 10),
     )
     assert gs.tile_shape == (10, 10)
-    assert gs.tile_size == (1, 1)
+    assert gs.tile_size == xy_(1, 1)
+
+    assert gs == GridSpec(
+        gs.crs, gs.tile_shape, resolution=resyx_(-0.1, 0.1), origin=gs.origin
+    )
+    assert gs == GridSpec(gs.crs, gs.tile_shape, resolution=res_(0.1), origin=gs.origin)
 
     poly = polygon(
         [(10, 12.2), (10.8, 13), (13, 10.8), (12.2, 10), (10, 12.2)],
@@ -57,14 +62,14 @@ def test_gridspec():
     assert (gs == {}) is False
     assert gs.dimensions == ("latitude", "longitude")
 
-    assert GridSpec("epsg:3857", (100, 100), (1, 1)).alignment == (0, 0)
-    assert GridSpec("epsg:3857", (100, 100), (1, 1)).dimensions == ("y", "x")
+    assert GridSpec("epsg:3857", (100, 100), 1).alignment == (0, 0)
+    assert GridSpec("epsg:3857", (100, 100), resyx_(1, 1)).dimensions == ("y", "x")
 
     assert GridSpec("epsg:3857", (10, 20), 11.0) == GridSpec(
-        "epsg:3857", (10, 20), (-11, 11)
+        "epsg:3857", (10, 20), resyx_(-11, 11)
     )
     assert GridSpec("epsg:3857", (10, 20), 11) == GridSpec(
-        "epsg:3857", (10, 20), (-11, 11)
+        "epsg:3857", (10, 20), resyx_(-11, 11)
     )
 
     # missing shape parameter
@@ -79,12 +84,12 @@ def test_web_tiles():
     gs = GridSpec.web_tiles(0)
     assert gs.crs == epsg3857
     assert gs.tile_shape == (256, 256)
-    assert gs.tile_size == approx((TSZ0, TSZ0))
+    assert gs.tile_size.xy == approx((TSZ0, TSZ0))
 
     gs = GridSpec.web_tiles(1)
     assert gs.crs == epsg3857
     assert gs.tile_shape == (256, 256)
-    assert gs.tile_size == approx((TSZ0 / 2, TSZ0 / 2))
+    assert gs.tile_size.xy == approx((TSZ0 / 2, TSZ0 / 2))
 
 
 def test_geojson():
