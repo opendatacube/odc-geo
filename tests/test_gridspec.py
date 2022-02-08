@@ -8,7 +8,7 @@ import numpy
 import pytest
 from pytest import approx
 
-from odc.geo import CRS, res_, resyx_, xy_
+from odc.geo import CRS, res_, resyx_, xy_, yx_
 from odc.geo.geom import polygon
 from odc.geo.gridspec import GridSpec
 from odc.geo.testutils import SAMPLE_WKT_WITHOUT_AUTHORITY
@@ -62,7 +62,7 @@ def test_gridspec():
     assert (gs == {}) is False
     assert gs.dimensions == ("latitude", "longitude")
 
-    assert GridSpec("epsg:3857", (100, 100), 1).alignment == (0, 0)
+    assert GridSpec("epsg:3857", (100, 100), 1).alignment == xy_(0, 0)
     assert GridSpec("epsg:3857", (100, 100), resyx_(1, 1)).dimensions == ("y", "x")
 
     assert GridSpec("epsg:3857", (10, 20), 11.0) == GridSpec(
