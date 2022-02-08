@@ -8,7 +8,7 @@ from affine import Affine
 
 from odc.geo import geobox as gbx
 from odc.geo import geom as geometry
-from odc.geo import ixy_
+from odc.geo import wh_
 from odc.geo.geobox import GeoBox
 
 # pylint: disable=pointless-statement,too-many-statements
@@ -17,7 +17,7 @@ epsg3857 = geometry.CRS("EPSG:3857")
 
 
 def test_gbox_ops():
-    s = GeoBox(ixy_(1000, 100), Affine(10, 0, 12340, 0, -10, 316770), epsg3857)
+    s = GeoBox(wh_(1000, 100), Affine(10, 0, 12340, 0, -10, 316770), epsg3857)
     assert s.shape == (100, 1000)
 
     d = gbx.flipy(s)
@@ -148,7 +148,7 @@ def test_gbox_tiles():
     A = Affine.identity()
     H, W = (300, 200)
     h, w = (10, 20)
-    gbox = GeoBox(ixy_(W, H), A, epsg3857)
+    gbox = GeoBox(wh_(W, H), A, epsg3857)
     tt = gbx.GeoboxTiles(gbox, (h, w))
     assert tt.shape == (300 / 10, 200 / 20)
     assert tt.base is gbox
@@ -161,7 +161,7 @@ def test_gbox_tiles():
 
     H, W = (11, 22)
     h, w = (10, 9)
-    gbox = GeoBox(ixy_(W, H), A, epsg3857)
+    gbox = GeoBox(wh_(W, H), A, epsg3857)
     tt = gbx.GeoboxTiles(gbox, (h, w))
     assert tt.shape == (2, 3)
     assert tt[1, 2] == gbox[10:11, 18:22]
@@ -183,7 +183,7 @@ def test_gbox_tiles():
 
     (H, W) = (11, 22)
     (h, w) = (10, 20)
-    tt = gbx.GeoboxTiles(GeoBox(ixy_(W, H), A, epsg3857), (h, w))
+    tt = gbx.GeoboxTiles(GeoBox(wh_(W, H), A, epsg3857), (h, w))
     assert tt.chunk_shape((0, 0)) == (h, w)
     assert tt.chunk_shape((0, 1)) == (h, 2)
     assert tt.chunk_shape((1, 1)) == (1, 2)

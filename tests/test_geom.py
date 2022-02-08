@@ -12,7 +12,7 @@ from affine import Affine
 from pytest import approx
 from shapely.errors import ShapelyDeprecationWarning
 
-from odc.geo import CRS, BoundingBox, CRSMismatchError, geom, ixy_, resyx_
+from odc.geo import CRS, BoundingBox, CRSMismatchError, geom, resyx_, wh_
 from odc.geo._overlap import (
     affine_from_pts,
     compute_axis_overlap,
@@ -503,7 +503,7 @@ def test_unary_intersection():
 
 
 def test_gen_test_image_xy():
-    gbox = GeoBox(ixy_(3, 7), Affine.translation(10, 1000), epsg3857)
+    gbox = GeoBox(wh_(3, 7), Affine.translation(10, 1000), epsg3857)
 
     xy, denorm = gen_test_image_xy(gbox, "float64")
     assert xy.dtype == "float64"

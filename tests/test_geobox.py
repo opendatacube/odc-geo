@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from affine import Affine
 
-from odc.geo import CRS, geom, ixy_, resyx_
+from odc.geo import CRS, geom, ixy_, resyx_, wh_
 from odc.geo.geobox import (
     GeoBox,
     bounding_box_in_pixel_domain,
@@ -77,7 +77,7 @@ def test_geobox_simple():
 
     # Check GeoBox class is hashable
     t_copy = GeoBox(t.shape, t.transform, t.crs)
-    t_other = GeoBox(ixy_(t.width + 1, t.height), t.transform, t.crs)
+    t_other = GeoBox(wh_(t.width + 1, t.height), t.transform, t.crs)
     assert t_copy is not t
     assert t == t_copy
     assert len({t, t, t_copy}) == 1
@@ -85,7 +85,7 @@ def test_geobox_simple():
 
 
 def test_xy_from_geobox():
-    gbox = GeoBox(ixy_(3, 7), Affine.translation(10, 1000), epsg3857)
+    gbox = GeoBox(wh_(3, 7), Affine.translation(10, 1000), epsg3857)
     xx, yy = xy_from_gbox(gbox)
 
     assert xx.shape == gbox.shape
@@ -164,7 +164,7 @@ def test_geobox():
     A = mkA(0, scale=(10, -10), translation=(-48800, -2983006))
 
     w, h = 512, 256
-    gbox = GeoBox(ixy_(w, h), A, epsg3577)
+    gbox = GeoBox(wh_(w, h), A, epsg3577)
 
     assert gbox.shape == (h, w)
     assert gbox.transform == A
@@ -237,7 +237,7 @@ def test_geobox_scale_down():
 
     A = mkA(0, (111.2, 111.2), translation=(125671, 251465))
     for s in [2, 3, 4, 8, 13, 16]:
-        gbox = GeoBox(ixy_(233 * s, 755 * s), A, crs)
+        gbox = GeoBox(wh_(233 * s, 755 * s), A, crs)
         gbox_ = scaled_down_geobox(gbox, s)
 
         assert gbox_.width == 233
