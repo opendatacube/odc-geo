@@ -16,6 +16,7 @@ odc-geo
    :maxdepth: 2
 
    api.rst
+   migration.rst
 
 .. toctree::
    :caption: Index
