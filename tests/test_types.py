@@ -1,6 +1,8 @@
+from collections import abc
+
 import pytest
 
-from odc.geo import ixy_, iyx_, res_, resxy_, resyx_, xy_, yx_
+from odc.geo import ixy_, iyx_, res_, resxy_, resyx_, shape_, wh_, xy_, yx_
 
 
 def test_basics():
@@ -52,6 +54,39 @@ def test_basics():
     assert repr(res_(10)) == "Resolution(x=10, y=-10)"
 
 
+def test_shape2d():
+    assert wh_(3, 2) == shape_((2, 3))
+    assert wh_(3, 2) == (2, 3)
+    wh34 = wh_(3, 4)
+    assert shape_(wh34) is wh34
+    assert shape_(wh34.yx) == wh34
+    assert wh34 == (4, 3)
+    assert shape_([4, 5]) == (4, 5)
+    assert (4, 5) == shape_([4, 5])
+
+    # should unpack like a tuple
+    ny, nx = wh34
+    assert (nx, ny) == wh34.xy
+
+    # should concat like a tuple
+    assert wh34 + (1,) == (4, 3, 1)
+    assert ("bob",) + wh34 == ("bob", 4, 3)
+
+    # should support len()
+    assert len(wh34) == 2
+
+    # should support indexing and slicing
+    assert wh34[0] == 4
+    assert wh34[::-1] == (3, 4)
+
+    # should be a Sequence
+    assert isinstance(wh34, abc.Sequence)
+
+    # test to string
+    assert str(wh34) == "Shape2d(x=3, y=4)"
+    assert repr(wh34) == "Shape2d(x=3, y=4)"
+
+
 def test_bad_inputs():
 
     # shape is valid of ints only
@@ -69,3 +104,6 @@ def test_bad_inputs():
     # making resolution from tuple should raise an error
     with pytest.raises(ValueError):
         _ = res_((-1, 2))
+
+    with pytest.raises(ValueError):
+        _ = shape_(3)

@@ -13,6 +13,7 @@ from ._version import __version__
 from .types import (
     XY,
     Index2d,
+    Shape2d,
     Resolution,
     SomeShape,
     SomeResolution,
@@ -24,6 +25,8 @@ from .types import (
     resyx_,
     ixy_,
     iyx_,
+    wh_,
+    shape_,
 )
 
 from .crs import (
@@ -63,4 +66,6 @@ __all__ = [
     "resyx_",
     "ixy_",
     "iyx_",
+    "wh_",
+    "shape_",
 ]
