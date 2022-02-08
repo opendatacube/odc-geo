@@ -2,8 +2,10 @@
 from typing import (
     Generic,
     Iterable,
+    Iterator,
     Literal,
     Optional,
+    Sequence,
     Tuple,
     TypeVar,
     Union,
@@ -149,6 +151,51 @@ class Index2d(XY[int]):
     def __str__(self) -> str:
         return f"Index2d(x={self.x}, y={self.y})"
 
+
+class Shape2d(XY[int], Sequence[int]):
+    """
+    2d shape.
+
+    Unlike other XY types, Shape2d does have canonical order: ``Y,X``.
+    This class implements Mapping interfaces, so it can be used as input into
+    ``numpy`` functions that accept shape parameter.
+    It can also be compared directly to a tuple form.
+    It can be concatenated with a tuple.
+    """
+
+    def __init__(self, x: int, y: int) -> None:
+        super().__init__(x, y)
+
+    def __repr__(self) -> str:
+        return f"Shape2d(x={self.x}, y={self.y})"
+
+    def __str__(self) -> str:
+        return f"Shape2d(x={self.x}, y={self.y})"
+
+    def __len__(self) -> int:
+        return 2
+
+    def __iter__(self) -> Iterator[int]:
+        yield from self.shape
+
+    def __getitem__(self, idx):
+        return self.shape[idx]
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, tuple):
+            return self.shape == other
+        return super().__eq__(other)
+
+    def __add__(self, other):
+        return self.shape.__add__(other)
+
+    def __radd__(self, other):
+        return other + self.shape
+
+
+SomeShape = Union[Tuple[int, int], XY[int], Shape2d, Index2d]
+SomeIndex2d = Union[Tuple[int, int], XY[int], Index2d]
+SomeResolution = Union[float, int, Resolution]
 
 # fmt: off
 @overload
@@ -299,6 +346,19 @@ def iyx_(
     raise ValueError("Expect 2 values or a single tuple/XY/Index2d object")
 
 
-SomeShape = Union[Tuple[int, int], XY[int], Index2d]
-SomeIndex2d = Union[Tuple[int, int], XY[int], Index2d]
-SomeResolution = Union[float, int, Resolution]
+def wh_(w: int, h: int, /) -> Shape2d:
+    """Shape from width/height."""
+    return Shape2d(x=w, y=h)
+
+
+def shape_(x: SomeShape) -> Shape2d:
+    """Normalise shape representation."""
+    if isinstance(x, Shape2d):
+        return x
+    if isinstance(x, XY):
+        nx, ny = x.xy
+        return Shape2d(x=nx, y=ny)
+    if isinstance(x, Sequence):
+        ny, nx = x
+        return Shape2d(x=nx, y=ny)
+    raise ValueError(f"Input type not understood: {type(x)}")
