@@ -93,19 +93,19 @@ class GridSpec:
         return self.crs.dimensions
 
     @property
-    def alignment(self) -> Tuple[float, float]:
+    def alignment(self) -> XY[float]:
         """Pixel boundary alignment."""
         y, x = (
             orig % abs(res) for orig, res in zip(self.origin.yx, self.resolution.yx)
         )
-        return (y, x)
+        return yx_(y, x)
 
     @property
     def tile_shape(self) -> Tuple[int, int]:
         """Tile shape in pixels (Y,X order, like numpy)."""
         return self._shape.shape
 
-    def pt2idx(self, x: float, y: float) -> Tuple[int, int]:
+    def pt2idx(self, x: float, y: float) -> Index2d:
         """
         Compute tile index from a point.
 
@@ -114,7 +114,7 @@ class GridSpec:
         :return:
           ``(ix, iy)``, index of a tile containing given point
         """
-        return self._xbin.bin(x), self._ybin.bin(y)
+        return ixy_(self._xbin.bin(x), self._ybin.bin(y))
 
     def _tile_txy(self, tile_index: Index2d) -> XY[float]:
         """Location of 0,0 pixel in CRS units."""
@@ -153,8 +153,8 @@ class GridSpec:
         :return: Bounding box in tile index space
         """
         x1, y1, x2, y2 = bounds
-        ix1, iy1 = self.pt2idx(x1, y1)
-        ix2, iy2 = self.pt2idx(x2, y2)
+        ix1, iy1 = self.pt2idx(x1, y1).xy
+        ix2, iy2 = self.pt2idx(x2, y2).xy
 
         ix1, ix2 = sorted([ix1, ix2])
         iy1, iy2 = sorted([iy1, iy2])
