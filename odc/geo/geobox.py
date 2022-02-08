@@ -25,12 +25,14 @@ from .types import (
     Index2d,
     MaybeInt,
     Resolution,
+    Shape2d,
     SomeIndex2d,
     SomeResolution,
     SomeShape,
     iyx_,
     res_,
     resxy_,
+    shape_,
     xy_,
     yx_,
 )
@@ -64,7 +66,7 @@ class GeoBox:
         assert is_affine_st(
             affine
         ), "Only axis-aligned geoboxes are currently supported"
-        shape = yx_(shape)
+        shape = shape_(shape)
 
         self._shape = shape
         self.affine = affine
@@ -146,7 +148,7 @@ class GeoBox:
         if not all(s.step is None or s.step == 1 for s in roi):
             raise NotImplementedError("scaling not implemented, yet")
 
-        roi = roi_normalise(roi, self.shape)
+        roi = roi_normalise(roi, self._shape.shape)
         ty, tx = (s.start for s in roi)
         ny, nx = roi_shape(roi)
 
@@ -188,9 +190,9 @@ class GeoBox:
         return self._shape.y
 
     @property
-    def shape(self) -> Tuple[int, int]:
+    def shape(self) -> Shape2d:
         """Shape in pixels ``(height, width)``."""
-        return self._shape.shape
+        return self._shape
 
     @property
     def crs(self) -> Optional[CRS]:
@@ -278,7 +280,7 @@ def gbox_boundary(gbox: GeoBox, pts_per_side: int = 16) -> numpy.ndarray:
     :return:
       Points in pixel space along the perimeter of a GeoBox as a 2d array.
     """
-    ny, nx = gbox.shape[:2]
+    ny, nx = gbox.shape
     xx = numpy.linspace(0, nx, pts_per_side, dtype="float32")
     yy = numpy.linspace(0, ny, pts_per_side, dtype="float32")
 
@@ -572,7 +574,7 @@ class GeoboxTiles:
         )
         return (ir, ic)
 
-    def chunk_shape(self, idx: SomeIndex2d) -> Tuple[int, int]:
+    def chunk_shape(self, idx: SomeIndex2d) -> Shape2d:
         """
         Query chunk shape for a given chunk.
 
@@ -591,14 +593,15 @@ class GeoboxTiles:
             raise IndexError(f"Index {idx} is out of range")
 
         n1, n2 = map(_sz, idx.yx, self._shape.yx, self._tile_shape.yx, self._gbox.shape)
-        return (n1, n2)
+        return shape_((n1, n2))
 
     def __getitem__(self, idx: SomeIndex2d) -> GeoBox:
-        """Lookup tile by index, index is in matrix access order: (row, col)
+        """
+        Lookup tile by index, index is in matrix access order: ``(row, col)``.
 
-        :param idx: (row, col) index
+        :param idx: ``(row, col)`` index
         :returns: GeoBox of a tile
-        :raises: IndexError when index is outside of [(0,0) -> .shape)
+        :raises: IndexError when index is outside of ``[(0,0) -> .shape)``
         """
         idx = iyx_(idx)
         sub_gbox = self._cache.get(idx, None)

@@ -16,12 +16,14 @@ from .math import Bin1D
 from .types import (
     XY,
     Index2d,
+    Shape2d,
     SomeIndex2d,
     SomeResolution,
     SomeShape,
     ixy_,
     res_,
     resyx_,
+    shape_,
     xy_,
     yx_,
 )
@@ -53,15 +55,13 @@ class GridSpec:
         flipx: bool = False,
         flipy: bool = False,
     ):
+        tile_shape = shape_(tile_shape)
         resolution = res_(resolution)
 
         if origin is None:
             origin = xy_(0.0, 0.0)
         else:
             assert isinstance(origin, XY)
-
-        if isinstance(tile_shape, tuple):
-            tile_shape = yx_(tile_shape)
 
         self.crs = norm_crs_or_error(crs)
         self._shape = tile_shape
@@ -101,9 +101,9 @@ class GridSpec:
         return yx_(y, x)
 
     @property
-    def tile_shape(self) -> Tuple[int, int]:
+    def tile_shape(self) -> Shape2d:
         """Tile shape in pixels (Y,X order, like numpy)."""
-        return self._shape.shape
+        return self._shape
 
     def pt2idx(self, x: float, y: float) -> Index2d:
         """
@@ -272,8 +272,8 @@ class GridSpec:
     def from_sample_tile(
         box: Geometry,
         *,
-        shape: Tuple[int, int] = (-1, -1),
-        idx: Tuple[int, int] = (0, 0),
+        shape: SomeShape = (-1, -1),
+        idx: SomeIndex2d = (0, 0),
         flipx: bool = False,
         flipy: bool = False,
     ) -> "GridSpec":
@@ -291,10 +291,12 @@ class GridSpec:
         """
         if shape == (-1, -1):
             raise ValueError("Must specify shape of the tile in pixels")
+        shape = shape_(shape)
+        idx = ixy_(idx)
 
         crs = norm_crs_or_error(box.crs)
-        ix, iy = idx
-        ny, nx = shape
+        ix, iy = idx.xy
+        nx, ny = shape.xy
         bbox = box.boundingbox
 
         xbin = Bin1D.from_sample_bin(ix, bbox.range_x, -1 if flipx else 1)
