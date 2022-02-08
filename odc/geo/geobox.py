@@ -278,14 +278,16 @@ def gbox_boundary(gbox: GeoBox, pts_per_side: int = 16) -> numpy.ndarray:
     :return:
       Points in pixel space along the perimeter of a GeoBox as a 2d array.
     """
-    H, W = gbox.shape[:2]
-    xx = numpy.linspace(0, W, pts_per_side, dtype="float32")
-    yy = numpy.linspace(0, H, pts_per_side, dtype="float32")
+    ny, nx = gbox.shape[:2]
+    xx = numpy.linspace(0, nx, pts_per_side, dtype="float32")
+    yy = numpy.linspace(0, ny, pts_per_side, dtype="float32")
 
     return polygon_path(xx, yy).T[:-1]
 
 
-def bounding_box_in_pixel_domain(geobox: GeoBox, reference: GeoBox) -> BoundingBox:
+def bounding_box_in_pixel_domain(
+    geobox: GeoBox, reference: GeoBox, tol: float = 1e-8
+) -> BoundingBox:
     """
     Bounding box of ``geobox`` in pixel space of ``reference``.
 
@@ -297,24 +299,28 @@ def bounding_box_in_pixel_domain(geobox: GeoBox, reference: GeoBox) -> BoundingB
     :raises:
       :py:class:`ValueError` when two geoboxes are not pixel-aligned.
     """
-    tol = 1.0e-8
-
     if reference.crs != geobox.crs:
         raise ValueError("Cannot combine geoboxes in different CRSs")
 
-    a, b, c, d, e, f, *_ = ~reference.affine * geobox.affine
+    # compute pixel-to-pixel transform
+    # expect it to be a pure, pixel aligned translation
+    #    1  0  tx
+    #    0  1  ty
+    #    0  0   1
+    # Such that tx,ty are almost integer.
+    sx, z1, tx, z2, sy, ty, *_ = ~reference.affine * geobox.affine
 
     if not (
-        numpy.isclose(a, 1)
-        and numpy.isclose(b, 0)
-        and is_almost_int(c, tol)
-        and numpy.isclose(d, 0)
-        and numpy.isclose(e, 1)
-        and is_almost_int(f, tol)
+        numpy.isclose(sx, 1)
+        and numpy.isclose(z1, 0)
+        and is_almost_int(tx, tol)
+        and numpy.isclose(z2, 0)
+        and numpy.isclose(sy, 1)
+        and is_almost_int(ty, tol)
     ):
         raise ValueError("Incompatible grids")
 
-    tx, ty = round(c), round(f)
+    tx, ty = round(tx), round(ty)
     ny, nx = geobox.shape
     return BoundingBox(tx, ty, tx + nx, ty + ny)
 
