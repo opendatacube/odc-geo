@@ -82,9 +82,12 @@ class GeoBox:
         """
         Construct :py:class:`~odc.geo.geobox.GeoBox` from a polygon.
 
-        :param resolution: (y_resolution, x_resolution)
-        :param crs: CRS to use, if different from the geopolygon
-        :param align: Align geobox such that point 'align' lies on the pixel boundary.
+        :param resolution:
+           Either a single number or a :py:class:`~odc.geo.types.Resolution` object.
+        :param crs:
+           CRS to use, if different from the geopolygon
+        :param align:
+           Align geobox such that point 'align' lies on the pixel boundary.
         """
         resolution = res_(resolution)
         if align is None:
@@ -204,13 +207,17 @@ class GeoBox:
 
     @property
     def resolution(self) -> Resolution:
-        """Resolution in Y,X dimension order."""
+        """Resolution, pixel size in CRS units."""
         rx, _, _, _, ry, *_ = self.affine
         return resxy_(rx, ry)
 
     @property
     def alignment(self) -> XY[float]:
-        """Alignment of pixel boundaries in Y,X dimension order."""
+        """
+        Alignment of pixel boundaries in CRS units.
+
+        This is usally ``(0,0)``.
+        """
         rx, _, tx, _, ry, ty, *_ = self.affine
         return xy_(tx % abs(rx), ty % abs(ry))
 
