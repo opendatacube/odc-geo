@@ -5,6 +5,42 @@ API Reference
 
 .. highlight:: python
 
+odc.geo
+*******
+
+.. currentmodule:: odc.geo
+.. autosummary::
+   :toctree: _api/
+
+   XY
+   XY.xy
+   XY.yx
+   XY.lonlat
+   XY.latlon
+   XY.x
+   XY.y
+   XY.lon
+   XY.lat
+   XY.wh
+   XY.shape
+
+   Resolution
+   Shape2d
+   Index2d
+
+   xy_
+   yx_
+
+   res_
+   resxy_
+   resyx_
+
+   wh_
+   shape_
+
+   ixy_
+   iyx_
+ 
 
 odc.geo.crs
 ***********

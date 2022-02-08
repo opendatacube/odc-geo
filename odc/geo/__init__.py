@@ -47,6 +47,7 @@ __all__ = [
     "__version__",
     "XY",
     "Index2d",
+    "Shape2d",
     "Resolution",
     "SomeShape",
     "SomeResolution",
