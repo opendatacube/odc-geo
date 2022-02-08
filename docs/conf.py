@@ -64,8 +64,8 @@ extlinks = {
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "pyproj": ("https://pyproj4.github.io/pyproj/stable/", None),
-    "numpy": ("https://docs.scipy.org/doc/numpy/", None),
-    "np": ("https://docs.scipy.org/doc/numpy/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "np": ("https://numpy.org/doc/stable/", None),
     "xarray": ("https://xarray.pydata.org/en/stable/", None),
     "xr": ("https://xarray.pydata.org/en/stable/", None),
     "rasterio": ("https://rasterio.readthedocs.io/en/latest/", None),
