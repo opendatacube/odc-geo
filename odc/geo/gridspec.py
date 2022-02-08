@@ -68,7 +68,7 @@ class GridSpec:
         self.resolution = resolution
         self.tile_size = xy_(
             tile_shape.x * abs(resolution.x),
-            tile_shape.x * abs(resolution.y),
+            tile_shape.y * abs(resolution.y),
         )
         self.origin = origin
 

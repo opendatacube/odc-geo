@@ -77,6 +77,18 @@ def test_gridspec():
         GridSpec.from_sample_tile(poly)
 
 
+def test_non_square():
+    gs = GridSpec(
+        crs=CRS("EPSG:4326"),
+        tile_shape=(30, 10),
+        resolution=0.1,
+        origin=xy_(0.05, 0.0),
+    )
+    assert gs.tile_shape == (30, 10)
+    assert gs.tile_size == yx_(3, 1)
+    assert gs.alignment == xy_(0.05, 0)
+
+
 def test_web_tiles():
     TSZ0 = 6_378_137 * 2 * math.pi
     epsg3857 = CRS("epsg:3857")
