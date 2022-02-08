@@ -16,6 +16,16 @@ import sys
 sys.path.insert(0, os.path.abspath(".."))
 import odc.geo
 
+# Work-around for type annotation failing due to guarded imports.
+# Some methods in crs return geom types, but geom depends on crs
+# so geom import into crs is only done during typechecking.
+# by patching it here we enable typehinting to find correct types
+# for crs methods that return geometries.
+import odc.geo.crs
+import odc.geo.geom
+
+odc.geo.crs.geom = odc.geo.geom
+
 # -- Project information -----------------------------------------------------
 
 project = "odc-geo"
