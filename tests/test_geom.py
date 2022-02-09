@@ -204,6 +204,11 @@ def test_ops():
     assert poly.length == poly2.length
     assert len(poly.geom.exterior.coords) < len(poly2.geom.coords)
 
+    # test point.segmented is just a clone
+    pt = geom.point(10, 20, "EPSG:4326")
+    assert pt.segmented(1) is not pt
+    assert pt.segmented(1) == pt
+
     # test interpolate
     pt = line.interpolate(1)
     assert pt.crs is line.crs
@@ -361,7 +366,8 @@ def test_shapely_wrappers():
 
 def test_to_crs():
     poly = geom.polygon([(0, 0), (0, 5), (10, 5)], epsg4326)
-    num_points = 3
+    src_num_points = len(poly.exterior.xy[0])
+
     assert poly.crs is epsg4326
     assert poly.to_crs(epsg3857).crs is epsg3857
     assert poly.to_crs("EPSG:3857").crs == "EPSG:3857"
@@ -370,18 +376,19 @@ def test_to_crs():
     assert poly.exterior.to_crs(epsg3857) == poly.to_crs(epsg3857).exterior
 
     # test that by default segmentation happens
-    # +1 is because exterior loops back to start point
-    assert len(poly.to_crs(epsg3857).exterior.xy[0]) > num_points + 1
+    assert len(poly.to_crs(epsg3857, resolution=1).exterior.xy[0]) > src_num_points
 
-    # test that +inf disables segmentation
-    # +1 is because exterior loops back to start point
-    assert len(poly.to_crs(epsg3857, float("+inf")).exterior.xy[0]) == num_points + 1
+    # test no segmentation by default or when inf/nan is supplied
+    assert len(poly.to_crs(epsg3857).exterior.xy[0]) == src_num_points
+    assert len(poly.to_crs(epsg3857, float("+inf")).exterior.xy[0]) == src_num_points
+    assert len(poly.to_crs(epsg3857, float("nan")).exterior.xy[0]) == src_num_points
 
     # test the segmentation works on multi-polygons
     mpoly = geom.box(0, 0, 1, 3, "EPSG:4326") | geom.box(2, 4, 3, 6, "EPSG:4326")
 
     assert mpoly.type == "MultiPolygon"
     assert mpoly.to_crs(epsg3857).type == "MultiPolygon"
+    assert mpoly.to_crs(epsg3857, 1).type == "MultiPolygon"
 
     poly = geom.polygon([(0, 0), (0, 5), (10, 5)], None)
     assert poly.crs is None
