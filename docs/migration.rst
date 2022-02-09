@@ -71,21 +71,37 @@ Things like a pixel location or a tile index. Plain tuples are still accepted
 and order is API dependent. But it is now possible to indicate at call site what
 order is used with :py:func:`~odc.geo.ixy_` and :py:func:`~odc.geo.iyx_`.
 
+:py:meth:`~odc.geo.geom.Geometry.to_crs`
+========================================
+
+Changed default behaviour of :py:meth:`~odc.geo.geom.Geometry.to_crs` when
+``resolution=`` parameter is not supplied. Conversion to a different CRS no
+longer adds extra points to source geometry unless explicitly requested with
+the ``resolution=`` parameter.
+
+Previously ``resolution=`` defaulted to 100km for projected and 1 degree for
+geographic geometries. This default is rather arbitrary and probably not the
+right thing in most cases. It was also hard to disable as you needed to supply
+``resolution=float('+inf')``. I think the least surprising interface is to just
+transform the geometry point by point unless explicitly configured by the user
+to perform higher precision transformation.
 
 
 :py:class:`~odc.geo.geobox.GeoBox`
 ==================================
 
-* :py:class:`~odc.geo.geobox.GeoBox` now lives in a separate name-space from plain geometry classes
-* Constructor changed from accepting ``GeoBox(width, height, ...)`` to ``GeoBox(shape, ...)``, where
-  ``shape=(nrows, ncols)``.
+* :py:class:`~odc.geo.geobox.GeoBox` now lives in a separate name-space from
+  plain geometry classes
+
+* Constructor changed from accepting ``GeoBox(width, height, ...)`` to
+  ``GeoBox(shape, ...)``, where ``shape=(nrows, ncols)``.
 
 
 
 :py:class:`~odc.geo.gridspec.GridSpec`
 ======================================
 
-* Constructor changed
+* Constructor of :py:class:`~odc.geo.gridspec.GridSpec` changed
 
   * Tile size is now specified in pixels rather than CRS units
 

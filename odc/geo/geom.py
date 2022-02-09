@@ -440,9 +440,18 @@ class Geometry:
           CRS to convert to
 
         :param resolution:
-          Subdivide the geometry such it has no segment longer then the given distance.  Defaults to
-          1 degree for geographic and 100km for projected. To disable completely use Infinity
-          ``float('+inf')``
+          When supplied, increase resolution of the geometry before projecting.
+          This is done by adding extra points such that no segment is longer
+          than ``resolution`` units in the source CRS of the geometry.
+          Reasonable value for the parameter depends on the application. Lower
+          value will result in higher precision, but larger output geometry and
+          slower processing.
+
+          Consider using :py:meth:`~odc.geo.geom.Geometry.simplify` on the
+          output of this function to reduce the size of the ouptut, especially
+          when using high precision transform.
+
+          If not supplied project the geometry as is without adding any extra points.
 
         :param wrapdateline:
            Attempt to gracefully handle geometry that intersects the dateline when converting to
@@ -456,10 +465,10 @@ class Geometry:
         if self.crs is None:
             raise ValueError("Cannot project geometries without CRS")
 
-        if resolution is None:
-            resolution = 1 if self.crs.geographic else 100000
-
-        geom = self.segmented(resolution) if math.isfinite(resolution) else self
+        if resolution is not None and math.isfinite(resolution):
+            geom = self.segmented(resolution)
+        else:
+            geom = self
 
         eps = 1e-4
         if wrapdateline and crs.geographic:
@@ -475,7 +484,7 @@ class Geometry:
         self,
         properties: Optional[Dict[str, Any]] = None,
         simplify: float = 0.05,
-        resolution: Optional[float] = float("+inf"),
+        resolution: Optional[float] = None,
         wrapdateline: bool = False,
         **props,
     ) -> Dict[str, Any]:
@@ -897,7 +906,7 @@ def lonlat_bounds(
     if resolution is not None and math.isfinite(resolution):
         geom = geom.segmented(resolution)
 
-    bbox = geom.to_crs("EPSG:4326", resolution=math.inf).boundingbox
+    bbox = geom.to_crs("EPSG:4326").boundingbox
 
     xx_range = bbox.range_x
     if mode == "safe":

@@ -2,7 +2,6 @@
 #
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
-import math
 import warnings
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Union
 
@@ -340,7 +339,7 @@ def crs_units_per_degree(
         lon2 = lon - step
 
     ll = geom.line([(lon, lat), (lon2, lat)], "EPSG:4326")
-    xy = ll.to_crs(crs, resolution=math.inf)
+    xy = ll.to_crs(crs)
 
     return xy.length / step
 
