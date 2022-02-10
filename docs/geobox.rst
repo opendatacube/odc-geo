@@ -18,6 +18,7 @@ GeoBox
    GeoBox.resolution
    GeoBox.shape
    GeoBox.transform
+   GeoBox.affine
 
 Coordinate
 ==========

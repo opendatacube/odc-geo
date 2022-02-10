@@ -40,7 +40,7 @@ odc.geo
 
    ixy_
    iyx_
- 
+
 
 odc.geo.crs
 ***********

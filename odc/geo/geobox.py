@@ -10,7 +10,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 import numpy
 from affine import Affine
 
-from .crs import CRS, MaybeCRS
+from .crs import CRS, MaybeCRS, norm_crs
 from .geom import (
     BoundingBox,
     Geometry,
@@ -62,6 +62,8 @@ class GeoBox:
     :param affine: Affine transformation defining the location of the geobox
     """
 
+    __slots__ = ("_shape", "_affine", "_crs", "_extent")
+
     def __init__(self, shape: SomeShape, affine: Affine, crs: MaybeCRS):
         assert is_affine_st(
             affine
@@ -69,10 +71,9 @@ class GeoBox:
         shape = shape_(shape)
 
         self._shape = shape
-        self.affine = affine
-
-        ny, nx = shape.yx
-        self.extent = polygon_from_transform(nx, ny, affine, crs=crs)
+        self._affine = affine
+        self._crs = norm_crs(crs)
+        self._extent: Optional[Geometry] = None
 
     @staticmethod
     def from_geopolygon(
@@ -125,14 +126,14 @@ class GeoBox:
             _round_to_res(buf, res)
             for buf, res in zip((ybuff, xbuff), self.resolution.yx)
         )
-        affine = self.affine * Affine.translation(-bx, -by)
+        affine = self._affine * Affine.translation(-bx, -by)
 
-        ny, nx = (sz + 2 * b for sz, b in zip(self.shape, (by, bx)))
+        ny, nx = (sz + 2 * b for sz, b in zip(self._shape, (by, bx)))
 
         return GeoBox(
             (ny, nx),
             affine=affine,
-            crs=self.crs,
+            crs=self._crs,
         )
 
     def __getitem__(self, roi) -> "GeoBox":
@@ -152,9 +153,9 @@ class GeoBox:
         ty, tx = (s.start for s in roi)
         ny, nx = roi_shape(roi)
 
-        affine = self.affine * Affine.translation(tx, ty)
+        affine = self._affine * Affine.translation(tx, ty)
 
-        return GeoBox(shape=(ny, nx), affine=affine, crs=self.crs)
+        return GeoBox(shape=(ny, nx), affine=affine, crs=self._crs)
 
     def __or__(self, other) -> "GeoBox":
         """A geobox that encompasses both self and other."""
@@ -172,12 +173,21 @@ class GeoBox:
         return not self.is_empty()
 
     def __hash__(self):
-        return hash((*self.shape, self.crs, self.affine))
+        return hash((*self._shape, self._crs, self._affine))
 
     @property
     def transform(self) -> Affine:
         """Linear mapping from pixel space to CRS."""
-        return self.affine
+        return self._affine
+
+    @property
+    def affine(self) -> Affine:
+        """
+        Linear mapping from pixel space to CRS.
+
+        alias for :py:attr:`~odc.geo.geobox.GeoBox.transform`
+        """
+        return self._affine
 
     @property
     def width(self) -> int:
@@ -197,12 +207,12 @@ class GeoBox:
     @property
     def crs(self) -> Optional[CRS]:
         """Coordinate Reference System of the GeoBox."""
-        return self.extent.crs
+        return self._crs
 
     @property
     def dimensions(self) -> Tuple[str, str]:
         """List of dimension names of the GeoBox."""
-        crs = self.crs
+        crs = self._crs
         if crs is None:
             return ("y", "x")
         return crs.dimensions
@@ -210,7 +220,7 @@ class GeoBox:
     @property
     def resolution(self) -> Resolution:
         """Resolution, pixel size in CRS units."""
-        rx, _, _, _, ry, *_ = self.affine
+        rx, _, _, _, ry, *_ = self._affine
         return resxy_(rx, ry)
 
     @property
@@ -220,7 +230,7 @@ class GeoBox:
 
         This is usally ``(0,0)``.
         """
-        rx, _, tx, _, ry, ty, *_ = self.affine
+        rx, _, tx, _, ry, ty, *_ = self._affine
         return xy_(tx % abs(rx), ty % abs(ry))
 
     @property
@@ -231,13 +241,13 @@ class GeoBox:
         :return:
           Mapping from coordinate name to :py:class:`~odc.geo.geobox.Coordinate`.
         """
-        rx, _, tx, _, ry, ty, *_ = self.affine
-        ny, nx = self.shape
+        rx, _, tx, _, ry, ty, *_ = self._affine
+        ny, nx = self._shape
 
         xs = numpy.arange(nx) * rx + (tx + rx / 2)
         ys = numpy.arange(ny) * ry + (ty + ry / 2)
 
-        units = self.crs.units if self.crs is not None else ("1", "1")
+        units = self._crs.units if self._crs is not None else ("1", "1")
 
         return OrderedDict(
             (dim, Coordinate(labels, units, res))
@@ -247,9 +257,17 @@ class GeoBox:
         )
 
     @property
+    def extent(self) -> Geometry:
+        if self._extent is not None:
+            return self._extent
+        _extent = polygon_from_transform(self._shape, self._affine, crs=self._crs)
+        self._extent = _extent
+        return _extent
+
+    @property
     def geographic_extent(self) -> Geometry:
         """GeoBox extent in EPSG:4326."""
-        if self.crs is None or self.crs.geographic:
+        if self._crs is None or self._crs.geographic:
             return self.extent
         return self.extent.to_crs(CRS("EPSG:4326"))
 
@@ -260,7 +278,9 @@ class GeoBox:
         return f"GeoBox({self.geographic_extent})"
 
     def __repr__(self):
-        return f"GeoBox(({self._shape.y, self._shape.x}), {self.affine!r}, {self.crs})"
+        return (
+            f"GeoBox(({self._shape.y, self._shape.x}), {self._affine!r}, {self._crs})"
+        )
 
     def __eq__(self, other):
         if not isinstance(other, GeoBox):
@@ -268,8 +288,8 @@ class GeoBox:
 
         return (
             self._shape == other._shape
-            and self.affine == other.affine
-            and self.crs == other.crs
+            and self._affine == other._affine
+            and self._crs == other._crs
         )
 
 
