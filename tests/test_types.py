@@ -107,3 +107,8 @@ def test_bad_inputs():
 
     with pytest.raises(ValueError):
         _ = shape_(3)
+
+
+def test_map():
+    assert xy_(1, 2).map(lambda x: x + 1) == xy_(2, 3)
+    assert xy_(1, 2).map(lambda x: [x]) == xy_([1], [2])
