@@ -34,7 +34,6 @@ from .types import (
     resxy_,
     shape_,
     xy_,
-    yx_,
 )
 
 # pylint: disable=invalid-name
@@ -511,7 +510,7 @@ def zoom_to(gbox: GeoBox, shape: SomeShape) -> GeoBox:
     :returns:
       GeoBox covering the same region but with different number of pixels and therefore resolution.
     """
-    shape = yx_(shape)
+    shape = shape_(shape)
     sy, sx = (N / float(n) for N, n in zip(gbox.shape, shape.shape))
     A = gbox.affine * Affine.scale(sx, sy)
     return GeoBox(shape, A, gbox.crs)
@@ -563,12 +562,13 @@ class GeoboxTiles:
         :param box: source :py:class:`~odc.geo.GeoBox`
         :param tile_shape: Shape of sub-tiles in pixels ``(rows, cols)``
         """
-        tile_shape = yx_(tile_shape)
+        tile_shape = shape_(tile_shape)
         self._gbox = box
         self._tile_shape = tile_shape
-        self._shape = yx_(
+        ny, nx = (
             int(math.ceil(float(N) / n)) for N, n in zip(box.shape, tile_shape.shape)
         )
+        self._shape = shape_((ny, nx))
         self._cache: Dict[Index2d, GeoBox] = {}
 
     @property
@@ -579,7 +579,7 @@ class GeoboxTiles:
     @property
     def shape(self):
         """Number of tiles along each dimension."""
-        return self._shape.shape
+        return self._shape
 
     def _idx_to_slice(self, idx: Index2d) -> Tuple[slice, slice]:
         def _slice(i, N, n) -> slice:
@@ -648,7 +648,7 @@ class GeoboxTiles:
         # A maps from X,Y in meters to chunk index
         bbox = bbox.transform(A)
 
-        NY, NX = self.shape
+        NY, NX = self._shape
         xx = clamped_range(bbox.left, bbox.right, NX)
         yy = clamped_range(bbox.bottom, bbox.top, NY)
         return (yy, xx)
