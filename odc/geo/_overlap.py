@@ -3,8 +3,8 @@
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
 import math
-from types import SimpleNamespace
-from typing import Callable, List, Optional, Sequence, Tuple, TypeVar, Union
+from dataclasses import dataclass
+from typing import List, Optional, Protocol, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
 from affine import Affine
@@ -12,11 +12,149 @@ from numpy import linalg
 
 from .geobox import GeoBox, gbox_boundary
 from .math import is_affine_st, maybe_int, snap_scale
-from .roi import roi_boundary, roi_center, roi_from_points, roi_is_empty
+from .roi import (
+    NormalizedROI,
+    NormalizedSlice,
+    roi_boundary,
+    roi_center,
+    roi_from_points,
+    roi_is_empty,
+)
+from .types import XY, SomeShape, shape_, xy_
 
 SomeAffine = Union[Affine, np.ndarray]
 AffineX = TypeVar("AffineX", np.ndarray, Affine)
 
+
+class PointTransform(Protocol):
+    """
+    Invertible point transform.
+    """
+
+    def __call__(self, pts: Sequence[XY[float]]) -> Sequence[XY[float]]:
+        ...  # pragma: nocover
+
+    @property
+    def back(self) -> "PointTransform":
+        ...  # pragma: nocover
+
+    @property
+    def linear(self) -> Optional[Affine]:
+        ...  # pragma: nocover
+
+
+class LinearPointTransform:
+    """
+    Point transform within the same projection.
+    """
+
+    def __init__(self, A: Affine, back: Optional["LinearPointTransform"] = None):
+        self.A = A
+        self._back = back
+
+    @property
+    def linear(self) -> Optional[Affine]:
+        return self.A
+
+    @property
+    def back(self) -> "LinearPointTransform":
+        if self._back is not None:
+            return self._back
+        back = LinearPointTransform(~self.A, self)
+        self._back = back
+        return back
+
+    def __call__(self, pts: Sequence[XY[float]]) -> Sequence[XY[float]]:
+        A = self.A
+        return [xy_(A * pt.xy) for pt in pts]
+
+
+class GbxPointTransform:
+    """
+    Point Transform between two pixel planes.
+
+    Maps pixel coordinates from one geo referenced image to another.
+
+    1. Input is source pixel coordinate
+
+    2. Compute coordinate in CRS units using linear transform of the source image
+
+    3. Project point to the CRS of the destination image
+
+    4. Compute destination image pixel coordinate by using inverse of the
+       linear transform of the destination image
+    """
+
+    def __init__(
+        self, src: GeoBox, dst: GeoBox, back: Optional["GbxPointTransform"] = None
+    ):
+        assert src.crs is not None and dst.crs is not None
+        self._src = src
+        self._dst = dst
+        self._back = back
+        self._tr = src.crs.transformer_to_crs(dst.crs)
+
+    @property
+    def back(self) -> "GbxPointTransform":
+        if self._back is not None:
+            return self._back
+        back = GbxPointTransform(self._dst, self._src, self)
+        self._back = back
+        return back
+
+    @property
+    def linear(self) -> Optional[Affine]:
+        return None
+
+    def __call__(self, pts: Sequence[XY[float]]) -> Sequence[XY[float]]:
+        # pix_src -> X -> X' -> pix_dst
+        # inv(dst.A)*to_crs(src.A*pt)
+        A = self._src.transform
+        B = ~(self._dst.transform)
+
+        pts = [A * pt.xy for pt in pts]
+        xx = [pt[0] for pt in pts]
+        yy = [pt[1] for pt in pts]
+        xx, yy = self._tr(xx, yy)
+        return [xy_(B * (x, y)) for x, y in zip(xx, yy)]
+
+
+@dataclass
+class ReprojectInfo:
+    """
+    Describes computed data loading parameters.
+
+    For scale direction is: "scale > 1 --> shrink src to fit dst".
+    """
+
+    roi_src: NormalizedROI
+    """Section of the source image to load."""
+
+    roi_dst: NormalizedROI
+    """Section of the destination image to update."""
+
+    is_st: bool
+    """True when related by simple translation and scale."""
+
+    scale: float
+    """Scale change as a single number."""
+
+    scale2: XY[float]
+    """Scale change per axis."""
+
+    transform: PointTransform
+    """Mapping from src pixels to destination pixels."""
+
+
+def stack_xy(pts: Sequence[XY[float]]) -> np.ndarray:
+    """Turn into an ``Nx2`` ndarray of floats in X,Y order."""
+    return np.vstack([pt.xy for pt in pts])
+
+
+def unstack_xy(pts: np.ndarray) -> List[XY[float]]:
+    """Turn ``Nx2`` array in X,Y order into a list of XY points."""
+    assert pts.ndim == 2 and pts.shape[1] == 2
+    return [xy_(pt) for pt in pts]
 
 
 def decompose_rws(A: AffineX) -> Tuple[AffineX, AffineX, AffineX]:
@@ -71,7 +209,7 @@ def decompose_rws(A: AffineX) -> Tuple[AffineX, AffineX, AffineX]:
     return R, W, S
 
 
-def affine_from_pts(X, Y):
+def affine_from_pts(X: Sequence[XY[float]], Y: Sequence[XY[float]]) -> Affine:
     """
     Given points ``X,Y`` compute ``A``, such that: ``Y = A*X``.
 
@@ -83,10 +221,10 @@ def affine_from_pts(X, Y):
 
     n = len(X)
 
+    YY = stack_xy(Y)
     XX = np.ones((n, 3), dtype="float64")
-    YY = np.vstack(Y)
-    for i, x in enumerate(X):
-        XX[i, :2] = x
+    for i, pt in enumerate(X):
+        XX[i, :2] = pt.xy
 
     mm, *_ = linalg.lstsq(XX, YY, rcond=-1)
     a, d, b, e, c, f = mm.ravel()
@@ -94,7 +232,7 @@ def affine_from_pts(X, Y):
     return Affine(a, b, c, d, e, f)
 
 
-def get_scale_from_linear_transform(A):
+def get_scale_from_linear_transform(A: Affine) -> XY[float]:
     """
     Given a linear transform compute scale change.
 
@@ -104,10 +242,12 @@ def get_scale_from_linear_transform(A):
     Returns (sx, sy), where sx > 0, sy > 0
     """
     _, _, S = decompose_rws(A)
-    return abs(S.a), abs(S.e)
+    return xy_(abs(S.a), abs(S.e))
 
 
-def get_scale_at_point(pt, tr, r=None):
+def get_scale_at_point(
+    pt: XY[float], tr: PointTransform, r: Optional[float] = None
+) -> XY[float]:
     """
     Given an arbitrary locally linear transform estimate scale change around a point.
 
@@ -123,37 +263,25 @@ def get_scale_at_point(pt, tr, r=None):
     :return: ``(sx, sy)`` where ``sx > 0, sy > 0``
     """
     pts0 = [(0, 0), (-1, 0), (0, -1), (1, 0), (0, 1)]
-    x0, y0 = pt
+    x0, y0 = pt.xy
     if r is None:
-        XX = [(float(x + x0), float(y + y0)) for x, y in pts0]
+        XX = [xy_(float(x + x0), float(y + y0)) for x, y in pts0]
     else:
-        XX = [(float(x * r + x0), float(y * r + y0)) for x, y in pts0]
+        XX = [xy_(float(x * r + x0), float(y * r + y0)) for x, y in pts0]
     YY = tr(XX)
     A = affine_from_pts(XX, YY)
     return get_scale_from_linear_transform(A)
 
 
-def _same_crs_pix_transform(src, dst):
+def _same_crs_pix_transform(src: GeoBox, dst: GeoBox) -> LinearPointTransform:
     assert src.crs == dst.crs
-
-    def transform(pts, A):
-        return [A * pt[:2] for pt in pts]
-
     _fwd = (~dst.transform) * src.transform  # src -> dst
-    _bwd = ~_fwd  # dst -> src
-
-    def pt_tr(pts):
-        return transform(pts, _fwd)
-
-    pt_tr.back = lambda pts: transform(pts, _bwd)
-    pt_tr.back.back = pt_tr
-    pt_tr.linear = _fwd
-    pt_tr.back.linear = _bwd
-
-    return pt_tr
+    return LinearPointTransform(_fwd)
 
 
-def compute_axis_overlap(Ns: int, Nd: int, s: float, t: float) -> Tuple[slice, slice]:
+def compute_axis_overlap(
+    Ns: int, Nd: int, s: float, t: float
+) -> Tuple[NormalizedSlice, NormalizedSlice]:
     """
     s, t define linear transform from destination coordinate space to source
     >>  x_s = s * x_d + t
@@ -207,17 +335,30 @@ def compute_axis_overlap(Ns: int, Nd: int, s: float, t: float) -> Tuple[slice, s
     return (src, dst)
 
 
-def box_overlap(src_shape, dst_shape, ST, tol):
+def box_overlap(
+    src_shape: SomeShape, dst_shape: SomeShape, ST: Affine, tol: float
+) -> Tuple[NormalizedROI, NormalizedROI]:
     """
+    Compute overlap between two image planes.
+
     Given two image planes whose coordinate systems are related via scale and
     translation only, find overlapping regions within both.
 
-    :param src_shape: Shape of source image plane
-    :param dst_shape: Shape of destination image plane
-    :param        ST: Affine transform with only scale/translation,
-                      direction is: Xsrc = ST*Xdst
-    :param       tol: Sub-pixel translation tolerance that's scaled by resolution.
+    :param src_shape:
+      Shape of source image plane
+
+    :param dst_shape:
+      Shape of destination image plane
+
+    :param ST:
+      Affine transform with only scale/translation, direction is: Xsrc = ST*Xdst
+
+    :param tol:
+      Sub-pixel translation tolerance that's scaled by resolution.
     """
+
+    src_shape = shape_(src_shape)
+    dst_shape = shape_(dst_shape)
 
     (sx, _, tx, _, sy, ty, *_) = ST
 
@@ -227,12 +368,12 @@ def box_overlap(src_shape, dst_shape, ST, tol):
     ty = maybe_int(ty, tol)
     tx = maybe_int(tx, tol)
 
-    s0, d0 = compute_axis_overlap(src_shape[0], dst_shape[0], sy, ty)
-    s1, d1 = compute_axis_overlap(src_shape[1], dst_shape[1], sx, tx)
+    s0, d0 = compute_axis_overlap(src_shape.y, dst_shape.y, sy, ty)
+    s1, d1 = compute_axis_overlap(src_shape.x, dst_shape.x, sx, tx)
     return (s0, s1), (d0, d1)
 
 
-def native_pix_transform(src: GeoBox, dst: GeoBox):
+def native_pix_transform(src: GeoBox, dst: GeoBox) -> PointTransform:
     """
 
     direction: from src to dst
@@ -243,30 +384,7 @@ def native_pix_transform(src: GeoBox, dst: GeoBox):
     if src.crs == dst.crs:
         return _same_crs_pix_transform(src, dst)
 
-    _in = SimpleNamespace(crs=src.crs, A=src.transform)
-    _out = SimpleNamespace(crs=dst.crs, A=dst.transform)
-
-    _fwd = _in.crs.transformer_to_crs(_out.crs)
-    _bwd = _out.crs.transformer_to_crs(_in.crs)
-
-    _fwd = (_in.A, _fwd, ~_out.A)
-    _bwd = (_out.A, _bwd, ~_in.A)
-
-    def transform(pts, params):
-        A, f, B = params
-        return [B * pt[:2] for pt in [f(*(A * pt[:2])) for pt in pts]]
-
-    def tr(pts):
-        return transform(pts, _fwd)
-
-    # TODO: re-work with dataclasses
-
-    tr.back = lambda pts: transform(pts, _bwd)  # type: ignore
-    tr.back.back = tr  # type: ignore
-    tr.linear = None  # type: ignore
-    tr.back.linear = None  # type: ignore
-
-    return tr
+    return GbxPointTransform(src, dst)
 
 
 def compute_reproject_roi(
@@ -275,21 +393,26 @@ def compute_reproject_roi(
     tol: float = 0.05,
     padding: Optional[int] = None,
     align: Optional[int] = None,
-):
-    """Given two GeoBoxes find the region within the source GeoBox that overlaps
+) -> ReprojectInfo:
+    """
+    Compute reprojection information.
+
+    Given two GeoBoxes find the region within the source GeoBox that overlaps
     with the destination GeoBox, and also compute the scale factor (>1 means
     shrink). Scale is chosen such that if you apply it to the source image
     before reprojecting, then reproject will have roughly no scale component.
 
-    So we breaking up reprojection into two stages:
+    So we are breaking up reprojection into two stages:
 
     1. Scale in the native pixel CRS
     2. Reprojection (possibly non-linear with CRS change)
 
-    - src[roi] -> scale      -> reproject -> dst  (using native pixels)
-    - src(scale)[roi(scale)] -> reproject -> dst  (using overview image)
+    .. code-block::
 
-    Here roi is "minimal", padding is configurable though, so you only read what you need.
+       - src[roi] -> scale      -> reproject -> dst  (using native pixels)
+       - src(scale)[roi(scale)] -> reproject -> dst  (using overview image)
+
+    Here ``roi`` is "minimal", padding is configurable though, so you only read what you need.
     Also scale can be used to pick the right kind of overview level to read.
 
     Applying reprojection in two steps allows us to use pre-computed overviews,
@@ -307,32 +430,44 @@ def compute_reproject_roi(
     - No padding beyond sub-pixel alignment if Scale+Translation
     - 1 pixel source padding in all other cases
 
-    :param tol: Sub-pixel translation tolerance as a percentage of resolution.
+    :param src:
+      Geobox of the source image
 
-    :returns: SimpleNamespace with following fields:
-     .roi_src    : (slice, slice)
-     .roi_dst    : (slice, slice)
-     .scale      : float
-     .scale2     : (sx: float, sy: float)
-     .is_st      : True|False
-     .transform  : src coord -> dst coord
+    :param dst:
+      Geobox of the destination image
 
-    For scale direction is: "scale > 1 --> shrink src to fit dst"
+    :param padding:
+      Optional padding in source pixels
 
+    :param align:
+      Optional pixel alignment in pixels, used on both source and destination.
+
+    :param tol:
+      Sub-pixel translation tolerance as pixel fraction.
+
+    :returns:
+      An instance of ``ReprojectInfo`` class.
     """
     pts_per_side = 5
 
-    def compute_roi(src, dst, tr, pts_per_side, padding, align):
-        XY = np.vstack(tr.back(gbox_boundary(dst, pts_per_side)))
-        roi_src = roi_from_points(XY, src.shape, padding, align=align)
+    def compute_roi(
+        src: GeoBox,
+        dst: GeoBox,
+        tr: PointTransform,
+        pts_per_side: int,
+        padding: int,
+        align: Optional[int],
+    ):
+        _XY = tr.back(unstack_xy(gbox_boundary(dst, pts_per_side)))
+        roi_src = roi_from_points(stack_xy(_XY), src.shape, padding, align=align)
 
         if roi_is_empty(roi_src):
             return (roi_src, np.s_[0:0, 0:0])
 
         # project src roi back into dst and compute roi from that
-        xy = np.vstack(tr(roi_boundary(roi_src, pts_per_side)))
+        xy = tr(unstack_xy(roi_boundary(roi_src, pts_per_side)))
         roi_dst = roi_from_points(
-            xy, dst.shape, padding=0
+            stack_xy(xy), dst.shape, padding=0
         )  # no need to add padding twice
         return (roi_src, roi_dst)
 
@@ -354,14 +489,14 @@ def compute_reproject_roi(
         padding = 1 if padding is None else padding
 
         roi_src, roi_dst = compute_roi(src, dst, tr, pts_per_side, padding, align)
-        center_pt = roi_center(roi_src)[::-1]
+        center_pt = xy_(roi_center(roi_src)[::-1])
         scale2 = get_scale_at_point(center_pt, tr)
 
     # change scale direction to be a shrink by factor
-    scale2 = tuple(1 / s for s in scale2)
-    scale = min(scale2)
+    scale2 = scale2.map(lambda s: 1.0 / s)
+    scale = min(scale2.xy)
 
-    return SimpleNamespace(
+    return ReprojectInfo(
         roi_src=roi_src,
         roi_dst=roi_dst,
         scale=scale,

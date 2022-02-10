@@ -8,14 +8,16 @@ from random import uniform
 import numpy as np
 from affine import Affine
 
-from odc.geo import CRS, geom, resyx_
+from odc.geo import CRS, geom, resyx_, xy_
 from odc.geo._overlap import (
+    LinearPointTransform,
     affine_from_pts,
     compute_axis_overlap,
     compute_reproject_roi,
     decompose_rws,
     get_scale_at_point,
     native_pix_transform,
+    stack_xy,
 )
 from odc.geo.geobox import GeoBox, scaled_down_geobox
 from odc.geo.math import is_affine_st
@@ -23,7 +25,7 @@ from odc.geo.roi import roi_is_empty, roi_normalise, roi_shape
 from odc.geo.testutils import AlbersGS, epsg3577, epsg3857, epsg4326, mkA
 
 
-def get_diff(A, B):
+def diff_affine(A: Affine, B: Affine) -> float:
     return math.sqrt(sum((a - b) ** 2 for a, b in zip(A, B)))
 
 
@@ -40,9 +42,9 @@ def test_affine_rsw():
 
         R, W, S = decompose_rws(A)
 
-        assert get_diff(A, R * W * S) < tol
-        assert get_diff(S, mkA(0, scale)) < tol
-        assert get_diff(R, mkA(a, translation=translation)) < tol
+        assert diff_affine(A, R * W * S) < tol
+        assert diff_affine(S, mkA(0, scale)) < tol
+        assert diff_affine(R, mkA(a, translation=translation)) < tol
 
     for a in (0, 12, 45, 33, 67, 89, 90, 120, 170):
         run_test(a, (1, 1))
@@ -61,11 +63,11 @@ def test_affine_rsw():
 
 def test_fit():
     def run_test(A, n, tol=1e-5):
-        X = [(uniform(0, 1), uniform(0, 1)) for _ in range(n)]
-        Y = [A * x for x in X]
+        X = [xy_(uniform(0, 1), uniform(0, 1)) for _ in range(n)]
+        Y = [xy_(A * pt.xy) for pt in X]
         A_ = affine_from_pts(X, Y)
 
-        assert get_diff(A, A_) < tol
+        assert diff_affine(A, A_) < tol
 
     A = mkA(13, scale=(3, 4), shear=3, translation=(100, -3000))
 
@@ -79,21 +81,17 @@ def test_fit():
 def test_scale_at_point():
     def mk_transform(sx, sy):
         A = mkA(37, scale=(sx, sy), translation=(2127, 93891))
-
-        def transofrom(pts):
-            return [A * x for x in pts]
-
-        return transofrom
+        return LinearPointTransform(A)
 
     tol = 1e-4
-    pt = (0, 0)
+    pt = xy_(0, 0)
     for sx, sy in [(3, 4), (0.4, 0.333)]:
         tr = mk_transform(sx, sy)
-        sx_, sy_ = get_scale_at_point(pt, tr)
+        sx_, sy_ = get_scale_at_point(pt, tr).xy
         assert abs(sx - sx_) < tol
         assert abs(sy - sy_) < tol
 
-        sx_, sy_ = get_scale_at_point(pt, tr, 0.1)
+        sx_, sy_ = get_scale_at_point(pt, tr, 0.1).xy
         assert abs(sx - sx_) < tol
         assert abs(sy - sy_) < tol
 
@@ -111,22 +109,22 @@ def test_pix_transform():
 
     tr = native_pix_transform(src, dst)
 
-    pts_src = [(0, 0), (10, 20), (300, 200)]
+    pts_src = [xy_(0, 0), xy_(10, 20), xy_(300, 200)]
     pts_dst = tr(pts_src)
     pts_src_ = tr.back(pts_dst)
 
-    np.testing.assert_almost_equal(pts_src, pts_src_)
+    np.testing.assert_almost_equal(stack_xy(pts_src), stack_xy(pts_src_))
     assert tr.linear is None
 
     # check identity transform
     tr = native_pix_transform(src, src)
 
-    pts_src = [(0, 0), (10, 20), (300, 200)]
+    pts_src = [xy_(0, 0), xy_(10, 20), xy_(300, 200)]
     pts_dst = tr(pts_src)
     pts_src_ = tr.back(pts_dst)
 
-    np.testing.assert_almost_equal(pts_src, pts_src_)
-    np.testing.assert_almost_equal(pts_src, pts_dst)
+    np.testing.assert_almost_equal(stack_xy(pts_src), stack_xy(pts_src_))
+    np.testing.assert_almost_equal(stack_xy(pts_src), stack_xy(pts_dst))
     assert tr.linear is not None
     assert tr.back.linear is not None
     assert tr.back.back is tr
@@ -140,9 +138,11 @@ def test_pix_transform():
     assert tr.back.linear is not None
     assert tr.back.back is tr
 
-    np.testing.assert_almost_equal(pts_dst, [(x / 2, y / 2) for (x, y) in pts_src])
+    np.testing.assert_almost_equal(
+        stack_xy(pts_dst), [(pt.x / 2, pt.y / 2) for pt in pts_src]
+    )
 
-    np.testing.assert_almost_equal(pts_src, pts_src_)
+    np.testing.assert_almost_equal(stack_xy(pts_src), stack_xy(pts_src_))
 
 
 def test_compute_reproject_roi():
@@ -157,7 +157,9 @@ def test_compute_reproject_roi():
     assert 0 < rr.scale < 1
     assert rr.is_st is False
     assert rr.transform.linear is None
-    assert rr.scale in rr.scale2
+    assert rr.scale in rr.scale2.xy
+    assert rr.transform.back is not None
+    assert rr.transform.back.linear is None
 
     # check pure translation case
     roi_ = np.s_[113:-100, 33:-10]
@@ -169,7 +171,7 @@ def test_compute_reproject_roi():
     rr = compute_reproject_roi(src, src[roi_], padding=0, align=0)
     assert rr.roi_src == roi_normalise(roi_, src.shape)
     assert rr.scale == 1
-    assert rr.scale2 == (1, 1)
+    assert rr.scale2.xy == (1, 1)
 
     # check pure translation case
     roi_ = np.s_[113:-100, 33:-10]
