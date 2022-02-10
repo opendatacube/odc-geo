@@ -4,36 +4,42 @@
 # SPDX-License-Identifier: Apache-2.0
 import math
 from types import SimpleNamespace
-from typing import Optional, Tuple, Union
+from typing import Callable, List, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
 from affine import Affine
 from numpy import linalg
 
-from .roi import roi_boundary, roi_center, roi_from_points, roi_is_empty
 from .geobox import GeoBox, gbox_boundary
 from .math import is_affine_st, maybe_int, snap_scale
+from .roi import roi_boundary, roi_center, roi_from_points, roi_is_empty
+
+SomeAffine = Union[Affine, np.ndarray]
+AffineX = TypeVar("AffineX", np.ndarray, Affine)
 
 
-def decompose_rws(
-    A: Union[Affine, np.ndarray]
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+
+def decompose_rws(A: AffineX) -> Tuple[AffineX, AffineX, AffineX]:
     """
-    Compute decomposition Affine matrix sans translation into Rotation, Shear and Scale.
+     Compute decomposition Affine matrix sans translation into Rotation, Shear and Scale.
 
-    Note: that there are ambiguities for negative scales.
+     Find matrices ``R,W,S`` such that ``A = R W S`` and
 
-    Example: R(90)*S(1,1) == R(-90)*S(-1,-1),
-    (R*(-I))*((-I)*S) == R*S
+     .. code-block:
 
-    A = R W S
+        R [ca -sa]  W [1, w]  S [sx,  0]
+          [sa  ca]    [0, 1]    [ 0, sy]
 
-    Where:
+    .. note:
 
-    R [ca -sa]  W [1, w]  S [sx,  0]
-      [sa  ca]    [0, 1]    [ 0, sy]
+       There are ambiguities for negative scales.
 
-    :return: Rotation, Sheer, Scale
+       * ``R(90)*S(1,1) == R(-90)*S(-1,-1)``
+
+       * ``(R*(-I))*((-I)*S) == R*S``
+
+
+     :return: Rotation, Sheer, Scale ``2x2`` matrices
     """
     # pylint: disable=too-many-locals
 
@@ -67,11 +73,9 @@ def decompose_rws(
 
 def affine_from_pts(X, Y):
     """
-    Given points X,Y compute A, such that: Y = A*X.
+    Given points ``X,Y`` compute ``A``, such that: ``Y = A*X``.
 
     Needs at least 3 points.
-
-    :rtype: Affine
     """
 
     assert len(X) == len(Y)
@@ -107,17 +111,16 @@ def get_scale_at_point(pt, tr, r=None):
     """
     Given an arbitrary locally linear transform estimate scale change around a point.
 
-    1. Approximate Y = tr(X) as Y = A*X+t in the neighbourhood of pt, for X,Y in R2
-    2. Extract scale components of A
+    1. Approximate ``Y = tr(X)`` as ``Y = A*X + t`` in the neighbourhood of pt, for ``X,Y in R2``
+
+    2. Extract scale components of ``A``
 
 
-    pt - estimate transform around this point
-    r  - radius around the point (default 1)
+    :param pt: estimate transform around this point
+    :param r:  radius around the point (default is 1)
+    :param tr: Point transforming function ``Sequence[XY[float]] -> Sequence[XY[float]]``
 
-    tr - List((x,y)) -> List((x,y))
-         takes list of 2-d points on input and outputs same length list of 2d on output
-
-    Returns (sx, sy), where sx > 0, sy > 0
+    :return: ``(sx, sy)`` where ``sx > 0, sy > 0``
     """
     pts0 = [(0, 0), (-1, 0), (0, -1), (1, 0), (0, 1)]
     x0, y0 = pt
