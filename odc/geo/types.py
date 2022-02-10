@@ -1,5 +1,6 @@
 """Basic types."""
 from typing import (
+    Callable,
     Generic,
     Iterable,
     Iterator,
@@ -16,6 +17,8 @@ from typing import (
 MaybeInt = Optional[int]
 MaybeFloat = Optional[float]
 T = TypeVar("T")
+T1 = TypeVar("T1")
+T2 = TypeVar("T2")
 
 
 class XY(Generic[T]):
@@ -117,6 +120,12 @@ class XY(Generic[T]):
         if isinstance(x, int) and isinstance(y, int):
             return (x, y)
         raise ValueError("Expect (int, int) for wh")
+
+    def map(self, op: Callable[[T], T2]) -> "XY[T2]":
+        """
+        Apply function to x and y and return new XY value.
+        """
+        return xy_(op(self.x), op(self.y))
 
 
 class Resolution(XY[float]):
