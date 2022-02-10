@@ -96,6 +96,8 @@ to perform higher precision transformation.
 * Constructor changed from accepting ``GeoBox(width, height, ...)`` to
   ``GeoBox(shape, ...)``, where ``shape=(nrows, ncols)``.
 
+* :py:attr:`~odc.geo.geobox.GeoBox.affine` is now read-only
+
 
 
 :py:class:`~odc.geo.gridspec.GridSpec`

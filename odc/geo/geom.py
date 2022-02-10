@@ -16,6 +16,7 @@ from shapely import geometry, ops
 from shapely.geometry import base
 
 from .crs import CRS, CRSMismatchError, MaybeCRS, SomeCRS, norm_crs, norm_crs_or_error
+from .types import SomeShape, shape_
 
 _BoundingBox = namedtuple("_BoundingBox", ("left", "bottom", "right", "top"))
 CoordList = List[Tuple[float, float]]
@@ -755,17 +756,19 @@ def box(
 
 
 def polygon_from_transform(
-    width: float, height: float, transform: Affine, crs: MaybeCRS
+    shape: SomeShape, transform: Affine, crs: MaybeCRS
 ) -> Geometry:
     """
-    Create a 2D Polygon from an affine transform.
+    Create a 2D Polygon from an affine transform and shape.
 
-    :param width:
-    :param height:
-    :param transform:
+    Useful for computing footprints of a geo-registered raster images.
+
+    :param shape: Shape of the raster in pixels
+    :param transform: Affine transfrom from pixel to CRS units
     :param crs: CRS
     """
-    points = [(0, 0), (0, height), (width, height), (width, 0), (0, 0)]
+    x1, y1 = shape_(shape).xy
+    points = [(0, 0), (0, y1), (x1, y1), (x1, 0), (0, 0)]
     transform.itransform(points)
     return polygon(points, crs=crs)
 
