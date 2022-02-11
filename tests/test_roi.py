@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from odc.geo.roi import (
+    _norm_slice_or_error,
     polygon_path,
     roi_boundary,
     roi_center,
@@ -24,6 +25,7 @@ def test_roi_tools():
 
     assert roi_shape(s_[2:4, 3:4]) == (2, 1)
     assert roi_shape(s_[:4, :7]) == (4, 7)
+    assert roi_shape(s_[3, :7]) == (1, 7)
 
     assert roi_is_empty(s_[:4, :5]) is False
     assert roi_is_empty(s_[1:1, :10]) is True
@@ -38,6 +40,8 @@ def test_roi_tools():
     assert roi_is_full(s_[1:3, 0:4], (3, 4)) is False
     assert roi_is_full(s_[1:3, 0:4], (2, 4)) is False
     assert roi_is_full(s_[0:4, 0:4], (3, 4)) is False
+    assert roi_is_full(s_[0], 1) is True
+    assert roi_is_full(s_[2], 3) is False
 
     roi = s_[0:8, 0:4]
     roi_ = scaled_down_roi(roi, 2)
@@ -48,10 +52,16 @@ def test_roi_tools():
 
     assert roi_shape(scaled_up_roi(roi, 10000, (40, 50))) == (40, 50)
 
+    for bad_roi in [np.s_[1:], np.s_[:], np.s_[-3:]]:
+        with pytest.raises(ValueError):
+            _ = roi_shape(bad_roi)
+
     assert roi_normalise(s_[3:4], 40) == s_[3:4]
+    assert roi_normalise(s_[3], 40) == s_[3:4]
     assert roi_normalise(s_[:4], (40,)) == s_[0:4]
     assert roi_normalise(s_[:], (40,)) == s_[0:40]
     assert roi_normalise(s_[:-1], (3,)) == s_[0:2]
+    assert roi_normalise((s_[:-1],), 3) == (s_[0:2],)
     assert roi_normalise(s_[-2:-1, :], (10, 20)) == s_[8:9, 0:20]
     assert roi_normalise(s_[-2:-1, :, 3:4], (10, 20, 100)) == s_[8:9, 0:20, 3:4]
     assert roi_center(s_[0:3]) == 1.5
@@ -63,6 +73,11 @@ def test_roi_tools():
     assert xy.shape == (4, 2)
     assert roi_from_points(xy, (2, 13)) == roi
 
+
+def test_roi_intersect():
+    s_ = np.s_
+    roi = s_[0:2, 4:13]
+
     assert roi_intersect(roi, roi) == roi
     assert roi_intersect(s_[0:3], s_[1:7]) == s_[1:3]
     assert roi_intersect(s_[0:3], (s_[1:7],)) == s_[1:3]
@@ -70,9 +85,28 @@ def test_roi_tools():
 
     assert roi_intersect(s_[4:7, 5:6], s_[0:1, 7:8]) == s_[4:4, 6:6]
 
+
+def test_roi_pad():
+    s_ = np.s_
     assert roi_pad(s_[0:4], 1, 4) == s_[0:4]
+    assert roi_pad(s_[0:4], 1, (4,)) == s_[0:4]
+    assert roi_pad((s_[0:4],), 1, 4) == (s_[0:4],)
+
     assert roi_pad(s_[0:4, 1:5], 1, (4, 6)) == s_[0:4, 0:6]
     assert roi_pad(s_[2:3, 1:5], 10, (7, 9)) == s_[0:7, 0:9]
+    assert roi_pad(s_[3, 0, :2], 1, (100, 100, 100)) == s_[2:5, 0:2, 0:3]
+
+
+def test_norm_slice_or_error():
+    s_ = np.s_
+    assert _norm_slice_or_error(s_[0]) == s_[0:1]
+    assert _norm_slice_or_error(s_[3]) == s_[3:4]
+    assert _norm_slice_or_error(s_[:3]) == s_[0:3]
+    assert _norm_slice_or_error(s_[10:100:3]) == s_[10:100:3]
+
+    for bad in [np.s_[1:], np.s_[:-3], np.s_[-3:], np.s_[-2:10], -3]:
+        with pytest.raises(ValueError):
+            _ = _norm_slice_or_error(bad)
 
 
 def test_window_from_slice():
