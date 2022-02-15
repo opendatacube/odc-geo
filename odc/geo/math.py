@@ -255,6 +255,37 @@ def is_affine_st(A: Affine, tol: float = 1e-10) -> bool:
     return abs(wx) < tol and abs(wy) < tol
 
 
+def snap_affine(
+    A: Affine, ttol: float = 1e-3, stol: float = 1e-6, tol: float = 1e-8
+) -> Affine:
+    """
+    Snap scale and translation parts to integer when close enough.
+
+    When scale is less than 1 then attempt snapping to ``1/<int>``.
+
+    If input has rotation/shear component then return unchanged.
+
+    :param A: Affine matrix
+    :param ttol: translation tolerance, defaults to 1e-3
+    :param stol: scale tolerance, defaults to 1e-6
+    :param tol: rotation tolerance, defaults to 1e-10
+
+    :return: Adjusted Affine matrix.
+    :return: Input Affine matrix when rotation/shear is present.
+    """
+    sx, wx, tx, wy, sy, ty, *_ = A
+
+    # has rotation component
+    if abs(wx) > tol or abs(wy) > tol:
+        return A
+
+    sx_ = snap_scale(sx, stol)
+    sy_ = snap_scale(sy, stol)
+    tx_ = maybe_int(tx, ttol)
+    ty_ = maybe_int(ty, ttol)
+    return Affine(sx_, 0, tx_, 0, sy_, ty_)
+
+
 class Bin1D:
     """
     Class for translating continous coordinates to bin index.

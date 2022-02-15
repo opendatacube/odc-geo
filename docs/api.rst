@@ -166,6 +166,7 @@ odc.geo.math
    maybe_int
    maybe_zero
    snap_scale
+   snap_affine
    split_float
    split_translation
 
