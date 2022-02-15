@@ -16,6 +16,7 @@ from affine import Affine
 from .crs import CRS, CRSError, SomeCRS, norm_crs_or_error
 from .geobox import Coordinate, GeoBox
 from .math import affine_from_axis
+from .types import Resolution, resxy_
 
 XarrayObject = Union[xarray.DataArray, xarray.Dataset]
 XrT = TypeVar("XrT", xarray.DataArray, xarray.Dataset)
@@ -259,9 +260,12 @@ def _locate_geo_info(src: XarrayObject) -> GeoState:
     transform: Optional[Affine] = None
     crs: Optional[CRS] = None
     geobox: Optional[GeoBox] = None
+    fallback_res: Optional[Resolution] = None
 
     _yy, _xx = (src[dim] for dim in sdims)
-    fallback_res = (coord.attrs.get("resolution", None) for coord in (_xx, _yy))
+    rx, ry = (coord.attrs.get("resolution", None) for coord in (_xx, _yy))
+    if rx is not None and ry is not None:
+        fallback_res = resxy_(float(rx), float(ry))
 
     try:
         transform = affine_from_axis(_xx.values, _yy.values, fallback_res)

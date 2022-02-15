@@ -144,6 +144,31 @@ odc.geo.roi
    scaled_down_shape
    scaled_up_roi
 
+odc.geo.math
+************
+
+.. currentmodule:: odc.geo.math
+.. autosummary::
+   :toctree: _api/
+
+   Bin1D
+   Bin1D.bin
+   Bin1D.from_sample_bin
+
+   affine_from_axis
+   align_down
+   align_up
+   apply_affine
+   clamp
+   data_resolution_and_offset
+   is_affine_st
+   is_almost_int
+   maybe_int
+   maybe_zero
+   snap_scale
+   split_float
+   split_translation
+
 odc.geo.gridspec
 ****************
 

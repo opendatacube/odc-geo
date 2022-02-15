@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from affine import Affine
 
+from odc.geo import resxy_
 from odc.geo.math import (
     Bin1D,
     affine_from_axis,
@@ -85,8 +86,11 @@ def test_affine_from_axis():
         res, 0, x0, 0, -res, yy[-1] + res / 2
     )
 
-    assert affine_from_axis(xx[:1], yy[:1], res) == Affine(res, 0, x0, 0, res, y0)
-    assert affine_from_axis(xx[:1], yy[:1], (res, res)) == Affine(
+    # equivalent to y:-res, x:+res
+    assert affine_from_axis(xx[:1], yy[:1], res) == Affine(
+        res, 0, x0, 0, -res, y0 + res
+    )
+    assert affine_from_axis(xx[:1], yy[:1], resxy_(res, res)) == Affine(
         res, 0, x0, 0, res, y0
     )
 
