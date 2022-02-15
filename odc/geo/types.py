@@ -282,7 +282,7 @@ def res_(x: Union[Resolution, float, int], /) -> Resolution:
         return x
     if isinstance(x, (int, float)):
         return Resolution(float(x))
-    raise ValueError("Unsupported input type: res_(x: {type(x)})")
+    raise ValueError(f"Unsupported input type: res_(x: {type(x)})")
 
 
 def resxy_(x: float, y: float, /) -> Resolution:
