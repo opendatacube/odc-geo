@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import math
 import pickle
+from typing import Tuple
 
 import numpy as np
 import pytest
@@ -35,6 +36,7 @@ from odc.geo.testutils import (
     to_fixed_point,
     xy_from_gbox,
 )
+from odc.geo.types import XY, xy_
 
 # pylint: disable=protected-access, pointless-statement
 # pylint: disable=too-many-statements,too-many-locals,too-many-lines
@@ -520,20 +522,20 @@ def test_gen_test_image_xy():
     assert xy.shape == (2,) + gbox.shape
     xy[0, 0, :] = np.nan
     xy[1, 1, :] = np.nan
-    xy_ = denorm(xy, nodata=np.nan)
-    assert np.isnan(xy_[:, :2]).all()
-    np.testing.assert_almost_equal(xy_[0][2:], x_[2:], 6)
-    np.testing.assert_almost_equal(xy_[1][2:], y_[2:], 6)
+    _xy = denorm(xy, nodata=np.nan)
+    assert np.isnan(_xy[:, :2]).all()
+    np.testing.assert_almost_equal(_xy[0][2:], x_[2:], 6)
+    np.testing.assert_almost_equal(_xy[1][2:], y_[2:], 6)
 
     xy, denorm = gen_test_image_xy(gbox, "int16")
     assert xy.dtype == "int16"
     assert xy.shape == (2,) + gbox.shape
     xy[0, 0, :] = -999
     xy[1, 1, :] = -999
-    xy_ = denorm(xy, nodata=-999)
-    assert np.isnan(xy_[:, :2]).all()
-    np.testing.assert_almost_equal(xy_[0][2:], x_[2:], 4)
-    np.testing.assert_almost_equal(xy_[1][2:], y_[2:], 4)
+    _xy = denorm(xy, nodata=-999)
+    assert np.isnan(_xy[:, :2]).all()
+    np.testing.assert_almost_equal(_xy[0][2:], x_[2:], 4)
+    np.testing.assert_almost_equal(_xy[1][2:], y_[2:], 4)
 
     # call without arguments should return linear mapping
     A = denorm()
@@ -777,21 +779,29 @@ def test_point_transformer():
 
 
 def test_split_translation():
-    def verify(a, b):
-        a = np.asarray(a)
-        b = np.asarray(b)
-        np.testing.assert_array_almost_equal(a, b)
+    def verify(
+        a: Tuple[XY[float], XY[float]],
+        b: Tuple[XY[float], XY[float]],
+    ):
+        assert a[0].xy == pytest.approx(b[0].xy)
+        assert a[1].xy == pytest.approx(b[1].xy)
 
-    def tt(tx, ty, *expect):
-        verify(split_translation((tx, ty)), expect)
+    def tt(
+        tx: float, ty: float, e_whole: Tuple[float, float], e_part: Tuple[float, float]
+    ):
+        expect = xy_(e_whole), xy_(e_part)
+        rr = split_translation(xy_(tx, ty))
+        verify(rr, expect)
 
-    assert split_translation((1, 2)) == ((1, 2), (0, 0))
-    assert split_translation((-1, -2)) == ((-1, -2), (0, 0))
-    tt(1.3, 2.5, (1, 2), (0.3, 0.5))
-    tt(1.1, 2.6, (1, 3), (0.1, -0.4))
-    tt(-1.1, 2.8, (-1, 3), (-0.1, -0.2))
-    tt(-1.9, 2.05, (-2, 2), (+0.1, 0.05))
-    tt(-1.5, 2.45, (-1, 2), (-0.5, 0.45))
+    # fmt: off
+    assert split_translation(xy_( 1,  2)) == (xy_( 1,  2), xy_(0, 0))
+    assert split_translation(xy_(-1, -2)) == (xy_(-1, -2), xy_(0, 0))
+    tt( 1.3, 2.5 , ( 1, 2), ( 0.3,  0.5 ))
+    tt( 1.1, 2.6 , ( 1, 3), ( 0.1, -0.4 ))
+    tt(-1.1, 2.8 , (-1, 3), (-0.1, -0.2 ))
+    tt(-1.9, 2.05, (-2, 2), (+0.1,  0.05))
+    tt(-1.5, 2.45, (-1, 2), (-0.5,  0.45))
+    # fmt: on
 
 
 def test_base_internals():
