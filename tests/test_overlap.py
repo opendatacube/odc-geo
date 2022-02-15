@@ -8,9 +8,11 @@ from random import uniform
 import numpy as np
 from affine import Affine
 
-from odc.geo import CRS, geom, resyx_, xy_
+from odc.geo import CRS, geom, resyx_, wh_, xy_
 from odc.geo._overlap import (
     LinearPointTransform,
+    ReprojectInfo,
+    _can_paste,
     affine_from_pts,
     compute_axis_overlap,
     compute_reproject_roi,
@@ -21,7 +23,13 @@ from odc.geo._overlap import (
 )
 from odc.geo.geobox import GeoBox, scaled_down_geobox
 from odc.geo.math import is_affine_st
-from odc.geo.roi import roi_is_empty, roi_normalise, roi_shape
+from odc.geo.roi import (
+    roi_is_empty,
+    roi_normalise,
+    roi_shape,
+    scaled_down_roi,
+    scaled_up_roi,
+)
 from odc.geo.testutils import AlbersGS, epsg3577, epsg3857, epsg4326, mkA
 
 
@@ -155,9 +163,7 @@ def test_compute_reproject_roi():
 
     assert rr.roi_src == np.s_[0 : src.height, 0 : src.width]
     assert 0 < rr.scale < 1
-    assert rr.is_st is False
     assert rr.transform.linear is None
-    assert rr.scale in rr.scale2.xy
     assert rr.transform.back is not None
     assert rr.transform.back.linear is None
 
@@ -166,12 +172,10 @@ def test_compute_reproject_roi():
     rr = compute_reproject_roi(src, src[roi_])
     assert rr.roi_src == roi_normalise(roi_, src.shape)
     assert rr.scale == 1
-    assert rr.is_st is True
 
     rr = compute_reproject_roi(src, src[roi_], padding=0, align=0)
     assert rr.roi_src == roi_normalise(roi_, src.shape)
     assert rr.scale == 1
-    assert rr.scale2.xy == (1, 1)
 
     # check pure translation case
     roi_ = np.s_[113:-100, 33:-10]
@@ -186,6 +190,96 @@ def test_compute_reproject_roi():
     assert rr.scale == 1
     assert roi_shape(rr.roi_src) == roi_shape(rr.roi_dst)
     assert roi_shape(rr.roi_dst) == src[roi_].shape
+
+
+def test_compute_reproject_roi_paste():
+    src = GeoBox(
+        wh_(1000, 2000),
+        mkA(scale=(10, -10), translation=(10 * 123, -10 * 230)),
+        epsg3857,
+    )
+
+    def _check(src: GeoBox, dst: GeoBox, rr: ReprojectInfo):
+        assert rr.read_shrink >= 1
+
+        if roi_is_empty(rr.roi_src):
+            assert roi_is_empty(rr.roi_dst)
+            return
+
+        if rr.paste_ok:
+            if rr.read_shrink == 1:
+                assert roi_shape(rr.roi_src) == roi_shape(rr.roi_dst)
+                assert src[rr.roi_src].shape == dst[rr.roi_dst].shape
+            else:
+                # roi source must align to read scale
+                # => round-triping roi to overview and back should not change roi
+                assert (
+                    scaled_up_roi(
+                        scaled_down_roi(rr.roi_src, rr.read_shrink), rr.read_shrink
+                    )
+                    == rr.roi_src
+                )
+
+                src_ = src[rr.roi_src].zoom_out(rr.read_shrink)
+                assert src_.shape == dst[rr.roi_dst].shape
+
+        if rr.read_shrink == 1:
+            assert rr.scale <= 1.1
+        else:
+            assert rr.scale >= rr.read_shrink
+
+        if src.crs == dst.crs:
+            _src = src[rr.roi_src].extent
+            _dst = dst[rr.roi_dst].extent
+        else:
+            _src = src[rr.roi_src].geographic_extent
+            _dst = dst[rr.roi_dst].geographic_extent
+
+        assert _src.intersection(_dst).area > 0
+
+    def _yes(src: GeoBox, dst: GeoBox, **kw):
+        rr = compute_reproject_roi(src, dst, **kw)
+        assert rr.paste_ok is True
+        _check(src, dst, rr)
+
+    def _no_(src: GeoBox, dst: GeoBox, **kw):
+        rr = compute_reproject_roi(src, dst, **kw)
+        assert rr.paste_ok is False
+        _check(src, dst, rr)
+
+    t_ = Affine.translation
+    s_ = Affine.scale
+
+    # plain pixel aligned translation
+    _yes(src, src)
+    _yes(src, src[10:, 29:])
+    _yes(src[10:, 29:], src)
+
+    # subpixel translation below threshhold
+    _no_(src, src * t_(0.3, 0.3))
+    _yes(src, src * t_(0.3, 0.3), ttol=0.5)
+    _no_(src, src * t_(0.0, 0.1))
+    _yes(src, src * t_(0.0, 0.1), ttol=0.15)
+    _no_(src, src * t_(-0.1, 0.0))
+    _yes(src, src * t_(-0.1, 0.0), ttol=0.15)
+
+    # tiny scale deviations
+    _no_(src, src[20:, :30] * s_(1.003, 1.003))
+    _yes(src, src[20:, :30] * s_(1.003, 1.003), stol=0.01)
+
+    # integer shrink
+    _no_(src, src.zoom_out(2.3))
+    _yes(src, src.zoom_out(2))
+    _yes(src, src.zoom_out(3))
+    _yes(src, src.zoom_out(2 + 1e-5))  # rounding issues should not matter
+    _no_(src.zoom_out(3), src)
+    _no_(src.zoom_out(2), src)
+
+    # integer shrink but with sub-pixel translation after shrinking
+    _yes(src, src[4:, 8:].zoom_out(4))
+    _no_(src, src[2:, 8:].zoom_out(4))
+    _no_(src, src[8:, 3:].zoom_out(4))
+    _yes(src, src[8:, 3:].zoom_out(4), ttol=0.5)
 
 
 def test_compute_reproject_roi_issue647():
@@ -226,7 +320,7 @@ def test_compute_reproject_roi_issue1047():
     src_roi = np.s_[2800:2810, 10:30]
     rr = compute_reproject_roi(geobox, geobox[src_roi])
 
-    assert rr.is_st is True
+    assert rr.paste_ok is True
     assert rr.roi_src == src_roi
     assert rr.roi_dst == np.s_[0:10, 0:20]
 
@@ -276,3 +370,27 @@ def test_axis_overlap():
     # D: |<--->|
     assert compute_axis_overlap(10, 10, 1, -11) == s_[0:0, 10:10]
     assert compute_axis_overlap(40, 10, 1, -11) == s_[0:0, 10:10]
+
+
+def test_can_paste():
+    assert _can_paste(mkA(translation=(10, -20))) == (True, None)
+    assert _can_paste(mkA(scale=(10, 10))) == (True, None)
+    assert _can_paste(mkA(scale=(-10, 10), translation=(0, -4 * 10))) == (True, None)
+
+    assert _can_paste(mkA(shear=0.3)) == (False, "has rotation or shear")
+    assert _can_paste(mkA(rot=30)) == (False, "has rotation or shear")
+
+    assert _can_paste(mkA(scale=(-11.1, 11.1))) == (False, "non-integer scale")
+    assert _can_paste(mkA(scale=(0.5, 0.5))) == (False, "non-integer scale")
+    assert _can_paste(mkA(scale=(2, 3))) == (False, "sx!=sy, probably")
+
+    assert _can_paste(mkA(scale=(-10, 10), translation=(0, -4))) == (
+        False,
+        "sub-pixel translation",
+    )
+    assert _can_paste(mkA(scale=(-10, 10), translation=(-4, 10))) == (
+        False,
+        "sub-pixel translation",
+    )
+    assert _can_paste(mkA(translation=(0, 0.4))) == (False, "sub-pixel translation")
+    assert _can_paste(mkA(translation=(0.4, 0))) == (False, "sub-pixel translation")
