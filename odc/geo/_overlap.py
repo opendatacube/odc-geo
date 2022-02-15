@@ -11,7 +11,7 @@ from affine import Affine
 from numpy import linalg
 
 from .geobox import GeoBox, gbox_boundary
-from .math import is_affine_st, maybe_int, snap_scale
+from .math import is_affine_st, is_almost_int, maybe_int, snap_affine
 from .roi import (
     NormalizedROI,
     NormalizedSlice,
@@ -19,6 +19,7 @@ from .roi import (
     roi_center,
     roi_from_points,
     roi_is_empty,
+    scaled_up_roi,
 )
 from .types import XY, SomeShape, shape_, xy_
 
@@ -133,14 +134,31 @@ class ReprojectInfo:
     roi_dst: NormalizedROI
     """Section of the destination image to update."""
 
-    is_st: bool
-    """True when related by simple translation and scale."""
+    paste_ok: bool
+    """
+    When ``True`` source can be pasted into destination directly.
+
+    * Must have same projection
+
+    * Must have same pixel size, or same pixel size after shrinking
+      source with integer scaling
+
+    * Sub-pixel translation between the source and the destination images must be lower
+      than the requested tolerance
+
+    """
+
+    read_shrink: int
+    """
+    Highest allowed integer shrink factor on the read side.
+
+    Used to pick overview level for reading. A value of ``3`` means you can
+    shrink every ``3x3`` pixel block of the source image down to a single pixel,
+    and still have higher resolution than requested.
+    """
 
     scale: float
     """Scale change as a single number."""
-
-    scale2: XY[float]
-    """Scale change per axis."""
 
     transform: PointTransform
     """Mapping from src pixels to destination pixels."""
@@ -336,7 +354,7 @@ def compute_axis_overlap(
 
 
 def box_overlap(
-    src_shape: SomeShape, dst_shape: SomeShape, ST: Affine, tol: float
+    src_shape: SomeShape, dst_shape: SomeShape, ST: Affine
 ) -> Tuple[NormalizedROI, NormalizedROI]:
     """
     Compute overlap between two image planes.
@@ -351,22 +369,15 @@ def box_overlap(
       Shape of destination image plane
 
     :param ST:
-      Affine transform with only scale/translation, direction is: Xsrc = ST*Xdst
+      Affine transform with only scale/translation, direction is: ``Xsrc = ST*Xdst``
 
-    :param tol:
-      Sub-pixel translation tolerance that's scaled by resolution.
+    :returns: ``(src_roi, dst_roi)``
     """
 
     src_shape = shape_(src_shape)
     dst_shape = shape_(dst_shape)
 
     (sx, _, tx, _, sy, ty, *_) = ST
-
-    sy = snap_scale(sy)
-    sx = snap_scale(sx)
-
-    ty = maybe_int(ty, tol)
-    tx = maybe_int(tx, tol)
 
     s0, d0 = compute_axis_overlap(src_shape.y, dst_shape.y, sy, ty)
     s1, d1 = compute_axis_overlap(src_shape.x, dst_shape.x, sx, tx)
@@ -387,10 +398,90 @@ def native_pix_transform(src: GeoBox, dst: GeoBox) -> PointTransform:
     return GbxPointTransform(src, dst)
 
 
+def _pick_read_scale(scale: float, tol: float = 1e-3) -> int:
+    assert scale > 0
+    # scale < 1 --> 1
+    # Else: scale down to nearest integer, unless we can scale up by less than tol
+    #
+    # 2.999999 -> 3
+    # 2.8 -> 2
+    # 0.3 -> 1
+
+    if scale < 1:
+        return 1
+
+    # if close to int from below snap to it
+    scale = maybe_int(scale, tol)
+
+    # otherwise snap to nearest integer below
+    return int(scale)
+
+
+def _can_paste(
+    A: Affine, stol: float = 1e-3, ttol: float = 1e-2
+) -> Tuple[bool, Optional[str]]:
+    """
+    Check if can read (possibly with scale) and paste, or do we need to read then reproject.
+
+    :param A: Coordinate mapping from dst to src ``X_src = A*X_dst``
+
+    :returns: (True, None) if one can just read and paste
+    :returns: (False, Reason) if pasting is not possible, so need to reproject after reading
+    """
+
+    if not is_affine_st(A):
+        return (False, "has rotation or shear")
+
+    sx, sy = get_scale_from_linear_transform(A).xy
+    scale = min(sx, sy)
+
+    if not is_almost_int(scale, stol):  # non-integer scaling
+        return False, "non-integer scale"
+
+    read_scale = _pick_read_scale(scale)
+    # A_ maps coords from `dst` to `src.overview[scale]`
+    A_ = Affine.scale(1 / read_scale, 1 / read_scale) * A
+
+    (sx, _, tx, _, sy, ty, *_) = A_  # tx, ty are in dst pixel space
+
+    # Expect identity for scale change
+    if any(abs(abs(s) - 1) > stol for s in (sx, sy)):  # not equal scaling across axis?
+        return False, "sx!=sy, probably"
+
+    # Check is sub-pixel translation is within bounds
+    if not all(is_almost_int(t, ttol) for t in (tx, ty)):
+        return False, "sub-pixel translation"
+
+    return True, None
+
+
+def _relative_rois(
+    src: GeoBox,
+    dst: GeoBox,
+    tr: PointTransform,
+    pts_per_side: int,
+    padding: int,
+    align: Optional[int],
+):
+    _XY = tr.back(unstack_xy(gbox_boundary(dst, pts_per_side)))
+    roi_src = roi_from_points(stack_xy(_XY), src.shape, padding, align=align)
+
+    if roi_is_empty(roi_src):
+        return (roi_src, np.s_[0:0, 0:0])
+
+    # project src roi back into dst and compute roi from that
+    xy = tr(unstack_xy(roi_boundary(roi_src, pts_per_side)))
+
+    # `padding=0` is to avoid adding padding twice
+    roi_dst = roi_from_points(stack_xy(xy), dst.shape, padding=0)
+    return (roi_src, roi_dst)
+
+
 def compute_reproject_roi(
     src: GeoBox,
     dst: GeoBox,
-    tol: float = 0.05,
+    ttol: float = 0.05,
+    stol: float = 1e-3,
     padding: Optional[int] = None,
     align: Optional[int] = None,
 ) -> ReprojectInfo:
@@ -407,7 +498,7 @@ def compute_reproject_roi(
     1. Scale in the native pixel CRS
     2. Reprojection (possibly non-linear with CRS change)
 
-    .. code-block::
+    .. code-block:: text
 
        - src[roi] -> scale      -> reproject -> dst  (using native pixels)
        - src(scale)[roi(scale)] -> reproject -> dst  (using overview image)
@@ -424,11 +515,12 @@ def compute_reproject_roi(
 
     Also compute and return ROI of the dst geobox that is affected by src.
 
-    If padding is None "appropriate" padding will be used depending on the
-    transform between src<>dst:
+    If padding is ``None`` "appropriate" padding will be used depending on the
+    transform between ``src<>dst``:
 
-    - No padding beyond sub-pixel alignment if Scale+Translation
-    - 1 pixel source padding in all other cases
+    * No padding beyond sub-pixel alignment if Scale+Translation
+
+    * 1 pixel source padding in all other cases
 
     :param src:
       Geobox of the source image
@@ -445,62 +537,76 @@ def compute_reproject_roi(
     :param tol:
       Sub-pixel translation tolerance as pixel fraction.
 
+    :param stol:
+      Scale tolerance for pasting
+
     :returns:
       An instance of ``ReprojectInfo`` class.
     """
+    # pylint: disable=too-many-locals
+
     pts_per_side = 5
-
-    def compute_roi(
-        src: GeoBox,
-        dst: GeoBox,
-        tr: PointTransform,
-        pts_per_side: int,
-        padding: int,
-        align: Optional[int],
-    ):
-        _XY = tr.back(unstack_xy(gbox_boundary(dst, pts_per_side)))
-        roi_src = roi_from_points(stack_xy(_XY), src.shape, padding, align=align)
-
-        if roi_is_empty(roi_src):
-            return (roi_src, np.s_[0:0, 0:0])
-
-        # project src roi back into dst and compute roi from that
-        xy = tr(unstack_xy(roi_boundary(roi_src, pts_per_side)))
-        roi_dst = roi_from_points(
-            stack_xy(xy), dst.shape, padding=0
-        )  # no need to add padding twice
-        return (roi_src, roi_dst)
 
     tr = native_pix_transform(src, dst)
 
-    if tr.linear is not None:
-        tight_ok = align in (None, 0) and padding in (0, None)
-        is_st = is_affine_st(tr.linear)
-
-        if tight_ok and is_st:
-            roi_src, roi_dst = box_overlap(src.shape, dst.shape, tr.back.linear, tol)
-        else:
-            padding = 1 if padding is None else padding
-            roi_src, roi_dst = compute_roi(src, dst, tr, 2, padding, align)
-
-        scale2 = get_scale_from_linear_transform(tr.linear)
-    else:
-        is_st = False
+    if tr.linear is None:
         padding = 1 if padding is None else padding
+        roi_src, roi_dst = _relative_rois(
+            src, dst, tr, pts_per_side=pts_per_side, padding=padding, align=align
+        )
 
-        roi_src, roi_dst = compute_roi(src, dst, tr, pts_per_side, padding, align)
-        center_pt = xy_(roi_center(roi_src)[::-1])
-        scale2 = get_scale_at_point(center_pt, tr)
+        if not roi_is_empty(roi_dst):
+            center_pt = xy_(roi_center(roi_dst)[::-1])
+            scale2 = get_scale_at_point(center_pt, tr.back)
+            scale = min(scale2.xy)
+            read_shrink = _pick_read_scale(scale)
+        else:
+            scale = 0
+            read_shrink = 1
 
-    # change scale direction to be a shrink by factor
-    scale2 = scale2.map(lambda s: 1.0 / s)
+        return ReprojectInfo(
+            roi_src=roi_src,
+            roi_dst=roi_dst,
+            scale=scale,
+            paste_ok=False,
+            read_shrink=read_shrink,
+            transform=tr,
+        )
+
+    # Same projection case
+    #
+    A = tr.back.linear  # dst->src
+    scale2 = get_scale_from_linear_transform(A)
     scale = min(scale2.xy)
+    read_shrink = _pick_read_scale(scale)
+
+    paste_ok = False
+    tight_ok = align in (None, 0) and padding in (0, None)
+
+    if tight_ok:
+        paste_ok, _ = _can_paste(A, ttol=ttol, stol=stol)
+
+    if paste_ok:
+        if read_shrink == 1:
+            A_ = snap_affine(A, ttol=ttol, stol=stol)
+            roi_src, roi_dst = box_overlap(src.shape, dst.shape, A_)
+        else:
+            # compute overlap in scaled down image, then upscale source overlap
+            _src = src.zoom_out(read_shrink)
+            A_ = snap_affine(_src.affine, ttol=ttol, stol=stol)
+            roi_src, roi_dst = box_overlap(_src.shape, dst.shape, A_)
+            roi_src = scaled_up_roi(roi_src, read_shrink)
+    else:
+        padding = 1 if padding is None else padding
+        roi_src, roi_dst = _relative_rois(
+            src, dst, tr, pts_per_side=2, padding=padding, align=align
+        )
 
     return ReprojectInfo(
         roi_src=roi_src,
         roi_dst=roi_dst,
         scale=scale,
-        scale2=scale2,
-        is_st=is_st,
+        paste_ok=paste_ok,
+        read_shrink=read_shrink,
         transform=tr,
     )
