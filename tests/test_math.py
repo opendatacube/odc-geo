@@ -1,19 +1,24 @@
+from typing import Tuple
+
 import numpy as np
 import pytest
 from affine import Affine
 
-from odc.geo import resxy_
+from odc.geo import XY, resxy_, xy_
 from odc.geo.math import (
     Bin1D,
     affine_from_axis,
     align_down,
     align_up,
+    apply_affine,
     data_resolution_and_offset,
     is_almost_int,
     maybe_int,
     maybe_zero,
     snap_scale,
+    split_translation,
 )
+from odc.geo.testutils import mkA
 
 
 def test_math_ops():
@@ -137,10 +142,51 @@ def test_bin1d_basic():
     for idx in [-3, -1, 0, 1, 2, 11, 23]:
         assert Bin1D.from_sample_bin(idx, b[idx], b.direction) == b
 
-    assert Bin1D(10) != []
+    assert Bin1D(10) != ["something"]
 
 
 def test_bin1d():
     _ii = [-3, -1, 0, 1, 2, 7]
     _check_bin(Bin1D(13.3, 23.5), _ii)
     _check_bin(Bin1D(13.3, 23.5, -1), _ii)
+
+
+def test_apply_affine():
+    A = mkA(rot=10, scale=(3, 1.3), translation=(-100, +2.3))
+    xx, yy = np.meshgrid(np.arange(13), np.arange(11))
+
+    xx_, yy_ = apply_affine(A, xx, yy)
+
+    assert xx_.shape == xx.shape
+    assert yy_.shape == xx.shape
+
+    xy_expect = [A * (x, y) for x, y in zip(xx.ravel(), yy.ravel())]
+    xy_got = list(zip(xx_.ravel(), yy_.ravel()))
+
+    np.testing.assert_array_almost_equal(xy_expect, xy_got)
+
+
+def test_split_translation():
+    def verify(
+        a: Tuple[XY[float], XY[float]],
+        b: Tuple[XY[float], XY[float]],
+    ):
+        assert a[0].xy == pytest.approx(b[0].xy)
+        assert a[1].xy == pytest.approx(b[1].xy)
+
+    def tt(
+        tx: float, ty: float, e_whole: Tuple[float, float], e_part: Tuple[float, float]
+    ):
+        expect = xy_(e_whole), xy_(e_part)
+        rr = split_translation(xy_(tx, ty))
+        verify(rr, expect)
+
+    # fmt: off
+    assert split_translation(xy_( 1,  2)) == (xy_( 1,  2), xy_(0, 0))
+    assert split_translation(xy_(-1, -2)) == (xy_(-1, -2), xy_(0, 0))
+    tt( 1.3, 2.5 , ( 1, 2), ( 0.3,  0.5 ))
+    tt( 1.1, 2.6 , ( 1, 3), ( 0.1, -0.4 ))
+    tt(-1.1, 2.8 , (-1, 3), (-0.1, -0.2 ))
+    tt(-1.9, 2.05, (-2, 2), (+0.1,  0.05))
+    tt(-1.5, 2.45, (-1, 2), (-0.5,  0.45))
+    # fmt: on
