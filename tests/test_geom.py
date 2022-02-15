@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: Apache-2.0
 import math
 import pickle
-from typing import Tuple
 
 import numpy as np
 import pytest
@@ -24,7 +23,6 @@ from odc.geo.geom import (
     multigeom,
     projected_lon,
 )
-from odc.geo.math import apply_affine, split_translation
 from odc.geo.testutils import (
     SAMPLE_WKT_WITHOUT_AUTHORITY,
     epsg3577,
@@ -32,11 +30,9 @@ from odc.geo.testutils import (
     epsg4326,
     from_fixed_point,
     gen_test_image_xy,
-    mkA,
     to_fixed_point,
     xy_from_gbox,
 )
-from odc.geo.types import XY, xy_
 
 # pylint: disable=protected-access, pointless-statement
 # pylint: disable=too-many-statements,too-many-locals,too-many-lines
@@ -731,21 +727,6 @@ def test_mid_longitude():
     ) == approx(10)
 
 
-def test_apply_affine():
-    A = mkA(rot=10, scale=(3, 1.3), translation=(-100, +2.3))
-    xx, yy = np.meshgrid(np.arange(13), np.arange(11))
-
-    xx_, yy_ = apply_affine(A, xx, yy)
-
-    assert xx_.shape == xx.shape
-    assert yy_.shape == xx.shape
-
-    xy_expect = [A * (x, y) for x, y in zip(xx.ravel(), yy.ravel())]
-    xy_got = list(zip(xx_.ravel(), yy_.ravel()))
-
-    np.testing.assert_array_almost_equal(xy_expect, xy_got)
-
-
 def test_point_transformer():
     tr = epsg3857.transformer_to_crs(epsg4326)
     tr_back = epsg4326.transformer_to_crs(epsg3857)
@@ -776,32 +757,6 @@ def test_point_transformer():
 
     assert np.isnan(x_).all()
     assert np.isnan(y_).all()
-
-
-def test_split_translation():
-    def verify(
-        a: Tuple[XY[float], XY[float]],
-        b: Tuple[XY[float], XY[float]],
-    ):
-        assert a[0].xy == pytest.approx(b[0].xy)
-        assert a[1].xy == pytest.approx(b[1].xy)
-
-    def tt(
-        tx: float, ty: float, e_whole: Tuple[float, float], e_part: Tuple[float, float]
-    ):
-        expect = xy_(e_whole), xy_(e_part)
-        rr = split_translation(xy_(tx, ty))
-        verify(rr, expect)
-
-    # fmt: off
-    assert split_translation(xy_( 1,  2)) == (xy_( 1,  2), xy_(0, 0))
-    assert split_translation(xy_(-1, -2)) == (xy_(-1, -2), xy_(0, 0))
-    tt( 1.3, 2.5 , ( 1, 2), ( 0.3,  0.5 ))
-    tt( 1.1, 2.6 , ( 1, 3), ( 0.1, -0.4 ))
-    tt(-1.1, 2.8 , (-1, 3), (-0.1, -0.2 ))
-    tt(-1.9, 2.05, (-2, 2), (+0.1,  0.05))
-    tt(-1.5, 2.45, (-1, 2), (-0.5,  0.45))
-    # fmt: on
 
 
 def test_base_internals():
