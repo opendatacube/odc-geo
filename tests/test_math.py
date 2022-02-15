@@ -15,6 +15,7 @@ from odc.geo.math import (
     is_almost_int,
     maybe_int,
     maybe_zero,
+    snap_affine,
     snap_scale,
     split_translation,
 )
@@ -190,3 +191,31 @@ def test_split_translation():
     tt(-1.9, 2.05, (-2, 2), (+0.1,  0.05))
     tt(-1.5, 2.45, (-1, 2), (-0.5,  0.45))
     # fmt: on
+
+
+def test_snap_affine():
+    A = mkA(rot=0.1)
+    assert snap_affine(A) is A
+
+    assert snap_affine(mkA(translation=(10, 20))) == mkA(translation=(10, 20))
+
+    assert snap_affine(mkA(translation=(10.1, 20.1)), ttol=0.2) == mkA(
+        translation=(10, 20)
+    )
+
+    assert snap_affine(
+        mkA(scale=(3.3, 4.2), translation=(10.1, 20.1)), ttol=0.2
+    ) == mkA(scale=(3.3, 4.2), translation=(10, 20))
+
+    assert snap_affine(
+        mkA(scale=(3 + 1e-6, 4 - 1e-6), translation=(10.1, 20.1)), ttol=0.2, stol=1e-3
+    ) == mkA(scale=(3, 4), translation=(10, 20))
+
+    assert (
+        snap_affine(
+            mkA(scale=(1 / 2 + 1e-8, 1 / 3 - 1e-8), translation=(10.1, 20.1)),
+            ttol=0.2,
+            stol=1e-3,
+        )
+        == mkA(scale=(1 / 2, 1 / 3), translation=(10, 20))
+    )
