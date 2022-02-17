@@ -68,17 +68,18 @@ odc.geo.geobox
    GeoBox
    GeoboxTiles
 
-   affine_transform_pix
    bounding_box_in_pixel_domain
+   geobox_intersection_conservative
+   geobox_union_conservative
+   scaled_down_geobox
+
+   affine_transform_pix
    flipx
    flipy
    gbox_boundary
-   geobox_intersection_conservative
-   geobox_union_conservative
    pad
    pad_wh
    rotate
-   scaled_down_geobox
    translate_pix
    zoom_out
    zoom_to
