@@ -36,7 +36,7 @@ from .types import (
     xy_,
 )
 
-# pylint: disable=invalid-name
+# pylint: disable=invalid-name,too-many-public-methods
 Coordinate = namedtuple("Coordinate", ("values", "units", "resolution"))
 
 
@@ -257,6 +257,7 @@ class GeoBox:
 
     @property
     def extent(self) -> Geometry:
+        """GeoBox footprint in native CRS."""
         if self._extent is not None:
             return self._extent
         _extent = polygon_from_transform(self._shape, self._affine, crs=self._crs)
@@ -291,19 +292,160 @@ class GeoBox:
             and self._crs == other._crs
         )
 
+    def __rmul__(self, transform: Affine) -> "GeoBox":
+        """
+        Apply affine transform on CRS side.
+
+        This has effect of transforming footprint of the source via ``transform``.
+
+        :param transform:
+           Affine matrix that shifts footprint of the source geobox.
+
+        :return:
+           :py:class:`~odc.geo.gebox.GeoBox` of the same pixel shape but
+           covering different region.
+        """
+        return GeoBox(self._shape, transform * self._affine, self._crs)
+
+    def __mul__(self, transform: Affine) -> "GeoBox":
+        """
+        Apply affine transform on pixel side.
+
+        ``X_old_pix = transform * X_new_pix``
+
+        :param transform:
+           Affine matrix mapping from new pixel coordinate space to pixel coordinate
+           space of input geobox.
+
+        :returns:
+          :py:class:`~odc.geo.gebox.GeoBox` of the same pixel shape but covering different
+          region. Pixel coordinates in the output relate to input coordinates via ``transform``.
+        """
+        return GeoBox(self._shape, self._affine * transform, self._crs)
+
+    def pad(self, padx: int, pady: MaybeInt = None) -> "GeoBox":
+        """
+        Pad geobox.
+
+        Expand GeoBox by fixed number of pixels on each side
+        """
+        # false positive for -pady, it's never None by the time it runs
+        # pylint: disable=invalid-unary-operand-type
+
+        pady = padx if pady is None else pady
+
+        ny, nx = self._shape.yx
+        A = self._affine * Affine.translation(-padx, -pady)
+        shape = (ny + pady * 2, nx + padx * 2)
+        return GeoBox(shape, A, self._crs)
+
+    def pad_wh(self, alignx: int = 16, aligny: MaybeInt = None) -> "GeoBox":
+        """
+        Possibly expand :py:class:`~odc.geo.geobox.GeoBox` by a few pixels.
+
+        Find nearest ``width``/``height`` that are multiples of the desired factor. And return a new
+        geobox that is slighly taller and/or wider covering roughly the same region. The new geobox
+        will have the same CRS and transform but possibly larger shape.
+        """
+        aligny = alignx if aligny is None else aligny
+        ny, nx = (align_up(sz, n) for sz, n in zip(self._shape.yx, (aligny, alignx)))
+
+        return GeoBox((ny, nx), self._affine, self._crs)
+
+    def zoom_out(self, factor: float) -> "GeoBox":
+        """
+        Compute :py:class:`~odc.geo.geobox.GeoBox` with changed resolution.
+
+        - ``factor > 1`` implies smaller width/height, fewer but bigger pixels
+        - ``factor < 1`` implies bigger width/height, more but smaller pixels
+
+        :returns:
+           GeoBox covering the same region but with different pixels (i.e. lower or higher resolution)
+        """
+
+        ny, nx = (max(1, math.ceil(s / factor)) for s in self.shape)
+        A = self._affine * Affine.scale(factor, factor)
+        return GeoBox((ny, nx), A, self._crs)
+
+    def zoom_to(self, shape: SomeShape) -> "GeoBox":
+        """
+        Change GeoBox shape.
+
+        :returns:
+          GeoBox covering the same region but with different number of pixels and therefore resolution.
+        """
+        shape = shape_(shape)
+        sy, sx = (N / float(n) for N, n in zip(self._shape, shape.shape))
+        A = self._affine * Affine.scale(sx, sy)
+        return GeoBox(shape, A, self._crs)
+
+    def flipy(self) -> "GeoBox":
+        """
+        Flip along Y axis.
+
+        :returns: GeoBox covering the same region but with Y-axis flipped
+        """
+        ny, _ = self._shape
+        A = Affine.translation(0, ny) * Affine.scale(1, -1)
+        return self * A
+
+    def flipx(self) -> "GeoBox":
+        """
+        Flip along X axis.
+
+        :returns: GeoBox covering the same region but with X-axis flipped
+        """
+        _, nx = self._shape
+        A = Affine.translation(nx, 0) * Affine.scale(-1, 1)
+        return self * A
+
+    def translate_pix(self, tx: float, ty: float) -> "GeoBox":
+        """
+        Shift GeoBox in pixel plane.
+
+        ``(0,0)`` of the new GeoBox will be at the same location as pixel ``(tx, ty)`` in the original
+        GeoBox.
+        """
+        return self * Affine.translation(tx, ty)
+
+    def rotate(self, deg: float) -> "GeoBox":
+        """
+        Rotate GeoBox around the center.
+
+        It's as if you stick a needle through the center of the GeoBox footprint
+        and rotate it counter clock wise by supplied number of degrees.
+
+        Note that from the pixel point of view image rotates the other way. If you have
+        source image with an arrow pointing right, and you rotate GeoBox 90 degrees,
+        in that view arrow should point down (this is assuming usual case of inverted
+        y-axis)
+        """
+        ny, nx = self._shape
+        c0 = self._affine * (nx * 0.5, ny * 0.5)
+        return Affine.rotation(deg, c0) * self
+
+    def boundary(self, pts_per_side: int = 16) -> numpy.ndarray:
+        """
+        Boundary of a :py:class:`~odc.geo.geobox.GeoBox`.
+
+        Construct a ring of points in pixel space along the edge of the geobox.
+
+        :param pts_per_side: Number of points per side, default is 16.
+
+        :return:
+          Points in pixel space along the perimeter of a GeoBox as a ``Nx2`` array
+          in pixel coordinates.
+        """
+        ny, nx = self._shape.yx
+        xx = numpy.linspace(0, nx, pts_per_side, dtype="float32")
+        yy = numpy.linspace(0, ny, pts_per_side, dtype="float32")
+
+        return polygon_path(xx, yy).T[:-1]
+
 
 def gbox_boundary(gbox: GeoBox, pts_per_side: int = 16) -> numpy.ndarray:
-    """
-    Boundary of a :py:class:`~odc.geo.geobox.GeoBox`.
-
-    :return:
-      Points in pixel space along the perimeter of a GeoBox as a 2d array.
-    """
-    ny, nx = gbox.shape
-    xx = numpy.linspace(0, nx, pts_per_side, dtype="float32")
-    yy = numpy.linspace(0, ny, pts_per_side, dtype="float32")
-
-    return polygon_path(xx, yy).T[:-1]
+    """Alias for :py:meth:`odc.geo.geobox.GeoBox.boundary`."""
+    return gbox.boundary(pts_per_side)
 
 
 def bounding_box_in_pixel_domain(
@@ -426,130 +568,48 @@ def _round_to_res(value: float, res: float) -> int:
 
 
 def flipy(gbox: GeoBox) -> GeoBox:
-    """
-    Flip along Y axis.
-
-    :returns: GeoBox covering the same region but with Y-axis flipped
-    """
-    ny, _ = gbox.shape
-    A = Affine.translation(0, ny) * Affine.scale(1, -1)
-    A = gbox.affine * A
-    return GeoBox(gbox.shape, A, gbox.crs)
+    """Alias for :py:meth:`odc.geo.geobox.flipy`."""
+    return gbox.flipy()
 
 
 def flipx(gbox: GeoBox) -> GeoBox:
-    """
-    Flip along X axis.
-
-    :returns: GeoBox covering the same region but with X-axis flipped
-    """
-    _, nx = gbox.shape
-    A = Affine.translation(nx, 0) * Affine.scale(-1, 1)
-    A = gbox.affine * A
-    return GeoBox(gbox.shape, A, gbox.crs)
+    """Alias for :py:meth:`odc.geo.geobox.flipx`."""
+    return gbox.flipx()
 
 
 def translate_pix(gbox: GeoBox, tx: float, ty: float) -> GeoBox:
-    """
-    Shift GeoBox in pixel plane.
-
-    ``(0,0)`` of the new GeoBox will be at the same location as pixel ``(tx, ty)`` in the original
-    GeoBox.
-    """
-    A = gbox.affine * Affine.translation(tx, ty)
-    return GeoBox(gbox.shape, A, gbox.crs)
+    """Alias for :py:meth:`odc.geo.geobox.GeoBox.translate_pix`."""
+    return gbox.translate_pix(tx, ty)
 
 
 def pad(gbox: GeoBox, padx: int, pady: MaybeInt = None) -> GeoBox:
-    """
-    Pad geobox.
-
-    Expand GeoBox by fixed number of pixels on each side
-    """
-    # false positive for -pady, it's never None by the time it runs
-    # pylint: disable=invalid-unary-operand-type
-
-    pady = padx if pady is None else pady
-
-    ny, nx = gbox.shape
-    A = gbox.affine * Affine.translation(-padx, -pady)
-    shape = (ny + pady * 2, nx + padx * 2)
-    return GeoBox(shape, A, gbox.crs)
+    """Alias for :py:meth:`odc.geo.geobox.GeoBox.pad`."""
+    return gbox.pad(padx, pady)
 
 
 def pad_wh(gbox: GeoBox, alignx: int = 16, aligny: MaybeInt = None) -> GeoBox:
-    """
-    Expand GeoBox such that width and height are multiples of supplied number.
-    """
-    aligny = alignx if aligny is None else aligny
-    ny, nx = (align_up(sz, n) for sz, n in zip(gbox.shape, (aligny, alignx)))
-
-    return GeoBox((ny, nx), gbox.affine, gbox.crs)
+    """Alias for :py:meth:`odc.geo.geobox.GeoBox.pad_wh`."""
+    return gbox.pad_wh(alignx, aligny)
 
 
 def zoom_out(gbox: GeoBox, factor: float) -> GeoBox:
-    """
-    Compute :py:class:`~odc.geo.geobox.GeoBox` with changed resolution.
-
-    - ``factor > 1`` implies smaller width/height, fewer but bigger pixels
-    - ``factor < 1`` implies bigger width/height, more but smaller pixels
-
-    :returns:
-       GeoBox covering the same region but with different pixels (i.e. lower or higher resolution)
-    """
-
-    ny, nx = (max(1, math.ceil(s / factor)) for s in gbox.shape)
-    A = gbox.affine * Affine.scale(factor, factor)
-    return GeoBox((ny, nx), A, gbox.crs)
+    """Alias for :py:meth:`odc.geo.geobox.GeoBox.zoom_out`."""
+    return gbox.zoom_out(factor)
 
 
 def zoom_to(gbox: GeoBox, shape: SomeShape) -> GeoBox:
-    """
-    Change GeoBox shape.
-
-    :returns:
-      GeoBox covering the same region but with different number of pixels and therefore resolution.
-    """
-    shape = shape_(shape)
-    sy, sx = (N / float(n) for N, n in zip(gbox.shape, shape.shape))
-    A = gbox.affine * Affine.scale(sx, sy)
-    return GeoBox(shape, A, gbox.crs)
+    """Alias for :py:meth:`odc.geo.geobox.GeoBox.zoom_to`."""
+    return gbox.zoom_to(shape)
 
 
 def rotate(gbox: GeoBox, deg: float) -> GeoBox:
-    """
-    Rotate GeoBox around the center.
-
-    It's as if you stick a needle through the center of the GeoBox footprint
-    and rotate it counter clock wise by supplied number of degrees.
-
-    Note that from pixel point of view image rotates the other way. If you have
-    source image with an arrow pointing right, and you rotate GeoBox 90 degree,
-    in that view arrow should point down (this is assuming usual case of inverted
-    y-axis)
-    """
-    ny, nx = gbox.shape
-    c0 = gbox.transform * (nx * 0.5, ny * 0.5)
-    A = Affine.rotation(deg, c0) * gbox.transform
-    return GeoBox(gbox.shape, A, gbox.crs)
+    """Alias for :py:meth:`odc.geo.geobox.GeoBox.`."""
+    return gbox.rotate(deg)
 
 
 def affine_transform_pix(gbox: GeoBox, transform: Affine) -> GeoBox:
-    """
-    Apply affine transform on pixel side.
-
-    :param transform:
-       Affine matrix mapping from new pixel coordinate space to pixel coordinate space of input gbox
-
-    :returns:
-      GeoBox of the same pixel shape but covering different region, pixels in the output gbox relate
-      to input geobox via ``transform``
-
-    ``X_old_pix = transform * X_new_pix``
-
-    """
-    A = gbox.affine * transform
-    return GeoBox(gbox.shape, A, gbox.crs)
+    """Alias for :py:meth:`odc.geo.geobox.GeoBox.__mul__`."""
+    return gbox * transform
 
 
 class GeoboxTiles:

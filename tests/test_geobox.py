@@ -222,9 +222,9 @@ def test_geobox():
 
 
 def test_gbox_boundary():
-    xx = np.zeros((2, 6))
+    geobox = GeoBox(wh_(6, 2), Affine.translation(0, 0), epsg4326)
 
-    bb = gbox_boundary(xx, 3)
+    bb = gbox_boundary(geobox, 3)
 
     assert bb.shape == (4 + (3 - 2) * 4, 2)
     assert set(bb.T[0]) == {0.0, 3.0, 6.0}
