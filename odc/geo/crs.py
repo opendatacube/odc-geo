@@ -191,7 +191,7 @@ class CRS:
         return self._str
 
     def __hash__(self) -> int:
-        return hash(self.to_wkt())
+        return hash(self._str)
 
     def __repr__(self) -> str:
         return f"CRS('{self._str}')"
