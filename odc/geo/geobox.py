@@ -64,9 +64,6 @@ class GeoBox:
     __slots__ = ("_shape", "_affine", "_crs", "_extent")
 
     def __init__(self, shape: SomeShape, affine: Affine, crs: MaybeCRS):
-        assert is_affine_st(
-            affine
-        ), "Only axis-aligned geoboxes are currently supported"
         shape = shape_(shape)
 
         self._shape = shape
@@ -237,9 +234,15 @@ class GeoBox:
         """
         Query coordinates.
 
+        This method only works with axis-aligned boxes. It will raise :py:class:`ValueError` if called
+        on non-axis aligned :py:class:`~odc.geo.geobox.GeoBox`.
+
+        :raises: :py:class:`ValueError` if not axis aligned.
+
         :return:
           Mapping from coordinate name to :py:class:`~odc.geo.geobox.Coordinate`.
         """
+        self._confirm_axis_aligned("Only axis aligned GeoBox can do this.")
         rx, _, tx, _, ry, ty, *_ = self._affine
         ny, nx = self._shape
 
@@ -441,6 +444,13 @@ class GeoBox:
         yy = numpy.linspace(0, ny, pts_per_side, dtype="float32")
 
         return polygon_path(xx, yy).T[:-1]
+
+    def _confirm_axis_aligned(self, raise_error: Optional[str] = None) -> bool:
+        if is_affine_st(self._affine):
+            return True
+        if raise_error is not None:
+            raise ValueError(raise_error)
+        return False
 
 
 def gbox_boundary(gbox: GeoBox, pts_per_side: int = 16) -> numpy.ndarray:
