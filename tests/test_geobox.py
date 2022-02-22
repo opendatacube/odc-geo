@@ -16,10 +16,10 @@ from odc.geo.geobox import (
     geobox_union_conservative,
     scaled_down_geobox,
 )
-from odc.geo.math import apply_affine
+from odc.geo.math import apply_affine, is_affine_st
 from odc.geo.testutils import epsg3577, epsg3857, epsg4326, mkA, xy_from_gbox, xy_norm
 
-# pylint: disable=pointless-statement,too-many-statements
+# pylint: disable=pointless-statement,too-many-statements,protected-access
 
 
 def test_geobox_simple():
@@ -253,3 +253,15 @@ def test_geobox_scale_down():
         assert gbox_.shape == (1, 1)
         assert gbox_.crs is crs
         assert gbox_.extent.contains(gbox.extent)
+
+
+def test_non_st():
+    A = mkA(rot=10, translation=(-10, 20), shear=0.3)
+    assert is_affine_st(A) is False
+
+    gbox = GeoBox((1, 1), A, "epsg:3857")
+
+    assert gbox._confirm_axis_aligned() is False
+
+    with pytest.raises(ValueError):
+        assert gbox.coordinates
