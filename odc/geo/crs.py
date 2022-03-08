@@ -36,7 +36,7 @@ def _make_crs(crs: Union[str, _CRS]) -> Tuple[_CRS, str, Optional[int]]:
         crs_str = f"EPSG:{epsg}"
     else:
         crs_str = crs.to_wkt()
-    return (crs, crs_str, crs.to_epsg())
+    return (crs, crs_str, epsg)
 
 
 def _make_crs_transform_key(from_crs, to_crs, always_xy):
