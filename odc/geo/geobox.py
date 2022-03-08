@@ -278,12 +278,10 @@ class GeoBox:
     dims = dimensions
 
     def __str__(self):
-        return f"GeoBox({self.geographic_extent})"
+        return self.__repr__()
 
     def __repr__(self):
-        return (
-            f"GeoBox(({self._shape.y, self._shape.x}), {self._affine!r}, {self._crs})"
-        )
+        return f"GeoBox({self._shape.yx!r}, {self._affine!r}, {self._crs!r})"
 
     def __eq__(self, other):
         if not isinstance(other, GeoBox):
