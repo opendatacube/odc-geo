@@ -211,11 +211,8 @@ def test_snap_affine():
         mkA(scale=(3 + 1e-6, 4 - 1e-6), translation=(10.1, 20.1)), ttol=0.2, stol=1e-3
     ) == mkA(scale=(3, 4), translation=(10, 20))
 
-    assert (
-        snap_affine(
-            mkA(scale=(1 / 2 + 1e-8, 1 / 3 - 1e-8), translation=(10.1, 20.1)),
-            ttol=0.2,
-            stol=1e-3,
-        )
-        == mkA(scale=(1 / 2, 1 / 3), translation=(10, 20))
-    )
+    assert snap_affine(
+        mkA(scale=(1 / 2 + 1e-8, 1 / 3 - 1e-8), translation=(10.1, 20.1)),
+        ttol=0.2,
+        stol=1e-3,
+    ) == mkA(scale=(1 / 2, 1 / 3), translation=(10, 20))

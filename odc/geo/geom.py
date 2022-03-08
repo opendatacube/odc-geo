@@ -165,7 +165,7 @@ def densify(coords: CoordList, resolution: float) -> CoordList:
     """
     Adds points so they are at most `resolution` units apart.
     """
-    d2 = resolution ** 2
+    d2 = resolution**2
 
     def short_enough(p1, p2):
         return (p1[0] ** 2 + p2[0] ** 2) < d2

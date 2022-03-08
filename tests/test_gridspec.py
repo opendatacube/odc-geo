@@ -109,15 +109,15 @@ def test_geojson():
     gjson = gs.geojson()
 
     assert gjson["type"] == "FeatureCollection"
-    assert len(gjson["features"]) == (2 ** 3) ** 2
+    assert len(gjson["features"]) == (2**3) ** 2
 
     gjson = gs.geojson(geopolygon=gs.crs.valid_region.buffer(-0.1))
-    assert len(gjson["features"]) == (2 ** 3) ** 2
+    assert len(gjson["features"]) == (2**3) ** 2
 
     gjson = gs.geojson(
         bbox=gs.crs.valid_region.buffer(-0.1).to_crs("epsg:3857").boundingbox
     )
-    assert len(gjson["features"]) == (2 ** 3) ** 2
+    assert len(gjson["features"]) == (2**3) ** 2
 
     crs = CRS(SAMPLE_WKT_WITHOUT_AUTHORITY)
     gs = GridSpec(crs, (10, 10), resolution=6_378_137 * 2 * math.pi)
