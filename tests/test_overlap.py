@@ -123,6 +123,7 @@ def test_pix_transform():
 
     np.testing.assert_almost_equal(stack_xy(pts_src), stack_xy(pts_src_))
     assert tr.linear is None
+    assert repr(tr).startswith("GbxPointTransform(")
 
     # check identity transform
     tr = native_pix_transform(src, src)
@@ -136,6 +137,7 @@ def test_pix_transform():
     assert tr.linear is not None
     assert tr.back.linear is not None
     assert tr.back.back is tr
+    assert repr(tr).startswith("LinearPointTransform(")
 
     # check scale only change
     tr = native_pix_transform(src, scaled_down_geobox(src, 2))
