@@ -9,7 +9,9 @@ import numpy as np
 from affine import Affine
 
 from odc.geo import CRS, geom, resyx_, wh_, xy_
-from odc.geo._overlap import (
+from odc.geo.geobox import GeoBox, scaled_down_geobox
+from odc.geo.math import is_affine_st
+from odc.geo.overlap import (
     LinearPointTransform,
     ReprojectInfo,
     _can_paste,
@@ -21,8 +23,6 @@ from odc.geo._overlap import (
     native_pix_transform,
     stack_xy,
 )
-from odc.geo.geobox import GeoBox, scaled_down_geobox
-from odc.geo.math import is_affine_st
 from odc.geo.roi import (
     roi_is_empty,
     roi_normalise,
