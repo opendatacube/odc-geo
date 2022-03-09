@@ -69,6 +69,9 @@ class LinearPointTransform:
         A = self.A
         return [xy_(A * pt.xy) for pt in pts]
 
+    def __repr__(self) -> str:
+        return f"LinearPointTransform(\n  {self.A!r})"
+
 
 class GbxPointTransform:
     """
@@ -118,6 +121,9 @@ class GbxPointTransform:
         yy = [pt[1] for pt in pts]
         xx, yy = self._tr(xx, yy)
         return [xy_(B * (x, y)) for x, y in zip(xx, yy)]
+
+    def __repr__(self) -> str:
+        return f"GbxPointTransform({self._src!r}, {self._dst!r})"
 
 
 @dataclass
