@@ -725,15 +725,16 @@ def polygon(outer, crs: MaybeCRS, *inners) -> Geometry:
     return Geometry({"type": "Polygon", "coordinates": (outer,) + inners}, crs=crs)
 
 
-def multipolygon(coords: List[CoordList], crs: MaybeCRS) -> Geometry:
+def multipolygon(coords: List[List[CoordList]], crs: MaybeCRS) -> Geometry:
     """
     Create a 2D MultiPolygon.
 
-    :param coords: list of lists of x,y coordinate tuples
+    :param coords:
+       List of polygons. Where each "polygon" is itself a list of "rings". Each "ring" is a list of
+       ``(x, y)`` tuples. First ring is an outer layer of the polygon, the rest, if present, define
+       holes in the outer layer.
     """
-    return Geometry(
-        {"type": "MultiPolygon", "coordinates": [[poly] for poly in coords]}, crs=crs
-    )
+    return Geometry({"type": "MultiPolygon", "coordinates": coords}, crs=crs)
 
 
 def box(
