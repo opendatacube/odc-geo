@@ -275,7 +275,7 @@ def test_multigeom():
     assert bb.crs is b1.crs
     assert len(list(bb)) == 2
 
-    assert geom.multipolygon([b1.boundary.coords, b2.boundary.coords], b1.crs) == bb
+    assert geom.multipolygon([[b1.boundary.coords], [b2.boundary.coords]], b1.crs) == bb
 
     g1 = geom.line([p1, p2], None)
     g2 = geom.line([p3, p4], None)
