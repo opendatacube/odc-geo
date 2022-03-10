@@ -17,7 +17,7 @@ dependencies:
   ## linting tools
   - autopep8
   - autoflake
-  - black
+  - black >=22.1.0
   - isort
   - mock
   - mypy
