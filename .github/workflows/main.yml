@@ -205,6 +205,7 @@ jobs:
           echo "Running Tests"
           pytest --cov=odc \
           --cov-report=html \
+          --cov-report=term \
           --cov-report=xml:coverage.xml \
           --timeout=30 \
           tests
