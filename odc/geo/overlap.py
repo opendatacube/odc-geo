@@ -599,7 +599,7 @@ def compute_reproject_roi(
         else:
             # compute overlap in scaled down image, then upscale source overlap
             _src = src.zoom_out(read_shrink)
-            A_ = snap_affine(_src.affine, ttol=ttol, stol=stol)
+            A_ = snap_affine(Affine.scale(1 / read_shrink) * A, ttol=ttol, stol=stol)
             roi_src, roi_dst = box_overlap(_src.shape, dst.shape, A_)
             roi_src = scaled_up_roi(roi_src, read_shrink)
     else:
