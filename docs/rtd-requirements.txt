@@ -1,0 +1,12 @@
+# odc-geo dependencies
+pyproj
+shapely
+rasterio
+xarray
+numpy
+cachetools
+
+## for docs
+sphinx
+sphinx_rtd_theme
+sphinx-autodoc-typehints
