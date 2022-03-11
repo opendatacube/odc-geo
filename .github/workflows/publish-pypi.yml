@@ -12,7 +12,7 @@ jobs:
   publish-pypi:
     if: |
         github.repository == 'opendatacube/odc-geo'
-        && github.event.workflow_run.conclusion == 'success'
+        && (github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch')
 
     runs-on: ubuntu-latest
 
