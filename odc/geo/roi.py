@@ -52,7 +52,7 @@ ROI = Tuple[SomeSlice, SomeSlice]
 """2d slice into an image plane."""
 
 NormalizedROI = Tuple[NormalizedSlice, NormalizedSlice]
-"""Noramlized 2d slice into an image plane."""
+"""Normalized 2d slice into an image plane."""
 
 
 class WindowFromSlice:
