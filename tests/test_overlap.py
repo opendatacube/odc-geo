@@ -193,6 +193,20 @@ def test_compute_reproject_roi():
     assert roi_shape(rr.roi_src) == roi_shape(rr.roi_dst)
     assert roi_shape(rr.roi_dst) == src[roi_].shape
 
+    # check pasteable zoom_out
+    dst = src.zoom_out(2)
+    rr = compute_reproject_roi(src, dst)
+    assert rr.paste_ok is True
+    assert rr.read_shrink == 2
+    assert roi_shape(rr.roi_src) == src.shape
+    assert roi_shape(rr.roi_dst) == dst.shape
+
+    # check non-pasteable zoom_out
+    dst = src[1:, :].zoom_out(2)
+    rr = compute_reproject_roi(src, dst)
+    assert rr.paste_ok is False
+    assert rr.read_shrink == 2
+
 
 def test_compute_reproject_roi_paste():
     src = GeoBox(
