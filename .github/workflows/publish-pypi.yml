@@ -5,7 +5,7 @@ on:
   workflow_run:
     workflows: ["Run Code Checks"]
     tags:
-      - "v*"
+      - "v.*"
     types:
       - completed
 
