@@ -4,17 +4,17 @@ on:
   workflow_dispatch:
   workflow_run:
     workflows: ["Run Code Checks"]
-    tags:
-      - "v.*"
+    branches: ["develop", "fix-pypi", ".*"]
     types:
       - completed
 
 jobs:
   publish-pypi:
     if: |
-      github.repository == 'opendatacube/odc-geo'
-      && (  github.event_name == 'workflow_dispatch'
-         || github.event.workflow_run.conclusion == 'success')
+      github.event_name == 'workflow_dispatch'
+      ||(  github.event.workflow_run.conclusion == 'success'
+        && github.ref_type == 'tag'
+        && github.repository == 'opendatacube/odc-geo')
 
     runs-on: ubuntu-latest
 
