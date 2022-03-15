@@ -4,7 +4,6 @@ on:
   workflow_dispatch:
   workflow_run:
     workflows: ["Run Code Checks"]
-    branches: ["develop", "fix-pypi", ".*"]
     types:
       - completed
 
@@ -13,7 +12,6 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch'
       ||(  github.event.workflow_run.conclusion == 'success'
-        && github.ref_type == 'tag'
         && github.repository == 'opendatacube/odc-geo')
 
     runs-on: ubuntu-latest
@@ -42,6 +40,7 @@ jobs:
           python -m pip freeze
 
       - name: Upload to PyPI
+        if: github.event_name == 'workflow_dispatch' || github.ref_type == 'tag'
         env:
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
           TWINE_USERNAME: __token__
