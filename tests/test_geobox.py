@@ -211,6 +211,9 @@ def test_geobox():
     assert (gbox[:3, :4] & gbox[3:, 4:]).is_empty()
     assert (gbox[:3, :4] & gbox[30:, 40:]).is_empty()
 
+    assert gbox[:3, :7].center_pixel == gbox[1, 3]
+    assert gbox[:2, :4].center_pixel == gbox[1, 2]
+
     with pytest.raises(ValueError):
         geobox_intersection_conservative([])
 
