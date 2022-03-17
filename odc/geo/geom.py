@@ -285,8 +285,8 @@ class Geometry:
     def __sub__(self, other: "Geometry") -> "Geometry":
         return self.__sub__(other)
 
-    def svg(self) -> str:
-        return self.geom.svg()
+    def svg(self, *args, **kw) -> str:
+        return self.geom.svg(*args, *kw)
 
     def _repr_svg_(self) -> str:
         return self.geom._repr_svg_()
