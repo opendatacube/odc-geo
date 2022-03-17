@@ -188,6 +188,9 @@ def test_geobox():
 
     assert gbox[0].shape == (1, gbox.width)
     assert gbox[:3].shape == (3, gbox.width)
+    assert gbox[0, 0] == gbox[:1, :1]
+    assert gbox[0, 0:1] == gbox[:1, :1]
+    assert gbox[0:1, 1] == gbox[:1, 1:2]
 
     with pytest.raises(NotImplementedError):
         gbox[::2, :]
