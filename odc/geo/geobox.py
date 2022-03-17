@@ -142,10 +142,11 @@ class GeoBox:
         if len(roi) > 2:
             raise ValueError("Expect 2d slice")
 
+        roi = roi_normalise(roi, self._shape.shape)
+
         if not all(s.step is None or s.step == 1 for s in roi):
             raise NotImplementedError("scaling not implemented, yet")
 
-        roi = roi_normalise(roi, self._shape.shape)
         ty, tx = (s.start for s in roi)
         ny, nx = roi_shape(roi)
 
