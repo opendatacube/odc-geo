@@ -451,6 +451,13 @@ class GeoBox:
             raise ValueError(raise_error)
         return False
 
+    @property
+    def center_pixel(self) -> "GeoBox":
+        """
+        GeoBox of a center pixel.
+        """
+        return self[self.shape.map(lambda x: x // 2).yx]
+
 
 def gbox_boundary(gbox: GeoBox, pts_per_side: int = 16) -> numpy.ndarray:
     """Alias for :py:meth:`odc.geo.geobox.GeoBox.boundary`."""
