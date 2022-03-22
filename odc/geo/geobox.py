@@ -51,6 +51,14 @@ def _align_pix(left: float, right: float, res: float, off: float) -> Tuple[float
     return val, width
 
 
+def _align_pix_tight(left: float, right: float, res: float) -> Tuple[float, int]:
+    if res < 0:
+        res = -res
+        return right, max(1, int(math.ceil((right - left - 0.1 * res) / res)))
+
+    return left, max(1, int(math.ceil((right - left - 0.1 * res) / res)))
+
+
 class GeoBox:
     """
     Defines the location and resolution of a rectangular grid of data,
@@ -70,6 +78,65 @@ class GeoBox:
         self._affine = affine
         self._crs = norm_crs(crs)
         self._extent: Optional[Geometry] = None
+
+    @staticmethod
+    def from_bbox(
+        bbox: Union[BoundingBox, Tuple[float, float, float, float]],
+        crs: MaybeCRS = None,
+        *,
+        tight: bool = False,
+        shape: Optional[SomeShape] = None,
+        resolution: Optional[SomeResolution] = None,
+        align: Optional[XY[float]] = None,
+    ) -> "GeoBox":
+        """
+        Construct :py:class:`~odc.geo.geobox.GeoBox` from a bounding box.
+
+        :param bbox: Bounding box in CRS units, lonlat is assumed when ``crs`` is not supplied
+        :param crs: CRS of the bounding box (defaults to EPSG:4326)
+        :param tight: Supplying ``tight=True`` turns off pixel snapping.
+        :param shape: Span that many pixels.
+        :param resolution: Use specified resolution
+        :param align:
+        :return: :py:class:`~odc.geo.geobox.GeoBox` that covers supplied bounding box.
+        """
+
+        if align is None and tight is False:
+            align = xy_(0, 0)
+        if crs is None:
+            crs = "EPSG:4326"
+
+        if not isinstance(bbox, BoundingBox):
+            bbox = BoundingBox(*bbox)
+
+        if resolution is not None:
+            rx, ry = res_(resolution).xy
+            if align is None:
+                offx, nx = _align_pix_tight(bbox.left, bbox.right, rx)
+                offy, ny = _align_pix_tight(bbox.bottom, bbox.top, ry)
+            else:
+                offx, nx = _align_pix(bbox.left, bbox.right, rx, align.x)
+                offy, ny = _align_pix(bbox.bottom, bbox.top, ry, align.y)
+
+            affine = Affine.translation(offx, offy) * Affine.scale(rx, ry)
+            return GeoBox((ny, nx), crs=crs, affine=affine)
+
+        if shape is None:
+            raise ValueError("Must supply shape or resolution")
+
+        shape = shape_(shape)
+        nx, ny = shape.wh
+        rx = bbox.span_x / nx
+        ry = -bbox.span_y / ny
+
+        if align is None:
+            offx, offy = bbox.left, bbox.top
+        else:
+            offx, _ = _align_pix(bbox.left, bbox.right, rx, align.x)
+            offy, _ = _align_pix(bbox.bottom, bbox.top, ry, align.y)
+
+        affine = Affine.translation(offx, offy) * Affine.scale(rx, ry)
+        return GeoBox((ny, nx), crs=crs, affine=affine)
 
     @staticmethod
     def from_geopolygon(
@@ -104,12 +171,9 @@ class GeoBox:
         else:
             geopolygon = geopolygon.to_crs(crs)
 
-        bbox = geopolygon.boundingbox
-        rx, ry = resolution.xy
-        offx, nx = _align_pix(bbox.left, bbox.right, rx, align.x)
-        offy, ny = _align_pix(bbox.bottom, bbox.top, ry, align.y)
-        affine = Affine.translation(offx, offy) * Affine.scale(rx, ry)
-        return GeoBox((ny, nx), crs=crs, affine=affine)
+        return GeoBox.from_bbox(
+            geopolygon.boundingbox, crs, resolution=resolution, align=align
+        )
 
     def buffered(self, xbuff: float, ybuff: Optional[float] = None) -> "GeoBox":
         """
