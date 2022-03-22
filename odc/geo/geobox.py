@@ -5,7 +5,7 @@
 import itertools
 import math
 from collections import OrderedDict, namedtuple
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Literal, Optional, Tuple, Union
 
 import numpy
 from affine import Affine
@@ -16,6 +16,7 @@ from .geom import (
     Geometry,
     bbox_intersection,
     bbox_union,
+    line,
     polygon_from_transform,
 )
 from .math import clamp, is_affine_st, is_almost_int
@@ -35,6 +36,8 @@ from .types import (
     shape_,
     xy_,
 )
+
+OutlineMode = Union[Literal["native"], Literal["pixel"], Literal["geo"]]
 
 # pylint: disable=invalid-name,too-many-public-methods
 Coordinate = namedtuple("Coordinate", ("values", "units", "resolution"))
@@ -521,6 +524,57 @@ class GeoBox:
         GeoBox of a center pixel.
         """
         return self[self.shape.map(lambda x: x // 2).yx]
+
+    def svg(self, scale_factor: float = 1.0, mode: OutlineMode = "geo") -> str:
+        """
+        Produce SVG paths.
+
+        :param mode: One of pixel, native, geo (default is geo)
+        :return: SVG path
+        """
+        return self.outline(mode).svg(scale_factor)
+
+    def outline(self, mode: OutlineMode = "native", notch: float = 0.1) -> Geometry:
+        """
+        Produce Line Geometry around perimeter.
+
+        .. code-block:: txt
+
+             +---+-------------+
+             |   |             |
+             +---+             |
+             |                 |
+             |                 |
+             +-----------------+
+        """
+
+        assert notch < 1
+        w, h = self._shape.wh
+        nn = min(notch * max(w, h), w, h)
+        pix = line(
+            [
+                (0, nn),
+                (0, 0),
+                (nn, 0),
+                (w, 0),
+                (w, h),
+                (0, h),
+                (0, nn),
+                (nn, nn),
+                (nn, 0),
+            ],
+            self._crs,
+        )
+        if mode == "pixel":
+            return pix
+        if mode == "native":
+            return self._affine * pix
+
+        # about 100 pts per side
+        bbox = self.extent.boundingbox
+        res = max(bbox.span_x, bbox.span_y) / 100
+
+        return (self.affine * pix).to_crs("EPSG:4326", resolution=res)
 
 
 def gbox_boundary(gbox: GeoBox, pts_per_side: int = 16) -> numpy.ndarray:
