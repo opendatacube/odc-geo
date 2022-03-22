@@ -292,3 +292,19 @@ def test_from_bbox():
     # one of resolution= or shape= must be supplied
     with pytest.raises(ValueError):
         _ = GeoBox.from_bbox(bbox)
+
+
+def test_outline():
+    gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
+    assert gbox.outline() == gbox.outline("native")
+    assert gbox.outline().crs == gbox.crs
+    assert gbox.outline("geo").crs == "epsg:4326"
+    assert gbox.outline("pixel").boundingbox == (0, 0, 200, 100)
+
+
+def test_svg():
+    # smoke test only
+    gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
+    assert isinstance(gbox.svg(), str)
+    assert len(gbox.svg()) > 0
+    assert gbox.svg(10) != gbox.svg(1)
