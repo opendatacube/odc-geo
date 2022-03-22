@@ -559,6 +559,17 @@ class Geometry:
     def __setstate__(self, state):
         self.__init__(**state)
 
+    def __rmul__(self, A: Affine) -> "Geometry":
+        """
+        Map geometry points through linear transform ``A*g``.
+        """
+
+        def _tr(x, y):
+            _xy = [A * xy for xy in zip(x, y)]
+            return [x for x, _ in _xy], [y for _, y in _xy]
+
+        return self.transform(_tr)
+
 
 def common_crs(geoms: Iterable[Geometry]) -> Optional[CRS]:
     """
