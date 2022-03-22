@@ -271,3 +271,24 @@ def test_non_st():
 
     with pytest.raises(ValueError):
         assert gbox.coordinates
+
+
+def test_from_bbox():
+    bbox = (1, 13, 17, 37)
+    shape = (23, 47)
+    gbox = GeoBox.from_bbox(bbox, tight=True, shape=shape)
+    assert gbox.shape == shape
+    assert gbox.crs == "epsg:4326"
+    assert gbox.extent.boundingbox == bbox
+    assert gbox.resolution.y < 0
+
+    assert (
+        GeoBox.from_bbox(bbox, gbox.crs, tight=True, resolution=gbox.resolution) == gbox
+    )
+
+    assert GeoBox.from_bbox(bbox, shape=shape, tight=False) != gbox
+    assert GeoBox.from_bbox(bbox, resolution=gbox.resolution, tight=False) != gbox
+
+    # one of resolution= or shape= must be supplied
+    with pytest.raises(ValueError):
+        _ = GeoBox.from_bbox(bbox)
