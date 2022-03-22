@@ -28,11 +28,9 @@ Using pip
 Using Conda
 ***********
 
-It's not on ``conda-forge`` yet.
-
 .. code-block:: bash
 
-   conda install -c kirill-odc odc-geo
+   conda install -c conda-forge odc-geo
 
 
 .. _rioxarray: https://corteva.github.io/rioxarray/stable/
