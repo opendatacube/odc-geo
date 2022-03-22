@@ -867,3 +867,10 @@ def test_lonalt_bounds_more_than_180():
 
     assert geom.lonlat_bounds(poly, "quick") == approx((-150, -30, 150, 30))
     assert geom.lonlat_bounds(poly, "safe") == approx((-150, -30, 150, 30))
+
+
+def test_mul_affine():
+    g = geom.point(1, 2, epsg4326)
+
+    assert Affine.translation(10, 100) * g == geom.point(11, 102, epsg4326)
+    assert Affine.scale(10) * g == geom.point(10, 20, epsg4326)
