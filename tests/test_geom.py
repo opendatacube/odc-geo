@@ -871,6 +871,13 @@ def test_lonalt_bounds_more_than_180():
 
 def test_mul_affine():
     g = geom.point(1, 2, epsg4326)
+    x10 = Affine.scale(10)
 
     assert Affine.translation(10, 100) * g == geom.point(11, 102, epsg4326)
-    assert Affine.scale(10) * g == geom.point(10, 20, epsg4326)
+    assert x10 * g == geom.point(10, 20, epsg4326)
+    assert x10 * g == g.transform(x10)
+
+    mg = geom.multigeom([g, g, g])
+    assert mg.is_multi
+    assert mg.transform(x10).is_multi
+    assert x10 * mg == mg.transform(x10)
