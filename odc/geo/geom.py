@@ -422,7 +422,17 @@ class Geometry:
         may be iterable types like lists or arrays or single values. The output shall be of the same
         type: scalars in, scalars out; lists in, lists out.
         """
-        return Geometry(ops.transform(func, self.geom), self.crs)
+        if isinstance(func, Affine):
+
+            def _tr(A, x, y):
+                _xy = [A * xy for xy in zip(x, y)]
+                return [x for x, _ in _xy], [y for _, y in _xy]
+
+            _geom = ops.transform(functools.partial(_tr, func), self.geom)
+        else:
+            _geom = ops.transform(func, self.geom)
+
+        return Geometry(_geom, self.crs)
 
     def _to_crs(self, crs: CRS) -> "Geometry":
         assert self.crs is not None
@@ -559,16 +569,17 @@ class Geometry:
     def __setstate__(self, state):
         self.__init__(**state)
 
+    @property
+    def is_multi(self) -> bool:
+        """True for multi-geometry types."""
+        t = self.type
+        return t.startswith("Multi") or t == "GeometryCollection"
+
     def __rmul__(self, A: Affine) -> "Geometry":
         """
         Map geometry points through linear transform ``A*g``.
         """
-
-        def _tr(x, y):
-            _xy = [A * xy for xy in zip(x, y)]
-            return [x for x, _ in _xy], [y for _, y in _xy]
-
-        return self.transform(_tr)
+        return self.transform(A)
 
 
 def common_crs(geoms: Iterable[Geometry]) -> Optional[CRS]:
