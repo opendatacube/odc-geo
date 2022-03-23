@@ -304,6 +304,10 @@ class Geometry:
         return self.geom.is_valid
 
     @property
+    def is_ring(self) -> bool:
+        return self.geom.is_ring
+
+    @property
     def boundary(self) -> "Geometry":
         return Geometry(self.geom.boundary, self.crs)
 
@@ -580,6 +584,33 @@ class Geometry:
         Map geometry points through linear transform ``A*g``.
         """
         return self.transform(A)
+
+    def svg_path(self, ndecimal: int = 6) -> str:
+        """
+        Produce SVG path text.
+
+        This should work for polygons/rings/lines, doesn't really
+        makes sense for points.
+
+        Example usage: ``f'<path d="{g.svg_path(0)}" ... />'``
+        """
+
+        def render_ring(g, close):
+            return (
+                "M"
+                + "L".join(f"{x:.{ndecimal}f},{y:.{ndecimal}f}" for x, y in g.coords)
+                + ("z" if close else "")
+            )
+
+        if self.is_multi:
+            return "".join([g.svg_path(ndecimal) for g in self])
+
+        if self.type == "Polygon":
+            return "".join(
+                [render_ring(g, close=True) for g in [self.exterior, *self.interiors]]
+            )
+
+        return render_ring(self, close=self.is_ring)
 
 
 def common_crs(geoms: Iterable[Geometry]) -> Optional[CRS]:
