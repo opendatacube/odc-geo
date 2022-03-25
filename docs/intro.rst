@@ -12,6 +12,14 @@ metadata are implemented. Of particular importance is :py:class:`~odc.geo.geobox
 abstraction for a geo-registered bounded pixel plane where a linear mapping from pixel coordinates
 to the real world is defined.
 
+.. jupyter-execute::
+
+   from odc.geo.geobox import GeoBox
+   GeoBox.from_bbox(
+      (-2_000_000, -5_000_000,
+        2_250_000, -1_000_000),
+      "epsg:3577", resolution=1000)
+
 To make working with geo-registered raster data easier an integration with xarray_ is provided.
 Importing ``odc.geo.xr`` enables ``.odc.`` accessor on every :py:class:`xarray.Dataset` and
 :py:class:`xarray.DataArray` that exposes geospatial information of the raster loaded with `Open
@@ -19,11 +27,6 @@ Datacube`_ or rioxarray_. Methods for attaching geospatial information to xarray
 way are also provided. Geospatial information attached in this way survives most operations you
 might do on the data: basic mathematical operations, type conversions, cropping, serialization to
 most formats like zarr, netcdf, GeoTIFF.
-
-.. image:: _static/intro.svg
-   :alt: Map with GeoBoxes
-   :width: 256
-
 
 Installation
 ############
