@@ -5,6 +5,7 @@
 import itertools
 import math
 from collections import OrderedDict, namedtuple
+from textwrap import dedent
 from typing import Dict, Iterable, List, Literal, Optional, Tuple, Union
 
 import numpy
@@ -40,9 +41,11 @@ from .types import (
     xy_,
 )
 
-OutlineMode = Union[Literal["native"], Literal["pixel"], Literal["geo"]]
+OutlineMode = Union[
+    Literal["native"], Literal["pixel"], Literal["geo"], Literal["auto"]
+]
 
-# pylint: disable=invalid-name,too-many-public-methods
+# pylint: disable=invalid-name,too-many-public-methods,too-many-lines
 Coordinate = namedtuple("Coordinate", ("values", "units", "resolution"))
 
 
@@ -539,7 +542,7 @@ class GeoBox:
     def svg(
         self,
         scale_factor: float = 1.0,
-        mode: OutlineMode = "geo",
+        mode: OutlineMode = "auto",
         notch: float = 0.0,
         grid_stroke: str = "pink",
     ) -> str:
@@ -549,6 +552,9 @@ class GeoBox:
         :param mode: One of pixel, native, geo (default is geo)
         :return: SVG path
         """
+        if mode == "auto":
+            mode = "native" if self._crs is None else "geo"
+
         grids = self.grid_lines(mode=mode)
         outline = self.outline(mode, notch=notch)
 
@@ -644,10 +650,91 @@ class GeoBox:
         pad_deg = max(bbox.span_x, bbox.span_y) * pad_fraction
         return bbox.buffered(pad_deg)
 
-    def _repr_svg_(self):
-        from .ui import svg_base_map  # pylint: disable=import-outside-toplevel
+    def _render_svg(self, sz=360):
+        # pylint: disable=import-outside-toplevel
+        from .ui import make_svg, svg_base_map
 
-        return svg_base_map(self, bbox=self._display_bbox())
+        if self._crs is None:
+            bbox = self.extent.boundingbox
+            margin = 0.1 * max(bbox.span_x, bbox.span_y)
+            bbox = bbox.buffered(margin)
+            return make_svg(
+                self,
+                bbox=bbox,
+                sz=sz,
+            )
+
+        return svg_base_map(self, bbox=self._display_bbox(), sz=sz)
+
+    def _repr_svg_(self):
+        return self._render_svg()
+
+    def _repr_html_(self):
+        # pylint: disable=import-outside-toplevel,too-many-locals
+        from .data import gbox_css
+        from .ui import pick_grid_step, svg_base_map
+
+        unit_remaps = {"metre": "m", "meter": "m"}
+
+        W, H = self._shape.wh
+        grid_step = pick_grid_step(max(W, H))
+        svg_zoomed_txt = self._render_svg(sz=320)
+
+        crs = self._crs
+        if crs is None:
+            epsg = "not set"
+            wkt = "not set"
+            units = ""
+            svg_global_txt = ""
+        else:
+            epsg = "undefined" if crs.epsg is None else f"{crs.epsg:d}"
+            wkt = crs.to_wkt(pretty=True).replace("\n", "<br/>").replace(" ", "&nbsp;")
+            units = crs.units[0]
+            svg_global_txt = svg_base_map(
+                sz=200, target=self.geographic_extent.centroid.coords[0]
+            )
+
+        units = unit_remaps.get(units, units)
+
+        pix_sz = max(*self.resolution.map(abs).xy)
+
+        info = [
+            ("Dimensions", f"{W:,d}x{H:,d}"),
+            ("EPSG", f"{epsg}"),
+            ("Resolution", f"{pix_sz:g}{units}"),
+            ("Cell", f"{grid_step:,d}px"),
+        ]
+
+        info_html = "\n".join(
+            [
+                (
+                    f'<div class="row"><div class="column">{hdr}</div>'
+                    f'<div class="column value">{val}</div></div>'
+                )
+                for hdr, val in info
+            ]
+        )
+
+        return dedent(
+            f"""\
+        <style>{gbox_css()}</style>
+        <div class="gbox-info">
+        <h4>GeoBox</h4>
+        <div class="row">
+            <div class="column">
+                <div class="info-box">
+                    {info_html}
+                    <div>{svg_global_txt}</div>
+                </div>
+            </div>
+            <div class="column svg-zoomed">{svg_zoomed_txt}</div>
+        </div>
+        <details>
+            <summary>WKT</summary>
+            <div class="wkt">{wkt}</div>
+        </details>
+        </div>"""
+        )
 
 
 def gbox_boundary(gbox: GeoBox, pts_per_side: int = 16) -> numpy.ndarray:
