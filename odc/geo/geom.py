@@ -843,11 +843,12 @@ def multigeom(geoms: Iterable[Geometry]) -> Geometry:
     """Construct ``Multi{Polygon|LineString|Point}``."""
     geoms = list(geoms)  # force into list
     src_type = {g.type for g in geoms}
-    if len(src_type) > 1:
-        raise ValueError("All Geometries must be of the same type")
-
-    crs = common_crs(geoms)  # will raise if some differ
     raw_geoms = [g.geom for g in geoms]
+    crs = common_crs(geoms)  # will raise if some differ
+
+    if len(src_type) > 1:
+        return Geometry(geometry.GeometryCollection(raw_geoms), crs)
+
     src_type = src_type.pop()
     if src_type == "Polygon":
         return Geometry(geometry.MultiPolygon(raw_geoms), crs)

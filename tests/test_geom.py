@@ -298,9 +298,11 @@ def test_multigeom():
 
     assert geom.multipoint([p1, p2, p3], epsg3857) == gg
 
-    # can't mix types
-    with pytest.raises(ValueError):
-        multigeom([geom.line([p1, p2], None), geom.point(*p1, None)])
+    # check mixed types
+    assert (
+        multigeom([geom.line([p1, p2], None), geom.point(*p1, None)]).type
+        == "GeometryCollection"
+    )
 
     # can't mix CRSs
     with pytest.raises(CRSMismatchError):
