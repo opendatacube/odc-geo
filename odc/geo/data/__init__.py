@@ -25,3 +25,9 @@ def ocean_geom() -> Geometry:
     """Return world oceans geometry."""
     gjson = ocean_geojson()
     return multigeom([Geometry(f["geometry"], "epsg:4326") for f in gjson["features"]])
+
+
+@lru_cache
+def gbox_css() -> str:
+    with open(data_path("gbox.css"), "rt", encoding="utf8") as src:
+        return src.read()

@@ -1,0 +1,40 @@
+.gbox-info {
+    max-width: 600px;
+    margin-left: 1em;
+}
+
+.gbox-info .column {
+    float: left;
+    width: 50%;
+}
+
+.gbox-info .column .value{
+    text-align: right;
+}
+
+.gbox-info .svg-zoomed {
+    margin-top: 0.5em;
+}
+
+.gbox-info .row:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+.gbox-info .info-box {
+    max-width: 200px;
+    margin-left: 1em;
+}
+
+.gbox-info .wkt {
+    font-family: monospace;
+    font-size: 0.8em;
+    text-align: left;
+    max-width: 60em;
+    max-height: 20em;
+    overflow: scroll;
+}
+.gbox-info>details{
+    margin-left: 1em;
+}
