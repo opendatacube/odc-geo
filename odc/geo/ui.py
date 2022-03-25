@@ -100,3 +100,48 @@ def svg_base_map(
   stroke-opacity="{stroke_opacity}"
   d="{map_svg_path}"/>
 {more_svg}</g></svg>"""
+
+
+def make_svg(
+    *extras,
+    stroke_width=1,
+    bbox=None,
+    sz=360,
+):
+    if bbox is None:
+        bbox = (0, 0, sz, sz)
+
+    x0, y0, x1, y1 = bbox
+    span_x = x1 - x0
+    span_y = y1 - y0
+
+    # in pixels
+    min_span = min(40, sz)
+
+    if span_x > span_y:
+        w, h = sz, max(int(sz * span_y / span_x), min_span)
+        s = w / span_x
+    else:
+        h, w = sz, max(int(sz * span_y / span_x), min_span)
+        s = h / span_y
+
+    scale_factor = 1 / s
+    stroke_width = stroke_width * scale_factor
+
+    more_svg = ""
+    for x in extras:
+        if isinstance(x, str):
+            more_svg += x
+        else:
+            more_svg += x.svg(scale_factor)
+
+    return f"""\
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="{w:d}" height="{h:d}"
+     viewBox="0 0 {w:d} {h:d}"
+     preserveAspectRatio="xMinYMin meet">
+<g transform="matrix({s},0,0,{-s},{-x0*s},{y1*s})">
+{more_svg}
+</g></svg>"""
