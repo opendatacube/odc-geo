@@ -1,1 +1,2 @@
 include ./odc/geo/data/*geojson.xz
+include ./odc/geo/data/*css

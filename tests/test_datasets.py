@@ -1,4 +1,4 @@
-from odc.geo.data import data_path, ocean_geojson, ocean_geom
+from odc.geo.data import data_path, gbox_css, ocean_geojson, ocean_geom
 
 
 def test_ocean_gjson():
@@ -12,6 +12,10 @@ def test_ocean_gjson():
 def test_ocean_geom():
     g = ocean_geom()
     assert g.crs == "epsg:4326"
+
+
+def test_gbox_css():
+    assert isinstance(gbox_css(), str)
 
 
 def test_data_path():
