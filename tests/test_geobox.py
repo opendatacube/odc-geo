@@ -309,3 +309,16 @@ def test_svg():
     assert isinstance(gbox.svg(), str)
     assert len(gbox.svg()) > 0
     assert gbox.svg(10) != gbox.svg(1)
+
+    assert isinstance(gbox._repr_svg_(), str)
+
+
+def test_html_repr():
+    # smoke test only
+    gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
+    assert isinstance(gbox._repr_html_(), str)
+
+    # no crs case
+    gbox = GeoBox(wh_(200, 100), Affine.translation(-10, 20), None)
+    assert gbox.crs is None
+    assert isinstance(gbox._repr_html_(), str)
