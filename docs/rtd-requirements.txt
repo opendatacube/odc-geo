@@ -10,3 +10,4 @@ cachetools
 sphinx
 sphinx_rtd_theme
 sphinx-autodoc-typehints
+jupyter_sphinx
