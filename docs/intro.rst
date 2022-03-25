@@ -1,18 +1,28 @@
 Overview
 ########
 
-This library combines geometry shape classes from shapely_ with CRS from pyproj_
-to provide a number of data types and utilities useful for working with
-geospatial metadata.
+This library combines geometry shape classes from shapely_ with CRS from pyproj_ to provide
+projection aware :py:class:`~odc.geo.geom.Geometry`. It exposes all the functionality provided by
+:py:mod:`shapely` modules, but will refuse operations between geometries defined in different
+projections. Geometries can be brought into a common projection with
+:py:meth:`~odc.geo.geom.Geometry.to_crs` method.
 
-There is also integration with xarray_. Importing ``odc.geo.xr`` enables
-``.odc.`` accessor on every :py:class:`xarray.Dataset` and
-:py:class:`xarray.DataArray` that exposes geospatial information of the raster
-loaded with `Open Datacube`_ or rioxarray_. Methods for attaching geospatial
-information to xarray objects in a robust way are also provided. Geospatial
-information attached in this way survives most operations you might do on the
-data: basic mathematical operations, type conversions, cropping, serialization
-to most formats like zarr, netcdf, GeoTIFF.
+Based on that foundation a number of data types and utilities useful for working with geospatial
+metadata are implemented. Of particular importance is :py:class:`~odc.geo.geobox.GeoBox`. It is an
+abstraction for a geo-registered bounded pixel plane where a linear mapping from pixel coordinates
+to the real world is defined.
+
+To make working with geo-registered raster data easier an integration with xarray_ is provided.
+Importing ``odc.geo.xr`` enables ``.odc.`` accessor on every :py:class:`xarray.Dataset` and
+:py:class:`xarray.DataArray` that exposes geospatial information of the raster loaded with `Open
+Datacube`_ or rioxarray_. Methods for attaching geospatial information to xarray objects in a robust
+way are also provided. Geospatial information attached in this way survives most operations you
+might do on the data: basic mathematical operations, type conversions, cropping, serialization to
+most formats like zarr, netcdf, GeoTIFF.
+
+.. image:: _static/intro.svg
+   :alt: Map with GeoBoxes
+   :width: 256
 
 
 Installation
