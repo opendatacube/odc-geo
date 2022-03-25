@@ -50,6 +50,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.extlinks",
     "sphinx.ext.mathjax",
+    "jupyter_sphinx",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
