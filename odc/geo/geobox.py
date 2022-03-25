@@ -17,6 +17,9 @@ from .geom import (
     bbox_intersection,
     bbox_union,
     line,
+    multigeom,
+    multiline,
+    point,
     polygon_from_transform,
 )
 from .math import clamp, is_affine_st, is_almost_int
@@ -335,12 +338,20 @@ class GeoBox:
         self._extent = _extent
         return _extent
 
+    def _reproject_resolution(self, npoints: int = 100):
+        bbox = self.extent.boundingbox
+        span = max(bbox.span_x, bbox.span_y)
+        return span / npoints
+
     @property
     def geographic_extent(self) -> Geometry:
         """GeoBox extent in EPSG:4326."""
         if self._crs is None or self._crs.geographic:
             return self.extent
-        return self.extent.to_crs(CRS("EPSG:4326"))
+
+        return self.extent.to_crs(
+            CRS("EPSG:4326"), resolution=self._reproject_resolution()
+        )
 
     coords = coordinates
     dims = dimensions
@@ -525,14 +536,56 @@ class GeoBox:
         """
         return self[self.shape.map(lambda x: x // 2).yx]
 
-    def svg(self, scale_factor: float = 1.0, mode: OutlineMode = "geo") -> str:
+    def svg(
+        self,
+        scale_factor: float = 1.0,
+        mode: OutlineMode = "geo",
+        notch: float = 0.0,
+        grid_stroke: str = "pink",
+    ) -> str:
         """
         Produce SVG paths.
 
         :param mode: One of pixel, native, geo (default is geo)
         :return: SVG path
         """
-        return self.outline(mode).svg(scale_factor)
+        grids = self.grid_lines(mode=mode)
+        outline = self.outline(mode, notch=notch)
+
+        grid_svg = (
+            '<path fill="none" opacity="0.8"'
+            f' stroke-width="{0.8*scale_factor}"'
+            f' stroke="{grid_stroke}"'
+            f' d="{grids.svg_path()}" />'
+        )
+
+        return outline.svg(scale_factor) + grid_svg
+
+    def grid_lines(self, step: int = 0, mode: OutlineMode = "native") -> Geometry:
+        """
+        Construct pixel edge aligned grid lines.
+        """
+        from .ui import pick_grid_step  # pylint: disable=import-outside-toplevel
+
+        nx, ny = self._shape.xy
+        if step == 0:
+            step = pick_grid_step(max(nx, ny))
+        xx = [*range(0, nx, step), nx]
+        yy = [*range(0, ny, step), ny]
+        vertical = [list(itertools.product([x], yy)) for x in xx[1:-1]]
+        horizontal = [list(itertools.product(xx, [y])) for y in yy[1:-1]]
+        lines = multiline(vertical + horizontal, self._crs)
+
+        if mode == "pixel":
+            return lines
+
+        lines = lines.transform(self._affine)
+        if mode == "native":
+            return lines
+
+        dx, dy = self._affine * (step, 0)
+        res = math.sqrt(dx * dx + dy * dy) / 5
+        return lines.to_crs("epsg:4326", resolution=res)
 
     def outline(self, mode: OutlineMode = "native", notch: float = 0.1) -> Geometry:
         """
@@ -550,31 +603,51 @@ class GeoBox:
 
         assert notch < 1
         w, h = self._shape.wh
-        nn = min(notch * max(w, h), w, h)
-        pix = line(
-            [
-                (0, nn),
-                (0, 0),
-                (nn, 0),
-                (w, 0),
-                (w, h),
-                (0, h),
-                (0, nn),
-                (nn, nn),
-                (nn, 0),
-            ],
-            self._crs,
-        )
+        if notch > 0:
+            nn = min(notch * max(w, h), w, h)
+            pix = line(
+                [
+                    (0, nn),
+                    (0, 0),
+                    (nn, 0),
+                    (w, 0),
+                    (w, h),
+                    (0, h),
+                    (0, nn),
+                    (nn, nn),
+                    (nn, 0),
+                ],
+                self._crs,
+            )
+        else:
+            pix = multigeom(
+                [
+                    line([(0, 0), (w, 0), (w, h), (0, h), (0, 0)], self._crs),
+                    point(0, 0, self._crs),
+                ]
+            )
         if mode == "pixel":
             return pix
+
+        native = pix.transform(self._affine)
         if mode == "native":
-            return self._affine * pix
+            return native
 
         # about 100 pts per side
-        bbox = self.extent.boundingbox
+        bbox = native.boundingbox
         res = max(bbox.span_x, bbox.span_y) / 100
 
-        return (self.affine * pix).to_crs("EPSG:4326", resolution=res)
+        return native.to_crs("EPSG:4326", resolution=res)
+
+    def _display_bbox(self, pad_fraction: float = 0.1):
+        bbox = self.geographic_extent.boundingbox
+        pad_deg = max(bbox.span_x, bbox.span_y) * pad_fraction
+        return bbox.buffered(pad_deg)
+
+    def _repr_svg_(self):
+        from .ui import svg_base_map  # pylint: disable=import-outside-toplevel
+
+        return svg_base_map(self, bbox=self._display_bbox())
 
 
 def gbox_boundary(gbox: GeoBox, pts_per_side: int = 16) -> numpy.ndarray:
