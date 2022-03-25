@@ -1,3 +1,4 @@
+./
 # odc-geo dependencies
 pyproj
 shapely
