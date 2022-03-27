@@ -1,7 +1,7 @@
 odc.geo
 #######
 
-|Documentation Status| |Test Status| |Test Coverage|
+|Documentation Status| |Test Status| |Test Coverage| |Conda Version|
 
 This library combines geometry shape classes from shapely_ with CRS from pyproj_ to provide
 projection aware ``Geometry``. It exposes all the functionality provided by ``shapely`` modules, but
@@ -46,6 +46,10 @@ For details and motivation see `ODC-EP-06`_ enhancement proposal.
 .. |Test Coverage| image:: https://codecov.io/gh/opendatacube/odc-geo/branch/develop/graph/badge.svg?token=Qc7isqXNGF
    :target: https://codecov.io/gh/opendatacube/odc-geo
    :alt: Test Coverage
+
+.. |Conda| image:: https://img.shields.io/conda/vn/conda-forge/odc-geo.svg
+   :target: https://anaconda.org/conda-forge/odc-geo
+   :alt:  Conda Version
 
 .. _rioxarray: https://corteva.github.io/rioxarray/stable/
 .. _xarray: https://docs.xarray.dev/en/stable/
