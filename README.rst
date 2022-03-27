@@ -47,7 +47,7 @@ For details and motivation see `ODC-EP-06`_ enhancement proposal.
    :target: https://codecov.io/gh/opendatacube/odc-geo
    :alt: Test Coverage
 
-.. |Conda| image:: https://img.shields.io/conda/vn/conda-forge/odc-geo.svg
+.. |Conda Version| image:: https://img.shields.io/conda/vn/conda-forge/odc-geo.svg
    :target: https://anaconda.org/conda-forge/odc-geo
    :alt:  Conda Version
 
