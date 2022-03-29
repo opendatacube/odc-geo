@@ -9,6 +9,7 @@ odc-geo
    :maxdepth: 2
 
    intro.rst
+   intro-geobox.rst
 
 .. toctree::
    :caption: Developer Guide
