@@ -5,6 +5,19 @@ from . import geom
 from .data import ocean_geom
 
 # pylint: disable=too-many-locals
+_UNIT_REMAPS = {
+    "metre": "m",
+    "meter": "m",
+    "degrees": "°",
+    "degrees_north": "°",
+    "degrees_south": "°",
+    "degrees_east": "°",
+    "degrees_west": "°",
+}
+
+
+def norm_units(unit: str) -> str:
+    return _UNIT_REMAPS.get(unit, unit)
 
 
 def pick_grid_step(N: int, at_least: int = 4, no_more: int = 11) -> int:

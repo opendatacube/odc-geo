@@ -672,9 +672,7 @@ class GeoBox:
     def _repr_html_(self):
         # pylint: disable=import-outside-toplevel,too-many-locals
         from .data import gbox_css
-        from .ui import pick_grid_step, svg_base_map
-
-        unit_remaps = {"metre": "m", "meter": "m"}
+        from .ui import norm_units, pick_grid_step, svg_base_map
 
         W, H = self._shape.wh
         grid_step = pick_grid_step(max(W, H))
@@ -694,8 +692,7 @@ class GeoBox:
                 sz=200, target=self.geographic_extent.centroid.coords[0]
             )
 
-        units = unit_remaps.get(units, units)
-
+        units = norm_units(units)
         pix_sz = max(*self.resolution.map(abs).xy)
 
         info = [
