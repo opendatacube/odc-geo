@@ -23,9 +23,7 @@ like zarr, netcdf, GeoTIFF.
 
 For more details see Documentation_.
 
-.. image:: docs/_static/intro.svg
-   :alt: Map with GeoBoxes
-   :width: 256
+|Intro Image|
 
 Origins
 =======
@@ -47,9 +45,13 @@ For details and motivation see `ODC-EP-06`_ enhancement proposal.
    :target: https://codecov.io/gh/opendatacube/odc-geo
    :alt: Test Coverage
 
-.. |Conda Version| image:: https://img.shields.io/conda/vn/conda-forge/odc-geo.svg
+.. |Conda Version| image:: https://anaconda.org/conda-forge/odc-geo/badges/version.svg
    :target: https://anaconda.org/conda-forge/odc-geo
    :alt:  Conda Version
+
+.. |Intro Image| image:: docs/_static/intro.svg
+   :alt: Map with GeoBoxes
+   :width: 256
 
 .. _rioxarray: https://corteva.github.io/rioxarray/stable/
 .. _xarray: https://docs.xarray.dev/en/stable/
