@@ -30,6 +30,7 @@ dependencies:
   - pytest
   - pytest-cov
   - pytest-timeout
+  - geopandas
 
   # for docs
   - sphinx
