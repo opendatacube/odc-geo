@@ -365,9 +365,9 @@ def shape_(x: SomeShape) -> Shape2d:
     if isinstance(x, Shape2d):
         return x
     if isinstance(x, XY):
-        nx, ny = x.xy
+        nx, ny = x.map(int).xy
         return Shape2d(x=nx, y=ny)
     if isinstance(x, Sequence):
-        ny, nx = x
+        ny, nx = map(int, x)
         return Shape2d(x=nx, y=ny)
     raise ValueError(f"Input type not understood: {type(x)}")
