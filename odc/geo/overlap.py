@@ -11,7 +11,7 @@ from affine import Affine
 from numpy import linalg
 
 from .geobox import GeoBox, gbox_boundary
-from .math import is_affine_st, is_almost_int, maybe_int, snap_affine
+from .math import clamp, is_affine_st, is_almost_int, maybe_int, snap_affine
 from .roi import (
     NormalizedROI,
     NormalizedSlice,
@@ -97,6 +97,9 @@ class GbxPointTransform:
         self._dst = dst
         self._back = back
         self._tr = src.crs.transformer_to_crs(dst.crs)
+        self._clamps: Optional[Tuple[Tuple[float, float], Tuple[float, float]]] = None
+        if src.crs.geographic:
+            self._clamps = ((-180, 180), (-90, 90))
 
     @property
     def back(self) -> "GbxPointTransform":
@@ -119,6 +122,15 @@ class GbxPointTransform:
         pts = [A * pt.xy for pt in pts]
         xx = [pt[0] for pt in pts]
         yy = [pt[1] for pt in pts]
+
+        if self._clamps is not None:
+            # for global datasets in 4326 pixel edges sometimes reach just outside
+            # of the valid region due to rounding errors when creating tiff files
+            # those coordinates can then not be converted properly to destintation crs
+            range_x, range_y = self._clamps
+            xx = [clamp(x, *range_x) for x in xx]
+            yy = [clamp(y, *range_y) for y in yy]
+
         xx, yy = self._tr(xx, yy)
         return [xy_(B * (x, y)) for x, y in zip(xx, yy)]
 

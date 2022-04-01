@@ -10,6 +10,7 @@ from affine import Affine
 
 from odc.geo import CRS, geom, resyx_, wh_, xy_
 from odc.geo.geobox import GeoBox, scaled_down_geobox
+from odc.geo.gridspec import GridSpec
 from odc.geo.math import is_affine_st
 from odc.geo.overlap import (
     LinearPointTransform,
@@ -339,6 +340,34 @@ def test_compute_reproject_roi_issue1047():
     assert rr.paste_ok is True
     assert rr.roi_src == src_roi
     assert rr.roi_dst == np.s_[0:10, 0:20]
+
+
+def test_compute_reproject_roi_overhang():
+    """
+    Images with global coverage in epsg:4326 often have slightly
+    wrong georegistration that causes image boundaries to reach outside
+    of the [-180, -90, 180, 90] bounding box.
+
+    Reproject roi introduces clipping to deal with that issue.
+    """
+    tol = 1e-3
+    src_geobox = GeoBox.from_bbox(
+        (-180 - tol, -90 - tol, 180 + tol, 90 + tol),
+        epsg4326,
+        shape=wh_(2000, 1000),
+        tight=True,
+    )
+    assert src_geobox.shape.wh == (2000, 1000)
+    assert src_geobox.extent.boundingbox[0] < -180
+    assert src_geobox.extent.boundingbox[1] < -90
+    assert src_geobox.extent.boundingbox[2] > +180
+    assert src_geobox.extent.boundingbox[3] > +90
+
+    dst_geobox = GridSpec.web_tiles(0)[0, 0]
+
+    rr = compute_reproject_roi(src_geobox, dst_geobox)
+    assert rr.paste_ok is False
+    assert dst_geobox[rr.roi_dst] == dst_geobox
 
 
 def test_axis_overlap():
