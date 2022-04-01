@@ -426,7 +426,7 @@ def roi_from_points(
     shape = shape_(shape)
 
     def to_roi(*args):
-        return tuple(slice(v[0], v[1]) for v in args)
+        return tuple(slice(int(v[0]), int(v[1])) for v in args)
 
     assert len(shape) == 2
     assert xy.ndim == 2 and xy.shape[1] == 2
