@@ -323,12 +323,12 @@ class GeoBox:
         xs = numpy.arange(nx) * rx + (tx + rx / 2)
         ys = numpy.arange(ny) * ry + (ty + ry / 2)
 
-        units = self._crs.units if self._crs is not None else ("1", "1")
+        crs_units = self._crs.units if self._crs is not None else ("1", "1")
 
         return OrderedDict(
             (dim, Coordinate(labels, units, res))
             for dim, labels, units, res in zip(
-                self.dimensions, (ys, xs), units, (ry, rx)
+                self.dimensions, (ys, xs), crs_units, (ry, rx)
             )
         )
 
