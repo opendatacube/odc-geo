@@ -56,7 +56,7 @@ odc.geo.crs
    norm_crs_or_error
    crs_units_per_degree
 
-.. include:: crs.rst
+.. include:: api-crs.rst
 
 odc.geo.geobox
 **************
@@ -84,7 +84,7 @@ odc.geo.geobox
    zoom_out
    zoom_to
 
-.. include:: geobox.rst
+.. include:: api-geobox.rst
 
 
 odc.geo.geom
