@@ -8,7 +8,8 @@ Add ``.odc.`` extension to :py:class:`xarray.Dataset` and :class:`xarray.DataArr
 import functools
 import warnings
 from dataclasses import dataclass
-from typing import Dict, Hashable, List, Optional, Set, Tuple, TypeVar, Union
+from datetime import datetime
+from typing import Any, Dict, Hashable, List, Optional, Set, Tuple, TypeVar, Union
 
 import numpy
 import xarray
@@ -396,3 +397,37 @@ def register_geobox():
     """
     xarray.Dataset.geobox = property(_xarray_geobox)  # type: ignore
     xarray.DataArray.geobox = property(_xarray_geobox)  # type: ignore
+
+
+def wrap_xr(
+    im: Any, gbox: GeoBox, *, time=None, nodata=None, **attrs
+) -> xarray.DataArray:
+    """
+    Wrap xarray around numpy array with CRS and x,y coords.
+
+    :param im: numpy array to wrap, last two axis are Y,X
+    :param gbox: Geobox, must same shape as last two axis of ``im``
+    :param time: optional time axis value(s), defaults to None
+    :param nodata: optional `nodata` value, defaults to None
+    :param attrs: Any other attributes to set on the result
+    :return: xarray DataArray
+    """
+    assert im.shape[-2:] == gbox.shape
+
+    prefix_dims: Tuple[str, ...] = ("time",) if im.ndim > 2 else ()
+
+    dims = (*prefix_dims, *gbox.dimensions)
+    coords = xr_coords(gbox)
+
+    if time is not None:
+        if len(prefix_dims) > 0 and isinstance(time, (str, datetime)):
+            time = [time]
+
+        coords["time"] = xarray.DataArray(time, dims=prefix_dims).astype(
+            "datetime64[ns]"
+        )
+
+    if nodata is not None:
+        attrs = dict(nodata=nodata, **attrs)
+
+    return xarray.DataArray(im, coords=coords, dims=dims, attrs=attrs)
