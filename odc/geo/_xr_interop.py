@@ -5,6 +5,7 @@
 """
 Add ``.odc.`` extension to :py:class:`xarray.Dataset` and :class:`xarray.DataArray`.
 """
+import functools
 import warnings
 from dataclasses import dataclass
 from typing import Dict, Hashable, List, Optional, Set, Tuple, TypeVar, Union
@@ -13,10 +14,14 @@ import numpy
 import xarray
 from affine import Affine
 
+from ._interop import have
 from .crs import CRS, CRSError, SomeCRS, norm_crs_or_error
 from .geobox import Coordinate, GeoBox
 from .math import affine_from_axis
 from .types import Resolution, resxy_
+
+if have.rasterio:
+    from ._cog import to_cog, write_cog  # pylint: disable=import-outside-toplevel
 
 XarrayObject = Union[xarray.DataArray, xarray.Dataset]
 XrT = TypeVar("XrT", xarray.DataArray, xarray.Dataset)
@@ -291,6 +296,16 @@ def _locate_geo_info(src: XarrayObject) -> GeoState:
     return GeoState(spatial_dims=sdims, transform=transform, crs=crs, geobox=geobox)
 
 
+def _wrap_op(method):
+    @functools.wraps(method, assigned=("__doc__",))
+    def wrapped(*args, **kw):
+        # pylint: disable=protected-access
+        _self, *rest = args
+        return method(_self._xx, *rest, **kw)
+
+    return wrapped
+
+
 class ODCExtension:
     """
     ODC extension base class.
@@ -339,6 +354,10 @@ class ODCExtensionDa(ODCExtension):
         self, crs: SomeCRS, crs_coord_name: str = "spatial_ref"
     ) -> xarray.DataArray:
         return assign_crs(self._xx, crs=crs, crs_coord_name=crs_coord_name)
+
+    if have.rasterio:
+        write_cog = _wrap_op(write_cog)
+        to_cog = _wrap_op(to_cog)
 
 
 @xarray.register_dataset_accessor("odc")
