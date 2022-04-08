@@ -23,6 +23,7 @@ from .types import Resolution, resxy_
 
 if have.rasterio:
     from ._cog import to_cog, write_cog  # pylint: disable=import-outside-toplevel
+    from .warp import rio_reproject
 
 XarrayObject = Union[xarray.DataArray, xarray.Dataset]
 XrT = TypeVar("XrT", xarray.DataArray, xarray.Dataset)
@@ -307,6 +308,48 @@ def _wrap_op(method):
     return wrapped
 
 
+def xr_reproject(
+    src: xarray.DataArray,
+    dst_geobox: GeoBox,
+    *,
+    resampling: Union[str, int] = "nearest",
+    dst_nodata: Optional[float] = None,
+    **kw,
+) -> xarray.DataArray:
+    """
+    Reproject raster to different projection/resolution.
+
+    This method uses :py:mod:`rasterio`.
+    """
+    if have.rasterio is False:
+        raise RuntimeError(
+            "Please install `rasterio` to use this method"
+        )  # pragma: nocover
+
+    dst_shape = (*src.shape[:-2], *dst_geobox.shape)
+    dst = numpy.empty(dst_shape, dtype=src.dtype)
+    nodata = src.attrs.get("nodata", None)
+    if dst_nodata is None:
+        dst_nodata = nodata
+
+    dst = rio_reproject(
+        src.values,
+        dst,
+        src.odc.geobox,
+        dst_geobox,
+        resampling=resampling,
+        src_nodata=nodata,
+        dst_nodata=dst_nodata,
+        **kw,
+    )
+
+    attrs = src.attrs.copy()
+    attrs.pop("nodata", None)
+    time = getattr(src, "time", None)
+
+    return wrap_xr(dst, dst_geobox, nodata=dst_nodata, attrs=attrs, time=time)
+
+
 class ODCExtension:
     """
     ODC extension base class.
@@ -359,6 +402,7 @@ class ODCExtensionDa(ODCExtension):
     if have.rasterio:
         write_cog = _wrap_op(write_cog)
         to_cog = _wrap_op(to_cog)
+        reproject = _wrap_op(xr_reproject)
 
 
 @xarray.register_dataset_accessor("odc")
@@ -420,12 +464,13 @@ def wrap_xr(
     coords = xr_coords(gbox)
 
     if time is not None:
-        if len(prefix_dims) > 0 and isinstance(time, (str, datetime)):
-            time = [time]
+        if not isinstance(time, xarray.DataArray):
+            if len(prefix_dims) > 0 and isinstance(time, (str, datetime)):
+                time = [time]
 
-        coords["time"] = xarray.DataArray(time, dims=prefix_dims).astype(
-            "datetime64[ns]"
-        )
+            time = xarray.DataArray(time, dims=prefix_dims).astype("datetime64[ns]")
+
+        coords["time"] = time
 
     if nodata is not None:
         attrs = dict(nodata=nodata, **attrs)

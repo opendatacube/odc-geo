@@ -20,6 +20,7 @@ from ._xr_interop import (
     spatial_dims,
     wrap_xr,
     xr_coords,
+    xr_reproject,
 )
 
 wrap = wrap_xr
@@ -34,4 +35,5 @@ __all__ = (
     "xr_coords",
     "wrap",
     "wrap_xr",
+    "xr_reproject",
 )
