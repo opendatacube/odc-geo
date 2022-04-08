@@ -1,6 +1,7 @@
 import geopandas
 import geopandas.datasets
 
+from odc.geo._interop import have
 from odc.geo.converters import from_geopandas
 
 
@@ -18,3 +19,12 @@ def test_from_geopandas():
     assert au.crs.epsg == 3857
 
     assert from_geopandas(df.continent) == []
+
+
+def test_have():
+    assert isinstance(have.geopandas, bool)
+    assert isinstance(have.rasterio, bool)
+    assert isinstance(have.xarray, bool)
+    assert isinstance(have.dask, bool)
+    assert have.rasterio is True
+    assert have.xarray is True
