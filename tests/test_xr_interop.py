@@ -2,13 +2,14 @@
 #
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
+import numpy as np
 import pytest
 import xarray as xr
 
 from odc.geo import geom
 from odc.geo.geobox import GeoBox
 from odc.geo.testutils import epsg3577, mkA, purge_crs_info, xr_zeros
-from odc.geo.xr import register_geobox, xr_coords
+from odc.geo.xr import register_geobox, wrap_xr, xr_coords
 
 # pylint: disable=redefined-outer-name
 
@@ -251,3 +252,34 @@ def test_geobox_hook(xx_epsg4326: xr.DataArray):
 
     assert purge_crs_info(xx)[:1, :1].geobox is None
     assert purge_crs_info(xx)[:1, :1].to_dataset(name="xx").geobox is None
+
+
+def test_wrap_xr():
+    gbox = GeoBox.from_bbox([0, -10, 100, 20], "epsg:4326", tight=True, shape=(13, 29))
+    data = np.zeros(gbox.shape, dtype="uint16")
+
+    xx = wrap_xr(data, gbox)
+    assert xx.shape == gbox.shape
+    assert xx.odc.geobox == gbox
+    assert xx.dims == gbox.dims
+    assert xx.attrs == {}
+
+    xx = wrap_xr(data, gbox, nodata=None)
+    assert xx.attrs == {}
+
+    xx = wrap_xr(data, gbox, nodata=10, some_flag=3)
+    assert xx.attrs == dict(nodata=10, some_flag=3)
+
+    xx = wrap_xr(data, gbox, time="2022-02-02T22:22:22.222222")
+    assert xx.time.dt.year.item() == 2022
+    assert xx.time.dt.month.item() == 2
+
+    xx = wrap_xr(data[np.newaxis, ...], gbox, time="2022-02-02T22:22:22.222222")
+    assert xx.shape == (1, *gbox.shape)
+    assert xx.time.dt.year.values[0] == 2022
+    assert xx.time.dt.month.values[0] == 2
+
+    xx = wrap_xr(data[np.newaxis, ...], gbox, time=["2022-02-02T22:22:22.222222"])
+    assert xx.shape == (1, *gbox.shape)
+    assert xx.time.dt.year.values[0] == 2022
+    assert xx.time.dt.month.values[0] == 2

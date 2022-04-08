@@ -18,8 +18,11 @@ from ._xr_interop import (
     assign_crs,
     register_geobox,
     spatial_dims,
+    wrap_xr,
     xr_coords,
 )
+
+wrap = wrap_xr
 
 __all__ = (
     "ODCExtension",
@@ -29,4 +32,6 @@ __all__ = (
     "register_geobox",
     "spatial_dims",
     "xr_coords",
+    "wrap",
+    "wrap_xr",
 )
