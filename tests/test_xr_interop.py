@@ -283,3 +283,10 @@ def test_wrap_xr():
     assert xx.shape == (1, *gbox.shape)
     assert xx.time.dt.year.values[0] == 2022
     assert xx.time.dt.month.values[0] == 2
+
+
+def test_xr_reproject(xx_epsg4326: xr.DataArray):
+    # smoke-test only
+    dst_gbox = xx_epsg4326.odc.geobox.zoom_out(1.3)
+    xx = xx_epsg4326.odc.reproject(dst_gbox)
+    assert xx.odc.geobox == dst_gbox
