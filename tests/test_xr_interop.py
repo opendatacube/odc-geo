@@ -8,8 +8,8 @@ import xarray as xr
 
 from odc.geo import geom
 from odc.geo.geobox import GeoBox
-from odc.geo.testutils import epsg3577, mkA, purge_crs_info, xr_zeros
-from odc.geo.xr import register_geobox, wrap_xr, xr_coords
+from odc.geo.testutils import epsg3577, mkA, purge_crs_info
+from odc.geo.xr import register_geobox, wrap_xr, xr_coords, xr_zeros
 
 # pylint: disable=redefined-outer-name
 
