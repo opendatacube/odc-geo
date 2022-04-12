@@ -226,9 +226,11 @@ def _write_cog(
 def write_cog(
     geo_im: xr.DataArray,
     fname: Union[str, Path],
+    *,
     overwrite: bool = False,
     blocksize: Optional[int] = None,
     ovr_blocksize: Optional[int] = None,
+    overviews: Optional[Iterable[xr.DataArray]] = None,
     overview_resampling: Optional[str] = None,
     overview_levels: Optional[List[int]] = None,
     use_windowed_writes: bool = False,
@@ -243,6 +245,7 @@ def write_cog(
     :param overwrite: True -- replace existing file, False -- abort with IOError exception
     :param blocksize: Size of internal tiff tiles (512x512 pixels)
     :param ovr_blocksize: Size of internal tiles in overview images (defaults to blocksize)
+    :param overviews: Write pre-computed overviews if supplied
     :param overview_resampling: Use this resampling when computing overviews
     :param overview_levels: List of shrink factors to compute overiews for: [2,4,8,16,32],
                             to disable overviews supply empty list ``[]``
@@ -268,6 +271,21 @@ def write_cog(
 
        This means that this function will use about 1.5 to 2 times memory taken by ``geo_im``.
     """
+    if overviews is not None:
+        layers = [geo_im, *overviews]
+        result = write_cog_layers(
+            layers,
+            fname,
+            overwrite=overwrite,
+            blocksize=blocksize,
+            ovr_blocksize=ovr_blocksize,
+            use_windowed_writes=use_windowed_writes,
+            intermediate_compression=intermediate_compression,
+            **extra_rio_opts,
+        )
+        assert result is not None
+        return result
+
     pix = geo_im.data
     geobox = geo_im.odc.geobox
     nodata = extra_rio_opts.pop("nodata", None)
@@ -297,6 +315,7 @@ def to_cog(
     geo_im: xr.DataArray,
     blocksize: Optional[int] = None,
     ovr_blocksize: Optional[int] = None,
+    overviews: Optional[Iterable[xr.DataArray]] = None,
     overview_resampling: Optional[str] = None,
     overview_levels: Optional[List[int]] = None,
     use_windowed_writes: bool = False,
@@ -312,6 +331,7 @@ def to_cog(
     :param geo_im: ``xarray.DataArray`` with crs
     :param blocksize: Size of internal tiff tiles (512x512 pixels)
     :param ovr_blocksize: Size of internal tiles in overview images (defaults to blocksize)
+    :param overviews: Write pre-computed overviews if supplied
     :param overview_resampling: Use this resampling when computing overviews
     :param overview_levels: List of shrink factors to compute overiews for: [2,4,8,16,32]
     :param nodata: Set ``nodata`` flag to this value if supplied, by default ``nodata`` is
@@ -328,6 +348,7 @@ def to_cog(
         ":mem:",
         blocksize=blocksize,
         ovr_blocksize=ovr_blocksize,
+        overviews=overviews,
         overview_resampling=overview_resampling,
         overview_levels=overview_levels,
         use_windowed_writes=use_windowed_writes,
@@ -362,13 +383,14 @@ def _memfiles_ovr(nlevels) -> Generator[Tuple[rasterio.MemoryFile, ...], None, N
 
 def write_cog_layers(
     layers: Iterable[xr.DataArray],
-    dst: str = ":mem:",
+    dst: Union[str, Path] = ":mem:",
     overwrite: bool = False,
-    blocksize: int = 512,
-    ovr_blocksize: int = 0,
+    blocksize: Optional[int] = None,
+    ovr_blocksize: Optional[int] = None,
     intermediate_compression: Union[bool, str, Dict[str, Any]] = False,
+    use_windowed_writes: bool = False,
     **extra_rio_opts
-) -> Union[str, bytes, None]:
+) -> Union[Path, bytes, None]:
     """
     Write COG from externally computed overviews.
 
@@ -382,7 +404,10 @@ def write_cog_layers(
     if dst != ":mem:":
         _ = check_write_path(dst, overwrite)
 
-    if ovr_blocksize == 0:
+    if blocksize is None:
+        blocksize = 512
+
+    if ovr_blocksize is None:
         ovr_blocksize = blocksize
 
     pix = xx[0]
@@ -399,6 +424,7 @@ def write_cog_layers(
         num_threads="ALL_CPUS",
         blocksize=blocksize,
         nodata=rio_opts.get("nodata", None),
+        use_windowed_writes=use_windowed_writes,
         **_norm_compression_opts(intermediate_compression),
     )
 
@@ -428,4 +454,4 @@ def write_cog_layers(
                     return bytes(_dst.getbuffer())  # makes a copy of compressed data
             else:
                 rio_copy(temp_fname, dst, copy_src_overviews=True, **rio_opts)
-                return dst
+                return Path(dst)
