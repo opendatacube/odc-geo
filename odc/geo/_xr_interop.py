@@ -469,7 +469,7 @@ def wrap_xr(
     prefix_dims: Tuple[str, ...] = ("time",) if im.ndim > 2 else ()
 
     dims = (*prefix_dims, *gbox.dimensions)
-    coords = xr_coords(gbox)
+    coords = xr_coords(gbox, crs_coord_name=crs_coord_name)
 
     if time is not None:
         if not isinstance(time, xarray.DataArray):
@@ -483,4 +483,29 @@ def wrap_xr(
     if nodata is not None:
         attrs = dict(nodata=nodata, **attrs)
 
-    return xarray.DataArray(im, coords=coords, dims=dims, attrs=attrs)
+    out = xarray.DataArray(im, coords=coords, dims=dims, attrs=attrs)
+    if crs_coord_name is not None:
+        out.encoding["grid_mapping"] = crs_coord_name
+    return out
+
+
+def xr_zeros(
+    geobox: GeoBox,
+    dtype="float64",
+    crs_coord_name: Optional[str] = _DEFAULT_CRS_COORD_NAME,
+    **kw,
+) -> xarray.DataArray:
+    """
+    Construct geo-registered xarray from a :py:class:`~odc.geo.geobox.GeoBox`.
+
+    :param gbox: Desired footprint and resolution
+    :return: :class:py:`xarray.DataArray` filled with zeros
+    """
+    return wrap_xr(
+        numpy.zeros(geobox.shape, dtype=dtype),
+        geobox,
+        crs_coord_name=crs_coord_name,
+        **kw,
+    )
+
+

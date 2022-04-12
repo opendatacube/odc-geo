@@ -2,14 +2,13 @@
 #
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
-from typing import Callable, Optional, Tuple, Union
+from typing import Callable, Tuple, Union
 
 import numpy as np
 import xarray as xr
 from affine import Affine
 
 from . import CRS
-from ._xr_interop import xr_coords
 from .geobox import GeoBox
 from .gridspec import GridSpec
 from .math import apply_affine
@@ -189,23 +188,6 @@ def gen_test_image_xy(
         return x, y
 
     return xy, denorm
-
-
-def xr_zeros(
-    gbox: GeoBox, dtype="float64", crs_coord_name: Optional[str] = "spatial_ref"
-) -> xr.DataArray:
-    """
-    Construct geo-registered xarray from a :py:class:`~odc.geo.geobox.GeoBox`.
-
-    :param gbox: Desired footprint and resolution
-    :return: :class:py:`xarray.DataArray` filled with zeros
-    """
-    data = np.zeros(gbox.shape, dtype=dtype)
-    cc = xr_coords(gbox, crs_coord_name=crs_coord_name)
-    ydim, xdim, grid_mapping = list(cc)
-    xx = xr.DataArray(data=data, coords=cc, dims=(ydim, xdim))
-    xx.encoding["grid_mapping"] = grid_mapping
-    return xx
 
 
 def purge_crs_info(xx: xr.DataArray) -> xr.DataArray:

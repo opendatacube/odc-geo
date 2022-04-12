@@ -1,13 +1,12 @@
-import odc.geo.xr  # pylint: disable=unused-import
 from odc.geo.gridspec import GridSpec
-from odc.geo.testutils import xr_zeros
+from odc.geo.xr import xr_zeros
 
 
 def test_write_cog():
     gs = GridSpec.web_tiles(2)
     gbox = gs[2, 1]
 
-    img = xr_zeros(gbox)
+    img = xr_zeros(gbox, dtype="uint16")
     assert img.odc.geobox == gbox
 
     img_bytes = img.odc.to_cog(blocksize=32)
@@ -29,7 +28,7 @@ def test_write_cog_ovr():
     gs = GridSpec.web_tiles(2)
     gbox = gs[2, 1]
 
-    img = xr_zeros(gbox)
+    img = xr_zeros(gbox, dtype="uint16")
     assert img.odc.geobox == gbox
     ovrs = [img[::2, ::2], img[::4, ::4]]
 

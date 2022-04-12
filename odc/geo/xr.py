@@ -21,6 +21,7 @@ from ._xr_interop import (
     wrap_xr,
     xr_coords,
     xr_reproject,
+    xr_zeros,
 )
 
 wrap = wrap_xr
@@ -36,4 +37,5 @@ __all__ = (
     "wrap",
     "wrap_xr",
     "xr_reproject",
+    "xr_zeros",
 )
