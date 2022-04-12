@@ -28,6 +28,8 @@ if have.rasterio:
 XarrayObject = Union[xarray.DataArray, xarray.Dataset]
 XrT = TypeVar("XrT", xarray.DataArray, xarray.Dataset)
 
+_DEFAULT_CRS_COORD_NAME = "spatial_ref"
+
 
 @dataclass
 class GeoState:
@@ -128,7 +130,7 @@ def spatial_dims(
     return None
 
 
-def _mk_crs_coord(crs: CRS, name: str = "spatial_ref") -> xarray.DataArray:
+def _mk_crs_coord(crs: CRS, name: str = _DEFAULT_CRS_COORD_NAME) -> xarray.DataArray:
     # pylint: disable=protected-access
 
     cf = crs.proj.to_cf()
@@ -158,7 +160,7 @@ def _coord_to_xr(name: str, c: Coordinate, **attrs) -> xarray.DataArray:
 def assign_crs(
     xx: XrT,
     crs: SomeCRS,
-    crs_coord_name: str = "spatial_ref",
+    crs_coord_name: str = _DEFAULT_CRS_COORD_NAME,
 ) -> XrT:
     """
     Assign CRS for a non-georegistered array or dataset.
@@ -190,7 +192,7 @@ def assign_crs(
 
 
 def xr_coords(
-    gbox: GeoBox, crs_coord_name: Optional[str] = "spatial_ref"
+    gbox: GeoBox, crs_coord_name: Optional[str] = _DEFAULT_CRS_COORD_NAME
 ) -> Dict[Hashable, xarray.DataArray]:
     """
     Dictionary of Coordinates in xarray format.
@@ -395,7 +397,7 @@ class ODCExtensionDa(ODCExtension):
         return ODCExtensionDa(self._xx)
 
     def assign_crs(
-        self, crs: SomeCRS, crs_coord_name: str = "spatial_ref"
+        self, crs: SomeCRS, crs_coord_name: str = _DEFAULT_CRS_COORD_NAME
     ) -> xarray.DataArray:
         return assign_crs(self._xx, crs=crs, crs_coord_name=crs_coord_name)
 
@@ -420,7 +422,7 @@ class ODCExtensionDs(ODCExtension):
         return ODCExtensionDs(self._ds)
 
     def assign_crs(
-        self, crs: SomeCRS, crs_coord_name: str = "spatial_ref"
+        self, crs: SomeCRS, crs_coord_name: str = _DEFAULT_CRS_COORD_NAME
     ) -> xarray.Dataset:
         return assign_crs(self._ds, crs=crs, crs_coord_name=crs_coord_name)
 
@@ -444,7 +446,13 @@ def register_geobox():
 
 
 def wrap_xr(
-    im: Any, gbox: GeoBox, *, time=None, nodata=None, **attrs
+    im: Any,
+    gbox: GeoBox,
+    *,
+    time=None,
+    nodata=None,
+    crs_coord_name: Optional[str] = _DEFAULT_CRS_COORD_NAME,
+    **attrs,
 ) -> xarray.DataArray:
     """
     Wrap xarray around numpy array with CRS and x,y coords.
