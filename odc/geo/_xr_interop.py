@@ -458,7 +458,7 @@ def wrap_xr(
     """
     Wrap xarray around numpy array with CRS and x,y coords.
 
-    :param im: numpy array to wrap, last two axis are Y,X
+    :param im: numpy array to wrap, last two axes are Y,X
     :param gbox: Geobox, must same shape as last two axis of ``im``
     :param time: optional time axis value(s), defaults to None
     :param nodata: optional `nodata` value, defaults to None
@@ -526,7 +526,7 @@ def rasterize(
        Geometry shape to rasterize.
 
     :param how:
-        This could be either just resolution or a GeoBox that fulley defines output
+        This could be either just resolution or a GeoBox that fully defines output
         raster extent/resolution/projection.
 
     :param all_touched:
