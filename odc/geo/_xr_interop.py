@@ -18,6 +18,7 @@ from affine import Affine
 from ._interop import have
 from .crs import CRS, CRSError, SomeCRS, norm_crs_or_error
 from .geobox import Coordinate, GeoBox
+from .geom import Geometry
 from .math import affine_from_axis
 from .types import Resolution, resxy_
 
@@ -509,3 +510,58 @@ def xr_zeros(
     )
 
 
+def rasterize(
+    poly: Geometry,
+    how: Union[float, int, Resolution, GeoBox],
+    *,
+    value_inside: bool = True,
+    all_touched: bool = False,
+) -> xarray.DataArray:
+    """
+    Generate raster from geometry.
+
+    This method is a wrapper for :py:meth:`rasterio.features.make_mask`.
+
+    :param poly:
+       Geometry shape to rasterize.
+
+    :param how:
+        This could be either just resolution or a GeoBox that fulley defines output
+        raster extent/resolution/projection.
+
+    :param all_touched:
+        If ``True``, all pixels touched by geometries will be burned in.  If
+        ``False``, only pixels whose center is within the polygon or that
+        are selected by Bresenham's line algorithm will be burned in.
+
+    :param value_inside:
+        By default pixels inside a polygon will have value of ``True`` and ``False``
+        outside, but this can be flipped.
+
+    :return: geo-registered data array
+    """
+    # pylint: disable=import-outside-toplevel
+
+    if have.rasterio is False:
+        raise RuntimeError(
+            "Please install `rasterio` to use this method"
+        )  # pragma: nocover
+
+    from rasterio.features import geometry_mask
+
+    if isinstance(how, GeoBox):
+        geobox = how
+    else:
+        geobox = GeoBox.from_geopolygon(poly, resolution=how)
+
+    if poly.crs != geobox.crs and geobox.crs is not None:
+        poly = poly.to_crs(geobox.crs)
+
+    pix = geometry_mask(
+        [poly.geom],
+        geobox.shape,
+        geobox.transform,
+        all_touched=all_touched,
+        invert=value_inside,
+    )
+    return wrap_xr(pix, geobox)

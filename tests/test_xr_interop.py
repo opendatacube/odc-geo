@@ -7,9 +7,10 @@ import pytest
 import xarray as xr
 
 from odc.geo import geom
+from odc.geo.data import ocean_geom
 from odc.geo.geobox import GeoBox
 from odc.geo.testutils import epsg3577, mkA, purge_crs_info
-from odc.geo.xr import register_geobox, wrap_xr, xr_coords, xr_zeros
+from odc.geo.xr import rasterize, register_geobox, wrap_xr, xr_coords, xr_zeros
 
 # pylint: disable=redefined-outer-name
 
@@ -290,3 +291,28 @@ def test_xr_reproject(xx_epsg4326: xr.DataArray):
     dst_gbox = xx_epsg4326.odc.geobox.zoom_out(1.3)
     xx = xx_epsg4326.odc.reproject(dst_gbox)
     assert xx.odc.geobox == dst_gbox
+
+
+def test_xr_rasterize():
+    gg = ocean_geom()
+    xx = rasterize(gg, 1)
+    assert xx.odc.geobox.crs == gg.crs
+    yy = rasterize(gg, xx.odc.geobox)
+    assert (xx == yy).all()
+
+    yy = rasterize(gg, xx.odc.geobox[3:-4, 4:-8])
+    assert (xx[3:-4, 4:-8] == yy).all()
+
+    # chunk of ocean just off Africa in 3857
+    xx = rasterize(gg, GeoBox.from_bbox([-20, -10, 20, 10], "epsg:3857", resolution=1))
+    assert xx.geobox.crs == "epsg:3857"
+    assert xx.all().item() is True
+
+    # same but inverse
+    xx = rasterize(
+        gg,
+        GeoBox.from_bbox([-20, -10, 20, 10], "epsg:3857", resolution=1),
+        value_inside=False,
+    )
+    assert xx.geobox.crs == "epsg:3857"
+    assert xx.any().item() is False
