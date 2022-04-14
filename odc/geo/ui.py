@@ -21,6 +21,9 @@ def norm_units(unit: str) -> str:
 
 
 def pick_grid_step(N: int, at_least: int = 4, no_more: int = 11) -> int:
+    if N <= 0:
+        return 1
+
     factors = [1, 5, 10, 2, 4, 3, 6, 7, 8, 9, 1.5, 2.5]
     n = 10 ** (math.floor(math.log10(N)) - 1)
     if n < 1:
@@ -73,7 +76,11 @@ def svg_base_map(
     # in pixels
     min_span = min(40, sz)
 
-    if span_x > span_y:
+    if min(span_x, span_y) < 1e-4:
+        span_x = span_y = 1e-4
+        w, h = sz, sz
+        s = w / span_x
+    elif span_x > span_y:
         w, h = sz, max(int(sz * span_y / span_x), min_span)
         s = w / span_x
     else:
@@ -131,7 +138,11 @@ def make_svg(
     # in pixels
     min_span = min(40, sz)
 
-    if span_x > span_y:
+    if min(span_x, span_y) < 1e-4:
+        span_x = span_y = 1e-4
+        w, h = sz, sz
+        s = w / span_x
+    elif span_x > span_y:
         w, h = sz, max(int(sz * span_y / span_x), min_span)
         s = w / span_x
     else:
