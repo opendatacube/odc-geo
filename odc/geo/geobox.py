@@ -504,12 +504,12 @@ class GeoBox:
 
     @property
     def top(self) -> "GeoBox":
-        """Same size geobox to the left of this one."""
+        """Same size geobox directly above this one."""
         return self.translate_pix(0, -self.shape.y)
 
     @property
     def bottom(self) -> "GeoBox":
-        """Same size geobox to the left of this one."""
+        """Same size geobox directly below this one."""
         return self.translate_pix(0, self.shape.y)
 
     def rotate(self, deg: float) -> "GeoBox":
