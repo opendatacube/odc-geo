@@ -166,6 +166,9 @@ def test_gbox_tiles():
     assert tt.shape == (2, 3)
     assert tt[1, 2] == gbox[10:11, 18:22]
 
+    # check .roi
+    assert tt.base[tt.roi[1, 2]] == tt[1, 2]
+
     for idx in [tt.shape, (-1, 0), (0, -1), (-33, 1)]:
         with pytest.raises(IndexError):
             tt[idx]
