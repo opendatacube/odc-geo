@@ -24,6 +24,7 @@ from .geom import (
     polygon_from_transform,
 )
 from .math import clamp, is_affine_st, is_almost_int
+from .roi import Tiles as RoiTiles
 from .roi import align_up, polygon_path, roi_normalise, roi_shape
 from .types import (
     XY,
@@ -913,13 +914,8 @@ class GeoboxTiles:
         :param box: source :py:class:`~odc.geo.GeoBox`
         :param tile_shape: Shape of sub-tiles in pixels ``(rows, cols)``
         """
-        tile_shape = shape_(tile_shape)
         self._gbox = box
-        self._tile_shape = tile_shape
-        ny, nx = (
-            int(math.ceil(float(N) / n)) for N, n in zip(box.shape, tile_shape.shape)
-        )
-        self._shape = shape_((ny, nx))
+        self._tiles = RoiTiles(box.shape, tile_shape)
         self._cache: Dict[Index2d, GeoBox] = {}
 
     @property
@@ -928,22 +924,21 @@ class GeoboxTiles:
         return self._gbox
 
     @property
-    def shape(self):
+    def shape(self) -> Shape2d:
         """Number of tiles along each dimension."""
-        return self._shape
+        return self._tiles.shape
 
-    def _idx_to_slice(self, idx: Index2d) -> Tuple[slice, slice]:
-        def _slice(i, N, n) -> slice:
-            _in = i * n
-            if 0 <= _in < N:
-                return slice(_in, min(_in + n, N))
-            raise IndexError(f"Index {idx} is out of range")
+    @property
+    def roi(self) -> RoiTiles:
+        """
+        Access ROI covered by tile.
 
-        ir, ic = (
-            _slice(i, N, n)
-            for i, N, n in zip(idx.yx, self._gbox.shape, self._tile_shape.yx)
-        )
-        return (ir, ic)
+        .. code-block:: python
+
+            gbt = GeoboxTiles(..)
+            roi = gbt.roi[0, 3]
+        """
+        return self._tiles
 
     def chunk_shape(self, idx: SomeIndex2d) -> Shape2d:
         """
@@ -953,18 +948,7 @@ class GeoboxTiles:
         :returns: ``(nrows, ncols)`` shape of a tile (edge tiles might be smaller)
         :raises: :py:class:`IndexError` when index is outside of ``[(0,0) -> .shape)``.
         """
-        idx = iyx_(idx)
-
-        def _sz(i: int, n: int, tile_sz: int, total_sz: int) -> int:
-            if 0 <= i < n - 1:  # not edge tile
-                return tile_sz
-            if i == n - 1:  # edge tile
-                return total_sz - (i * tile_sz)
-            # out of index case
-            raise IndexError(f"Index {idx} is out of range")
-
-        n1, n2 = map(_sz, idx.yx, self._shape.yx, self._tile_shape.yx, self._gbox.shape)
-        return shape_((n1, n2))
+        return self._tiles.tile_shape(idx)
 
     def __getitem__(self, idx: SomeIndex2d) -> GeoBox:
         """
@@ -979,7 +963,7 @@ class GeoboxTiles:
         if sub_gbox is not None:
             return sub_gbox
 
-        roi = self._idx_to_slice(idx)
+        roi = self._tiles[idx]
         return self._cache.setdefault(idx, self._gbox[roi])
 
     def range_from_bbox(self, bbox: BoundingBox) -> Tuple[range, range]:
@@ -994,12 +978,12 @@ class GeoboxTiles:
             _out = clamp(math.ceil(v2), 0, N)
             return range(_in, _out)
 
-        sy, sx = self._tile_shape.yx
+        sy, sx = self._tiles.tile_shape((0, 0)).yx
         A = Affine.scale(1.0 / sx, 1.0 / sy) * (~self._gbox.transform)
         # A maps from X,Y in meters to chunk index
         bbox = bbox.transform(A)
 
-        NY, NX = self._shape
+        NY, NX = self._tiles.base.yx
         xx = clamped_range(bbox.left, bbox.right, NX)
         yy = clamped_range(bbox.bottom, bbox.top, NY)
         return (yy, xx)

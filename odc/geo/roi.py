@@ -8,13 +8,14 @@ Tools for dealing with ROIs (Regions of Interest).
 In this context ROI is a 2d slice of an image. For example a top left corner of 10 pixels square
 will have an ROI that can be constructed with :py:func:`numpy.s_` like this: ``s_[0:10, 0:10]``.
 """
+import math
 from collections import abc
 from typing import Optional, Protocol, Tuple, Union, overload
 
 import numpy as np
 
 from .math import align_down, align_up
-from .types import SomeShape, T, shape_
+from .types import Shape2d, SomeIndex2d, SomeShape, T, iyx_, shape_
 
 # This is numeric code, short names make sense in this context, so disabling
 # "invalid name" checks for the whole file
@@ -75,6 +76,72 @@ class WindowFromSlice:
 
 
 w_ = WindowFromSlice()
+
+
+class Tiles:
+    """
+    Partition box into tiles.
+
+    Turns ``row, col`` index into a 2d ROI of the original box.
+    """
+
+    def __init__(self, base_shape: SomeShape, tile_shape: SomeShape) -> None:
+        tile_shape = shape_(tile_shape)
+        base_shape = shape_(base_shape)
+        self._tile_shape = tile_shape
+        self._base_shape = base_shape
+        ny, nx = (
+            int(math.ceil(float(N) / n)) for N, n in zip(base_shape.yx, tile_shape.yx)
+        )
+        self._shape = shape_((ny, nx))
+
+    def __getitem__(self, idx: SomeIndex2d) -> NormalizedROI:
+        def _slice(i, N, n) -> NormalizedSlice:
+            _in = i * n
+            if 0 <= _in < N:
+                return slice(_in, min(_in + n, N))
+            raise IndexError(f"Index {idx} is out of range")
+
+        idx = iyx_(idx)
+
+        ir, ic = (
+            _slice(i, N, n)
+            for i, N, n in zip(idx.yx, self._base_shape.yx, self._tile_shape.yx)
+        )
+        return (ir, ic)
+
+    def tile_shape(self, idx: SomeIndex2d) -> Shape2d:
+        """
+        Query shape for a given tile.
+
+        :param idx: ``(row, col)`` chunk index
+        :returns: shape of a tile (edge tiles might be smaller)
+        :raises: :py:class:`IndexError` when index is outside of ``[(0,0) -> .shape)``.
+        """
+        idx = iyx_(idx)
+
+        def _sz(i: int, n: int, tile_sz: int, total_sz: int) -> int:
+            if 0 <= i < n - 1:  # not edge tile
+                return tile_sz
+            if i == n - 1:  # edge tile
+                return total_sz - (i * tile_sz)
+            # out of index case
+            raise IndexError(f"Index {idx} is out of range")
+
+        ny, nx = map(
+            _sz, idx.yx, self._shape.yx, self._tile_shape.yx, self._base_shape.yx
+        )
+        return shape_((ny, nx))
+
+    @property
+    def shape(self) -> Shape2d:
+        """Number of tiles along each dimension."""
+        return self._shape
+
+    @property
+    def base(self) -> Shape2d:
+        """Base shape."""
+        return self._base_shape
 
 
 def polygon_path(x: np.ndarray, y: Optional[np.ndarray] = None) -> np.ndarray:
