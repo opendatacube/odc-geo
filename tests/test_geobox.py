@@ -209,6 +209,7 @@ def test_geobox():
     assert bool(gbox) is True
 
     assert (gbox[:3, :4] & gbox[3:, 4:]).is_empty()
+    assert (gbox[:3, :4] & gbox[:3, 4:]).is_empty()
     assert (gbox[:3, :4] & gbox[30:, 40:]).is_empty()
 
     assert gbox[:3, :7].center_pixel == gbox[1, 3]
@@ -310,15 +311,29 @@ def test_svg():
     assert len(gbox.svg()) > 0
     assert gbox.svg(10) != gbox.svg(1)
 
+    assert gbox.grid_lines(mode="pixel").crs == "epsg:3857"
+
     assert isinstance(gbox._repr_svg_(), str)
+
+    # empty should still work
+    assert isinstance((gbox[:3] & gbox[3:])._repr_svg_(), str)
 
 
 def test_html_repr():
     # smoke test only
     gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
     assert isinstance(gbox._repr_html_(), str)
+    # empties should still work
+    assert isinstance(gbox[:0]._repr_html_(), str)
+    assert isinstance(gbox[:0, :0]._repr_html_(), str)
 
     # no crs case
     gbox = GeoBox(wh_(200, 100), Affine.translation(-10, 20), None)
     assert gbox.crs is None
     assert isinstance(gbox._repr_html_(), str)
+
+    # empty should still work
+    assert isinstance((gbox[:3] & gbox[3:])._repr_html_(), str)
+
+    # empty should still work
+    assert isinstance((gbox[:0, :0])._repr_html_(), str)

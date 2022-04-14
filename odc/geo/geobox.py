@@ -238,7 +238,7 @@ class GeoBox:
 
     def is_empty(self) -> bool:
         """Check if geobox is "empty"."""
-        return self._shape.shape == (0, 0)
+        return 0 in self._shape
 
     def __bool__(self) -> bool:
         return not self.is_empty()
@@ -575,13 +575,16 @@ class GeoBox:
         from .ui import pick_grid_step  # pylint: disable=import-outside-toplevel
 
         nx, ny = self._shape.xy
-        if step == 0:
-            step = pick_grid_step(max(nx, ny))
-        xx = [*range(0, nx, step), nx]
-        yy = [*range(0, ny, step), ny]
-        vertical = [list(itertools.product([x], yy)) for x in xx[1:-1]]
-        horizontal = [list(itertools.product(xx, [y])) for y in yy[1:-1]]
-        lines = multiline(vertical + horizontal, self._crs)
+        if nx > 0 and ny > 0:
+            if step == 0:
+                step = pick_grid_step(max(nx, ny))
+            xx = [*range(0, nx, step), nx]
+            yy = [*range(0, ny, step), ny]
+            vertical = [list(itertools.product([x], yy)) for x in xx[1:-1]]
+            horizontal = [list(itertools.product(xx, [y])) for y in yy[1:-1]]
+            lines = multiline(vertical + horizontal, self._crs)
+        else:
+            lines = multiline([], self._crs)
 
         if mode == "pixel":
             return lines
