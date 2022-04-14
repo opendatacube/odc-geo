@@ -337,3 +337,18 @@ def test_html_repr():
 
     # empty should still work
     assert isinstance((gbox[:0, :0])._repr_html_(), str)
+
+
+def test_lrtb():
+    gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
+
+    assert gbox.right.left == gbox
+    assert gbox.left.right == gbox
+    assert gbox.top.bottom == gbox
+    assert gbox.bottom.top == gbox
+
+    assert gbox.left == GeoBox.from_bbox([-20, 0, 0, 10], gbox.crs, shape=gbox.shape)
+    assert gbox.right == GeoBox.from_bbox([20, 0, 40, 10], gbox.crs, shape=gbox.shape)
+
+    assert gbox.bottom == GeoBox.from_bbox([0, -10, 20, 0], gbox.crs, shape=gbox.shape)
+    assert gbox.top == GeoBox.from_bbox([0, 10, 20, 20], gbox.crs, shape=gbox.shape)

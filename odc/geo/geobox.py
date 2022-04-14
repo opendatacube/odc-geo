@@ -492,6 +492,26 @@ class GeoBox:
         """
         return self * Affine.translation(tx, ty)
 
+    @property
+    def left(self) -> "GeoBox":
+        """Same size geobox to the left of this one."""
+        return self.translate_pix(-self.shape.x, 0)
+
+    @property
+    def right(self) -> "GeoBox":
+        """Same size geobox to the right of this one."""
+        return self.translate_pix(self.shape.x, 0)
+
+    @property
+    def top(self) -> "GeoBox":
+        """Same size geobox to the left of this one."""
+        return self.translate_pix(0, -self.shape.y)
+
+    @property
+    def bottom(self) -> "GeoBox":
+        """Same size geobox to the left of this one."""
+        return self.translate_pix(0, self.shape.y)
+
     def rotate(self, deg: float) -> "GeoBox":
         """
         Rotate GeoBox around the center.
