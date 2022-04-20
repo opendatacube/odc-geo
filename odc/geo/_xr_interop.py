@@ -20,6 +20,7 @@ from .crs import CRS, CRSError, SomeCRS, norm_crs_or_error
 from .geobox import Coordinate, GeoBox
 from .geom import Geometry
 from .math import affine_from_axis
+from .overlap import compute_output_geobox
 from .types import Resolution, resxy_
 
 if have.rasterio:
@@ -381,6 +382,18 @@ class ODCExtension:
     @property
     def geobox(self) -> Optional[GeoBox]:
         return self._state.geobox
+
+    def output_geobox(self, crs: SomeCRS, **kw) -> GeoBox:
+        """
+        Compute geobox of this data in other projection.
+
+        ..see-also:: :py:meth:`odc.geo.overlap.compute_output_geobox`
+        """
+        gbox = self.geobox
+        if gbox is None:
+            raise ValueError("Not geo registered")
+
+        return compute_output_geobox(gbox, crs, **kw)
 
 
 @xarray.register_dataarray_accessor("odc")

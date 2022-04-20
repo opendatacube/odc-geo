@@ -4,12 +4,13 @@
 # SPDX-License-Identifier: Apache-2.0
 import math
 from dataclasses import dataclass
-from typing import List, Optional, Protocol, Sequence, Tuple, TypeVar, Union
+from typing import List, Literal, Optional, Protocol, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
 from affine import Affine
 from numpy import linalg
 
+from .crs import SomeCRS, norm_crs
 from .geobox import GeoBox, gbox_boundary
 from .math import clamp, is_affine_st, is_almost_int, maybe_int, snap_affine
 from .roi import (
@@ -21,7 +22,7 @@ from .roi import (
     roi_is_empty,
     scaled_up_roi,
 )
-from .types import XY, SomeShape, shape_, xy_
+from .types import XY, SomeShape, res_, shape_, xy_
 
 SomeAffine = Union[Affine, np.ndarray]
 AffineX = TypeVar("AffineX", np.ndarray, Affine)
@@ -628,3 +629,84 @@ def compute_reproject_roi(
         read_shrink=read_shrink,
         transform=tr,
     )
+
+
+def compute_output_geobox(
+    gbox: GeoBox,
+    crs: SomeCRS,
+    *,
+    resolution: Literal["auto", "fit", "same"] = "auto",
+    tight: bool = False,
+) -> GeoBox:
+    """
+    Compute output ``GeoBox``.
+
+    Find best fitting, axis aligned GeoBox in a different coordinate reference given source
+    ``GeoBox`` on input.
+
+    :param gbox:
+       Source geobox.
+
+    :param crs:
+       Desired CRS of the output
+
+    :param resolution:
+       * "same" use exactly the same resolution as src
+       * "fit" use center pixel to determine scale change between the two
+       * "auto" is to use the same resolution on the output if CRS units are the same
+          between the source and destination and otherwise use "fit"
+
+    :param tight:
+      By default output pixel grid is adjusted to align pixel edges to X/Y axis, suppling
+      ``tight=True`` produces unaligned geobox on the output.
+
+    :return:
+       Similar resolution, axis aligned geobox that fully encloses source one but in a different
+       projection.
+    """
+    # pylint: disable=too-many-locals
+
+    dst_crs = norm_crs(crs)
+    src_crs = gbox.crs
+    assert src_crs is not None
+
+    # do about 100 point per side and pad by 0.9 pixel to figure out bounding box
+    # in the new projection
+    src_span = max(gbox.extent.boundingbox.span_x, gbox.extent.boundingbox.span_y)
+    src_pix_sz = max(abs(gbox.resolution.x), abs(gbox.resolution.y))
+
+    bbox = (
+        gbox.extent.buffer(src_pix_sz * 0.9)
+        .to_crs(dst_crs, resolution=src_span / 100)
+        .boundingbox
+    )
+
+    same_units = src_crs.units == dst_crs.units
+
+    if resolution == "same":
+        res = gbox.resolution
+    elif resolution == "auto" and same_units:
+        res = gbox.resolution
+    elif resolution in ("fit", "auto"):
+        # get initial resolution by computing 1x1 bounding box of the center pixel
+        #
+        cp = gbox.center_pixel
+        cp_bbox = cp.extent.to_crs(dst_crs).boundingbox
+        dst_ = GeoBox.from_bbox(cp_bbox, dst_crs, shape=(1, 1), tight=True)
+
+        # further adjust that via fitting
+        #  Y = tr(X) => Y ~= s*X + t
+        # where X is in `dst_` and Y is in `gbox`
+        # .. so a better fit resolution is `_dst.res / s`
+        # .. but we want square pixels so pick average between x/y
+        sx, sy = get_scale_at_point(xy_(0.5, 0.5), native_pix_transform(dst_, cp)).xy
+
+        # always produces square pixels on output with inverted Y axis
+        avg_res = (abs(dst_.resolution.x / sx) + abs(dst_.resolution.y / sy)) / 2
+        res = res_(avg_res)
+    else:
+        raise ValueError(
+            f"Resolution ought to be one of: same,auto,fit, not '{resolution}'"
+        )
+
+    return GeoBox.from_bbox(bbox, dst_crs, resolution=res, tight=tight)
