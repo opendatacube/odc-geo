@@ -3,7 +3,7 @@
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Union, overload
 
 import cachetools
 import numpy
@@ -287,6 +287,14 @@ class CRSMismatchError(ValueError):
     Raised when geometry operation is attempted on geometries in different
     coordinate references.
     """
+
+
+# fmt: off
+@overload
+def norm_crs(crs: SomeCRS) -> CRS: ...
+@overload
+def norm_crs(crs: None) -> None: ...
+# fmt: on
 
 
 def norm_crs(crs: MaybeCRS) -> Optional[CRS]:
