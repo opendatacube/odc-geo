@@ -10,7 +10,14 @@ from odc.geo import geom
 from odc.geo.data import ocean_geom
 from odc.geo.geobox import GeoBox
 from odc.geo.testutils import epsg3577, mkA, purge_crs_info
-from odc.geo.xr import rasterize, register_geobox, wrap_xr, xr_coords, xr_zeros
+from odc.geo.xr import (
+    ODCExtensionDa,
+    rasterize,
+    register_geobox,
+    wrap_xr,
+    xr_coords,
+    xr_zeros,
+)
 
 # pylint: disable=redefined-outer-name
 
@@ -292,10 +299,20 @@ def test_wrap_xr():
 
 
 def test_xr_reproject(xx_epsg4326: xr.DataArray):
+    assert isinstance(xx_epsg4326.odc, ODCExtensionDa)
     # smoke-test only
     dst_gbox = xx_epsg4326.odc.geobox.zoom_out(1.3)
     xx = xx_epsg4326.odc.reproject(dst_gbox)
     assert xx.odc.geobox == dst_gbox
+
+    # check crs input
+    xx = xx_epsg4326.odc.reproject("epsg:3857")
+    assert xx.odc.geobox.crs == "epsg:3857"
+    assert xx.odc.geobox.shape == xx_epsg4326.odc.output_geobox("epsg:3857").shape
+
+    # non-georegistered case
+    with pytest.raises(ValueError):
+        _ = xx_epsg4326[:0, :0].odc.reproject(dst_gbox)
 
 
 def test_xr_rasterize():
@@ -310,7 +327,9 @@ def test_xr_rasterize():
 
     # chunk of ocean just off Africa in 3857
     xx = rasterize(gg, GeoBox.from_bbox([-20, -10, 20, 10], "epsg:3857", resolution=1))
-    assert xx.geobox.crs == "epsg:3857"
+    assert isinstance(xx.odc, ODCExtensionDa)
+    assert xx.odc.geobox is not None
+    assert xx.odc.geobox.crs == "epsg:3857"
     assert xx.all().item() is True
 
     # same but inverse
@@ -319,5 +338,5 @@ def test_xr_rasterize():
         GeoBox.from_bbox([-20, -10, 20, 10], "epsg:3857", resolution=1),
         value_inside=False,
     )
-    assert xx.geobox.crs == "epsg:3857"
+    assert xx.odc.geobox.crs == "epsg:3857"
     assert xx.any().item() is False
