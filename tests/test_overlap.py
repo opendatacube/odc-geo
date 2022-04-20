@@ -6,6 +6,7 @@ import math
 from random import uniform
 
 import numpy as np
+import pytest
 from affine import Affine
 
 from odc.geo import CRS, geom, resyx_, wh_, xy_
@@ -18,6 +19,7 @@ from odc.geo.overlap import (
     _can_paste,
     affine_from_pts,
     compute_axis_overlap,
+    compute_output_geobox,
     compute_reproject_roi,
     decompose_rws,
     get_scale_at_point,
@@ -439,3 +441,48 @@ def test_can_paste():
     )
     assert _can_paste(mkA(translation=(0, 0.4))) == (False, "sub-pixel translation")
     assert _can_paste(mkA(translation=(0.4, 0))) == (False, "sub-pixel translation")
+
+
+def test_compute_output_geobox():
+    # sentinel2 over Gibraltar strait
+    src = GeoBox.from_bbox(
+        [199980, 3890220, 309780, 4000020], "EPSG:32630", resolution=10
+    )
+
+    # just copy resolution since both in meters
+    dst = compute_output_geobox(src, "epsg:6933")
+    assert dst.crs.units == src.crs.units
+    assert dst.crs == "epsg:6933"
+    assert dst.resolution == src.resolution
+    assert dst.geographic_extent.contains(src.geographic_extent)
+
+    assert compute_output_geobox(
+        src, "epsg:6933", resolution="auto"
+    ) == compute_output_geobox(src, "epsg:6933", resolution="same")
+
+    # force estimation of new resolution
+    dst = compute_output_geobox(src, "epsg:6933", resolution="fit")
+    assert dst.crs == "epsg:6933"
+    assert dst.resolution != src.resolution
+    assert dst.resolution.x == -dst.resolution.y
+    assert dst.geographic_extent.contains(src.geographic_extent)
+
+    # check conversion to lon/lat
+    dst = compute_output_geobox(src, "epsg:4326")
+    assert dst.crs == "epsg:4326"
+    assert dst.resolution != src.resolution
+    assert dst.resolution.x == -dst.resolution.y
+    assert dst.geographic_extent.contains(src.geographic_extent)
+    npix_change = (src.shape[0] * src.shape[1]) / (dst.shape[0] * dst.shape[1])
+    assert 0.8 < npix_change < 1.1
+
+    # go back from 4326
+    _src = dst
+    dst = compute_output_geobox(_src, src.crs)
+    npix_change = (_src.shape[0] * _src.shape[1]) / (dst.shape[0] * dst.shape[1])
+    assert 0.8 < npix_change < 1.1
+    assert dst.geographic_extent.contains(_src.geographic_extent)
+
+    # test bad input
+    with pytest.raises(ValueError):
+        _ = compute_output_geobox(src, "epsg:6933", resolution="bad-one")
