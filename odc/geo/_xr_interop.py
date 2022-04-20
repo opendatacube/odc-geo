@@ -314,7 +314,7 @@ def _wrap_op(method):
 
 def xr_reproject(
     src: xarray.DataArray,
-    dst_geobox: GeoBox,
+    how: Union[SomeCRS, GeoBox],
     *,
     resampling: Union[str, int] = "nearest",
     dst_nodata: Optional[float] = None,
@@ -329,6 +329,16 @@ def xr_reproject(
         raise RuntimeError(
             "Please install `rasterio` to use this method"
         )  # pragma: nocover
+
+    assert isinstance(src.odc, ODCExtension)  # for mypy sake
+
+    if src.odc.geobox is None:
+        raise ValueError("Can not reproject non-georestered array.")
+
+    if isinstance(how, GeoBox):
+        dst_geobox = how
+    else:
+        dst_geobox = src.odc.output_geobox(how)
 
     dst_shape = (*src.shape[:-2], *dst_geobox.shape)
     dst = numpy.empty(dst_shape, dtype=src.dtype)
