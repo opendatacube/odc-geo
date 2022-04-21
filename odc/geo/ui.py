@@ -1,8 +1,10 @@
 import math
 from functools import lru_cache
+from typing import Tuple
 
 from . import geom
 from .data import ocean_geom
+from .types import XY, Shape2d, wh_, xy_
 
 # pylint: disable=too-many-locals
 _UNIT_REMAPS = {
@@ -46,6 +48,29 @@ def _ocean_svg_path(ndecimal=3, clip_bbox=None):
     return g.svg_path(ndecimal)
 
 
+def _compute_display_box(
+    span: XY[float], sz: int, min_sz: int, tol: float = 1e-6
+) -> Tuple[Shape2d, float]:
+    """
+    return: shape in pixels, ``s`` maps sizes from world to pix
+    """
+    span_x, span_y = span.xy
+    if max(span_x, span_y) < tol:
+        # both too small, make it square
+        span_x = span_y = tol
+        w, h = sz, sz
+        s = w / span_x
+    elif span_x > span_y:
+        # wide case: w = sz, span_x == sz
+        w, h = sz, max(int(sz * span_y / span_x), min_sz)
+        s = w / span_x
+    else:
+        # tall case: h = sz, span_y == sz
+        h, w = sz, max(int(sz * span_x / span_y), min_sz)
+        s = h / span_y
+    return wh_(w, h), s
+
+
 def svg_base_map(
     *extras,
     fill="#CCCCCC",
@@ -70,22 +95,8 @@ def svg_base_map(
         map_svg_path = _ocean_svg_path(clip_bbox=clip_bbox)
 
     x0, y0, x1, y1 = bbox
-    span_x = x1 - x0
-    span_y = y1 - y0
-
-    # in pixels
-    min_span = min(40, sz)
-
-    if min(span_x, span_y) < 1e-4:
-        span_x = span_y = 1e-4
-        w, h = sz, sz
-        s = w / span_x
-    elif span_x > span_y:
-        w, h = sz, max(int(sz * span_y / span_x), min_span)
-        s = w / span_x
-    else:
-        h, w = sz, max(int(sz * span_y / span_x), min_span)
-        s = h / span_y
+    shape, s = _compute_display_box(xy_(x1 - x0, y1 - y0), sz, min(40, sz))
+    w, h = shape.wh
 
     scale_factor = 1 / s
     stroke_width = stroke_width * scale_factor
@@ -132,22 +143,8 @@ def make_svg(
         bbox = (0, 0, sz, sz)
 
     x0, y0, x1, y1 = bbox
-    span_x = x1 - x0
-    span_y = y1 - y0
-
-    # in pixels
-    min_span = min(40, sz)
-
-    if min(span_x, span_y) < 1e-4:
-        span_x = span_y = 1e-4
-        w, h = sz, sz
-        s = w / span_x
-    elif span_x > span_y:
-        w, h = sz, max(int(sz * span_y / span_x), min_span)
-        s = w / span_x
-    else:
-        h, w = sz, max(int(sz * span_y / span_x), min_span)
-        s = h / span_y
+    shape, s = _compute_display_box(xy_(x1 - x0, y1 - y0), sz, min(40, sz))
+    w, h = shape.wh
 
     scale_factor = 1 / s
     stroke_width = stroke_width * scale_factor
