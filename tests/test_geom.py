@@ -403,6 +403,18 @@ def test_boundingbox():
     assert BoundingBox(1, 3, 10, 20).buffered(1, 3) == (0, 0, 11, 23)
     assert BoundingBox(1, 3, 10, 20).buffered(1) == (0, 2, 11, 21)
 
+    assert BoundingBox.from_transform(
+        wh_(10, 12), Affine.translation(1, 3), "epsg:3857"
+    ) == (1, 3, 11, 15)
+    assert (
+        BoundingBox.from_transform(
+            wh_(10, 12), Affine.translation(1, 3), "epsg:3857"
+        ).crs
+        == "epsg:3857"
+    )
+
+    assert bb.polygon.boundingbox == bb
+
 
 def test_densify():
     s_x10 = [(0, 0), (10, 0)]
