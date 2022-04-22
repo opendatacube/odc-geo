@@ -94,6 +94,7 @@ class GeoBox:
         shape: Optional[SomeShape] = None,
         resolution: Optional[SomeResolution] = None,
         anchor: GeoboxAnchor = AnchorEnum.EDGE,
+        tol: float = 0.01,
     ) -> "GeoBox":
         """
         Construct :py:class:`~odc.geo.geobox.GeoBox` from a bounding box.
@@ -104,8 +105,11 @@ class GeoBox:
         :param resolution: Use specified resolution
         :param tight: Supplying ``tight=True`` turns off pixel snapping.
         :param anchor:
-            By default snaps grid such pixel edges are align with axis. Ignored when tight mode is
+            By default snaps grid such that pixel edges fall on X/Y axis. Ignored when tight mode is
             used.
+        :param tol:
+            Fraction of a pixel that can be ignored, defaults to 1/100. Bounding box of the output
+            geobox is allowed to be smaller than supplied bounding box by that amount.
 
         :return:
            :py:class:`~odc.geo.geobox.GeoBox` that covers supplied bounding box.
@@ -131,11 +135,11 @@ class GeoBox:
         if resolution is not None:
             rx, ry = res_(resolution).xy
             if _snap is None:
-                offx, nx = snap_grid(bbox.left, bbox.right, rx, None)
-                offy, ny = snap_grid(bbox.bottom, bbox.top, ry, None)
+                offx, nx = snap_grid(bbox.left, bbox.right, rx, None, tol=tol)
+                offy, ny = snap_grid(bbox.bottom, bbox.top, ry, None, tol=tol)
             else:
-                offx, nx = snap_grid(bbox.left, bbox.right, rx, _snap.x)
-                offy, ny = snap_grid(bbox.bottom, bbox.top, ry, _snap.y)
+                offx, nx = snap_grid(bbox.left, bbox.right, rx, _snap.x, tol=tol)
+                offy, ny = snap_grid(bbox.bottom, bbox.top, ry, _snap.y, tol=tol)
 
             affine = Affine.translation(offx, offy) * Affine.scale(rx, ry)
             return GeoBox((ny, nx), crs=bbox.crs, affine=affine)
@@ -151,8 +155,8 @@ class GeoBox:
         if _snap is None:
             offx, offy = bbox.left, bbox.top
         else:
-            offx, _ = snap_grid(bbox.left, bbox.right, rx, _snap.x)
-            offy, _ = snap_grid(bbox.bottom, bbox.top, ry, _snap.y)
+            offx, _ = snap_grid(bbox.left, bbox.right, rx, _snap.x, tol=tol)
+            offy, _ = snap_grid(bbox.bottom, bbox.top, ry, _snap.y, tol=tol)
 
         affine = Affine.translation(offx, offy) * Affine.scale(rx, ry)
         return GeoBox((ny, nx), crs=bbox.crs, affine=affine)
@@ -163,6 +167,7 @@ class GeoBox:
         resolution: SomeResolution,
         crs: MaybeCRS = None,
         anchor: GeoboxAnchor = AnchorEnum.EDGE,
+        tol: float = 0.01,
     ) -> "GeoBox":
         """
         Construct :py:class:`~odc.geo.geobox.GeoBox` from a polygon.
@@ -171,6 +176,14 @@ class GeoBox:
            Either a single number or a :py:class:`~odc.geo.types.Resolution` object.
         :param crs:
            CRS to use, if different from the geopolygon
+
+        :param anchor:
+            By default snaps grid such that pixel edges fall on X/Y axis.
+
+         :param tol:
+            Fraction of a pixel that can be ignored, defaults to 1/100. Bounding box of the output
+            geobox is allowed to be smaller than supplied bounding box by that amount.
+
         """
         resolution = res_(resolution)
         if crs is None:
@@ -179,7 +192,7 @@ class GeoBox:
             geopolygon = geopolygon.to_crs(crs)
 
         return GeoBox.from_bbox(
-            geopolygon.boundingbox, crs, resolution=resolution, anchor=anchor
+            geopolygon.boundingbox, crs, resolution=resolution, anchor=anchor, tol=tol
         )
 
     def buffered(self, xbuff: float, ybuff: Optional[float] = None) -> "GeoBox":

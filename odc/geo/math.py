@@ -123,25 +123,26 @@ def is_almost_int(x: float, tol: float) -> bool:
     return x < tol
 
 
-def _snap_edge_pos(x0: float, x1: float, res: float) -> Tuple[float, int]:
+def _snap_edge_pos(x0: float, x1: float, res: float, tol: float) -> Tuple[float, int]:
     assert res > 0
     assert x1 >= x0
-    _x0, _x1 = floor(x0 / res), ceil(x1 / res)
+    _x0 = floor(maybe_int(x0 / res, tol))
+    _x1 = ceil(maybe_int(x1 / res, tol))
     nx = max(1, _x1 - _x0)
     return _x0 * res, nx
 
 
-def _snap_edge(x0: float, x1: float, res: float) -> Tuple[float, int]:
+def _snap_edge(x0: float, x1: float, res: float, tol: float) -> Tuple[float, int]:
     assert x1 >= x0
     if res > 0:
-        return _snap_edge_pos(x0, x1, res)
-    _tx, nx = _snap_edge_pos(x0, x1, -res)
+        return _snap_edge_pos(x0, x1, res, tol)
+    _tx, nx = _snap_edge_pos(x0, x1, -res, tol)
     tx = _tx + nx * (-res)
     return tx, nx
 
 
 def snap_grid(
-    x0: float, x1: float, res: float, off_pix: Optional[float] = 0
+    x0: float, x1: float, res: float, off_pix: Optional[float] = 0, tol: float = 1e-6
 ) -> Tuple[float, int]:
     """
     Compute grid snapping for single axis.
@@ -160,13 +161,13 @@ def snap_grid(
     assert (off_pix is None) or (0 <= off_pix < 1)
     if off_pix is None:
         if res > 0:
-            nx = ceil((x1 - x0) / res)
+            nx = ceil(maybe_int((x1 - x0) / res, tol))
             return x0, max(1, nx)
-        nx = ceil((x1 - x0) / (-res))
+        nx = ceil(maybe_int((x1 - x0) / (-res), tol))
         return x1, max(nx, 1)
 
     off = off_pix * abs(res)
-    _tx, nx = _snap_edge(x0 - off, x1 - off, res)
+    _tx, nx = _snap_edge(x0 - off, x1 - off, res, tol)
     return _tx + off, nx
 
 

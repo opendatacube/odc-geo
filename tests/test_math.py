@@ -234,3 +234,7 @@ def test_snap_affine():
 )
 def test_snap_grid(left, right, res, off, expect):
     assert snap_grid(left, right, res, off / abs(res)) == expect
+
+
+def test_snap_grid_tol():
+    assert snap_grid(0.95, 10.12, 1, 0, 0.1) == (1.0, 10)
