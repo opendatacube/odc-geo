@@ -30,6 +30,7 @@ from .types import (
     XY,
     Index2d,
     MaybeInt,
+    NormalizedROI,
     Resolution,
     Shape2d,
     SomeIndex2d,
@@ -245,6 +246,22 @@ class GeoBox:
 
     def __hash__(self):
         return hash((*self._shape, self._crs, self._affine))
+
+    def overlap_roi(self, other: "GeoBox", tol: float = 1e-8) -> NormalizedROI:
+        """
+        Compute overlap as ROI.
+
+        Figure out slice into this geobox that shares pixels with the ``other`` geobox with
+        consistent pixel grid.
+
+        :raises:
+            :py:class:`ValueError` when two geoboxes are not pixel-aligned.
+        """
+        nx, ny = self._shape.xy
+        x0, y0, x1, y1 = map(int, bounding_box_in_pixel_domain(other, self, tol))
+        x0, y0 = max(0, x0), max(0, y0)
+        x1, y1 = min(x1, nx), min(y1, ny)
+        return numpy.s_[y0:y1, x0:x1]
 
     @property
     def transform(self) -> Affine:
