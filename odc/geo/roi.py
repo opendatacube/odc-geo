@@ -10,50 +10,27 @@ will have an ROI that can be constructed with :py:func:`numpy.s_` like this: ``s
 """
 import math
 from collections import abc
-from typing import Optional, Protocol, Tuple, Union, overload
+from typing import Optional, Tuple, Union, overload
 
 import numpy as np
 
 from .math import align_down, align_up
-from .types import Shape2d, SomeIndex2d, SomeShape, T, iyx_, shape_
+from .types import (
+    NdROI,
+    NormalizedROI,
+    NormalizedSlice,
+    Shape2d,
+    SomeIndex2d,
+    SomeShape,
+    SomeSlice,
+    T,
+    iyx_,
+    shape_,
+)
 
 # This is numeric code, short names make sense in this context, so disabling
 # "invalid name" checks for the whole file
 # pylint: disable=invalid-name
-
-# fmt: off
-class NormalizedSlice(Protocol):
-    """
-    Type for ``slice`` with start/stop set to integer values.
-    """
-    @property
-    def start(self) -> int: ...
-    @property
-    def stop(self) -> int: ...
-    @property
-    def step(self) -> Optional[int]: ...
-# fmt: on
-
-SomeSlice = Union[slice, int, NormalizedSlice]
-"""
-Slice index into ndarray or a single int.
-
-Single index is equivalent to ``slice(idx, idx+1)``.
-"""
-
-NdROI = Union[SomeSlice, Tuple[SomeSlice, ...]]
-"""
-Any dimensional slice into ndarray.
-
-This could be a single ``int`` or slice ``slice`` or a tuple of any number
-of those things.
-"""
-
-ROI = Tuple[SomeSlice, SomeSlice]
-"""2d slice into an image plane."""
-
-NormalizedROI = Tuple[NormalizedSlice, NormalizedSlice]
-"""Normalized 2d slice into an image plane."""
 
 
 class WindowFromSlice:
