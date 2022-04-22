@@ -6,6 +6,7 @@ from typing import (
     Iterator,
     Literal,
     Optional,
+    Protocol,
     Sequence,
     Tuple,
     TypeVar,
@@ -371,3 +372,38 @@ def shape_(x: SomeShape) -> Shape2d:
         ny, nx = map(int, x)
         return Shape2d(x=nx, y=ny)
     raise ValueError(f"Input type not understood: {type(x)}")
+
+
+# fmt: off
+class NormalizedSlice(Protocol):
+    """
+    Type for ``slice`` with start/stop set to integer values.
+    """
+    @property
+    def start(self) -> int: ...
+    @property
+    def stop(self) -> int: ...
+    @property
+    def step(self) -> Optional[int]: ...
+# fmt: on
+
+SomeSlice = Union[slice, int, NormalizedSlice]
+"""
+Slice index into ndarray or a single int.
+
+Single index is equivalent to ``slice(idx, idx+1)``.
+"""
+
+NdROI = Union[SomeSlice, Tuple[SomeSlice, ...]]
+"""
+Any dimensional slice into ndarray.
+
+This could be a single ``int`` or slice ``slice`` or a tuple of any number
+of those things.
+"""
+
+ROI = Tuple[SomeSlice, SomeSlice]
+"""2d slice into an image plane."""
+
+NormalizedROI = Tuple[NormalizedSlice, NormalizedSlice]
+"""Normalized 2d slice into an image plane."""
