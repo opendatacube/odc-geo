@@ -670,17 +670,7 @@ def compute_output_geobox(
     src_crs = gbox.crs
     assert src_crs is not None
 
-    # do about 100 point per side and pad by 0.9 pixel to figure out bounding box
-    # in the new projection
-    src_span = max(gbox.extent.boundingbox.span_x, gbox.extent.boundingbox.span_y)
-    src_pix_sz = max(abs(gbox.resolution.x), abs(gbox.resolution.y))
-
-    bbox = (
-        gbox.extent.buffer(src_pix_sz * 0.9)
-        .to_crs(dst_crs, resolution=src_span / 100)
-        .boundingbox
-    )
-
+    bbox = gbox.footprint(dst_crs, buffer=0.9, npoints=100).boundingbox
     same_units = src_crs.units == dst_crs.units
 
     if resolution == "same":

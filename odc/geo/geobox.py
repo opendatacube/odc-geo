@@ -11,7 +11,7 @@ from typing import Dict, Iterable, List, Literal, Optional, Tuple, Union
 import numpy
 from affine import Affine
 
-from .crs import CRS, MaybeCRS, norm_crs
+from .crs import CRS, MaybeCRS, SomeCRS, norm_crs
 from .geom import (
     BoundingBox,
     Geometry,
@@ -352,15 +352,31 @@ class GeoBox:
         span = max(bbox.span_x, bbox.span_y)
         return span / npoints
 
+    def footprint(
+        self, crs: SomeCRS, buffer: float = 0, npoints: int = 100
+    ) -> Geometry:
+        """
+        Compute footprint in foreign CRS.
+
+        :param crs: CRS of the destination
+        :param buffer: amount to buffer in source pixels before transforming
+        :param npoints: number of points per-side to use, higher number
+                        is slower but more accurate
+        """
+        assert self.crs is not None
+        ext = self.extent
+        if buffer > 0:
+            buffer = buffer * max(*self.resolution.xy)
+            ext = ext.buffer(buffer)
+
+        return ext.to_crs(crs, resolution=self._reproject_resolution(npoints))
+
     @property
     def geographic_extent(self) -> Geometry:
         """GeoBox extent in EPSG:4326."""
         if self._crs is None or self._crs.geographic:
             return self.extent
-
-        return self.extent.to_crs(
-            CRS("EPSG:4326"), resolution=self._reproject_resolution()
-        )
+        return self.footprint("epsg:4326")
 
     coords = coordinates
     dims = dimensions
