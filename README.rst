@@ -14,8 +14,8 @@ geo-registered bounded pixel plane where a linear mapping from pixel coordinates
 is defined.
 
 To make working with geo-registered raster data easier an integration with xarray_ is provided.
-Importing ``odc.geo.xr`` enables ``.odc.`` accessor on every ``xarray.Dataset`` and
-``xarray.DataArray`` that exposes geospatial information of the raster loaded with `Open Datacube`_
+Importing ``odc.geo.xr`` enables the ``.odc.`` accessor on every ``xarray.Dataset`` and
+``xarray.DataArray``. This exposes geospatial information of a raster loaded with `Open Datacube`_
 or rioxarray_. Methods for attaching geospatial information to xarray objects in a robust way are
 also provided. Geospatial information attached in this way survives most operations you might do on
 the data: basic mathematical operations, type conversions, cropping, serialization to most formats
