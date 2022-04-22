@@ -342,6 +342,11 @@ class GeoBox:
         self._extent = _extent
         return _extent
 
+    @property
+    def boundingbox(self) -> BoundingBox:
+        """GeoBox bounding box in the native CRS."""
+        return BoundingBox.from_transform(self._shape, self._affine, crs=self._crs)
+
     def _reproject_resolution(self, npoints: int = 100):
         bbox = self.extent.boundingbox
         span = max(bbox.span_x, bbox.span_y)
