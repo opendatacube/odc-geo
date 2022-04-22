@@ -6,9 +6,8 @@ import array
 import functools
 import itertools
 import math
-from collections import namedtuple
-from collections.abc import Sequence
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple, Union
+from collections import abc
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple, Union
 
 import numpy
 from affine import Affine
@@ -18,12 +17,73 @@ from shapely.geometry import base
 from .crs import CRS, CRSMismatchError, MaybeCRS, SomeCRS, norm_crs, norm_crs_or_error
 from .types import SomeShape, shape_
 
-_BoundingBox = namedtuple("_BoundingBox", ("left", "bottom", "right", "top"))
 CoordList = List[Tuple[float, float]]
 
+# pylint: disable=too-many-lines
 
-class BoundingBox(_BoundingBox):
+
+class BoundingBox(Sequence[float]):
     """Bounding box, defining extent in cartesian coordinates."""
+
+    __slots__ = "_crs", "_box"
+
+    def __init__(
+        self, left: float, bottom: float, right: float, top: float, crs: MaybeCRS = None
+    ):
+        self._box = (left, bottom, right, top)
+        self._crs = norm_crs(crs)
+
+    @property
+    def left(self):
+        return self._box[0]
+
+    @property
+    def bottom(self):
+        return self._box[1]
+
+    @property
+    def right(self):
+        return self._box[2]
+
+    @property
+    def top(self):
+        return self._box[3]
+
+    @property
+    def crs(self) -> Optional[CRS]:
+        return self._crs
+
+    @property
+    def bbox(self) -> Tuple[float, float, float, float]:
+        return self._box
+
+    def __iter__(self):
+        return self._box.__iter__()
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, BoundingBox):
+            return self._crs == other._crs and self._box == other._box
+        return self._box == other
+
+    def __hash__(self) -> int:
+        return hash((self._crs, self._box))
+
+    def __len__(self) -> int:
+        return 4
+
+    def __getitem__(self, idx):
+        return self._box[idx]
+
+    def __repr__(self) -> str:
+        if self.crs is None:
+            return f"BoundingBox(left={self.left}, bottom={self.bottom}, right={self.right}, top={self.top})"
+        return (
+            f"BoundingBox(left={self.left}, bottom={self.bottom},"
+            f" right={self.right}, top={self.top}, crs={repr(self.crs)})"
+        )
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
     def buffered(self, xbuff: float, ybuff: Optional[float] = None) -> "BoundingBox":
         """
@@ -41,6 +101,7 @@ class BoundingBox(_BoundingBox):
             bottom=self.bottom - ybuff,
             right=self.right + xbuff,
             top=self.top + ybuff,
+            crs=self._crs,
         )
 
     @property
@@ -94,10 +155,12 @@ class BoundingBox(_BoundingBox):
         pts = [transform * pt for pt in self.points]
         xx = [x for x, _ in pts]
         yy = [y for _, y in pts]
-        return BoundingBox(min(xx), min(yy), max(xx), max(yy))
+        return BoundingBox(min(xx), min(yy), max(xx), max(yy), self._crs)
 
     @staticmethod
-    def from_xy(x: Tuple[float, float], y: Tuple[float, float]) -> "BoundingBox":
+    def from_xy(
+        x: Tuple[float, float], y: Tuple[float, float], crs: MaybeCRS = None
+    ) -> "BoundingBox":
         """
         Construct :py:class:`~odc.geo.geom.BoundingBox` from x and y ranges.
 
@@ -106,17 +169,19 @@ class BoundingBox(_BoundingBox):
         """
         x1, x2 = sorted(x)
         y1, y2 = sorted(y)
-        return BoundingBox(x1, y1, x2, y2)
+        return BoundingBox(x1, y1, x2, y2, crs)
 
     @staticmethod
-    def from_points(p1: Tuple[float, float], p2: Tuple[float, float]) -> "BoundingBox":
+    def from_points(
+        p1: Tuple[float, float], p2: Tuple[float, float], crs: MaybeCRS = None
+    ) -> "BoundingBox":
         """
         Construct :py:class:`~odc.geo.geom.BoundingBox` from two points.
 
         :param p1: (x, y)
         :param p2: (x, y)
         """
-        return BoundingBox.from_xy((p1[0], p2[0]), (p1[1], p2[1]))
+        return BoundingBox.from_xy((p1[0], p2[0]), (p1[1], p2[1]), crs)
 
 
 def wrap_shapely(method):
@@ -151,7 +216,7 @@ def force_2d(geojson: Dict[str, Any]) -> Dict[str, Any]:
         if is_scalar(x):
             return x
 
-        if isinstance(x, Sequence):
+        if isinstance(x, abc.Sequence):
             if all(is_scalar(y) for y in x):
                 return x[:2]
             return [go(y) for y in x]
@@ -354,7 +419,7 @@ class Geometry:
     @property
     def boundingbox(self) -> BoundingBox:
         minx, miny, maxx, maxy = self.geom.bounds
-        return BoundingBox(left=minx, right=maxx, bottom=miny, top=maxy)
+        return BoundingBox(left=minx, right=maxx, bottom=miny, top=maxy, crs=self.crs)
 
     @property
     def wkt(self) -> str:
@@ -906,9 +971,13 @@ def bbox_union(bbs: Iterable[BoundingBox]) -> BoundingBox:
     Given a stream of bounding boxes compute enclosing :py:class:`~odc.geo.geom.BoundingBox`.
     """
     # pylint: disable=invalid-name
+    try:
+        bb, *bbs = bbs
+    except ValueError:
+        raise ValueError("Union of empty stream is undefined") from None
 
-    L = B = float("+inf")
-    R = T = float("-inf")
+    L, B, R, T = bb
+    crs = bb.crs
 
     for bb in bbs:
         l, b, r, t = bb
@@ -917,7 +986,10 @@ def bbox_union(bbs: Iterable[BoundingBox]) -> BoundingBox:
         R = max(r, R)
         T = max(t, T)
 
-    return BoundingBox(L, B, R, T)
+        if crs != bb.crs:
+            raise CRSMismatchError((crs, bb.crs))
+
+    return BoundingBox(L, B, R, T, crs)
 
 
 def bbox_intersection(bbs: Iterable[BoundingBox]) -> BoundingBox:
@@ -927,9 +999,13 @@ def bbox_intersection(bbs: Iterable[BoundingBox]) -> BoundingBox:
     Given a stream of bounding boxes compute the overlap :py:class:`~odc.geo.geom.BoundingBox`.
     """
     # pylint: disable=invalid-name
+    try:
+        bb, *bbs = bbs
+    except ValueError:
+        raise ValueError("Intersection of empty stream is undefined") from None
 
-    L = B = float("-inf")
-    R = T = float("+inf")
+    L, B, R, T = bb
+    crs = bb.crs
 
     for bb in bbs:
         l, b, r, t = bb
@@ -938,7 +1014,10 @@ def bbox_intersection(bbs: Iterable[BoundingBox]) -> BoundingBox:
         R = min(r, R)
         T = min(t, T)
 
-    return BoundingBox(L, B, R, T)
+        if crs != bb.crs:
+            raise CRSMismatchError((crs, bb.crs))
+
+    return BoundingBox(L, B, R, T, crs)
 
 
 def lonlat_bounds(

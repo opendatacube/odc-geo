@@ -152,13 +152,15 @@ class GridSpec:
         :param bounds: Query bounding box
         :return: Bounding box in tile index space
         """
+        assert self.crs == bounds.crs
+
         x1, y1, x2, y2 = bounds
         ix1, iy1 = self.pt2idx(x1, y1).xy
         ix2, iy2 = self.pt2idx(x2, y2).xy
 
         ix1, ix2 = sorted([ix1, ix2])
         iy1, iy2 = sorted([iy1, iy2])
-        return BoundingBox(ix1, iy1, ix2, iy2)
+        return BoundingBox(ix1, iy1, ix2, iy2, self.crs)
 
     def tiles(
         self, bounds: BoundingBox, geobox_cache: Optional[dict] = None
@@ -191,7 +193,7 @@ class GridSpec:
                 geobox_cache[tile_index] = gbox
             return gbox
 
-        ix1, iy1, ix2, iy2 = self.idx_bounds(bounds)
+        ix1, iy1, ix2, iy2 = map(int, self.idx_bounds(bounds))
 
         for iy in range(iy1, iy2 + 1):
             for ix in range(ix1, ix2 + 1):
