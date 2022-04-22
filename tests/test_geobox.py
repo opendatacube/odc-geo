@@ -165,6 +165,7 @@ def test_geobox():
 
     w, h = 512, 256
     gbox = GeoBox(wh_(w, h), A, epsg3577)
+    assert gbox.boundingbox.crs is epsg3577
 
     assert gbox.shape == (h, w)
     assert gbox.transform == A
