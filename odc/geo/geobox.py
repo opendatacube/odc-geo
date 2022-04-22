@@ -114,6 +114,7 @@ class GeoBox:
         :return:
            :py:class:`~odc.geo.geobox.GeoBox` that covers supplied bounding box.
         """
+        # pylint: disable=too-many-locals
 
         _snap: Optional[XY[float]] = None
 

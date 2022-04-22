@@ -5,22 +5,28 @@ GeoBox
 .. autosummary::
    :toctree: _api/
 
+   GeoBox.from_geopolygon
+   GeoBox.from_bbox
    GeoBox.affine
-   GeoBox.alignment
    GeoBox.boundary
    GeoBox.buffered
    GeoBox.coordinates
-   GeoBox.coords
    GeoBox.crs
    GeoBox.dimensions
    GeoBox.dims
-   GeoBox.extent
    GeoBox.flipx
    GeoBox.flipy
-   GeoBox.from_geopolygon
+   GeoBox.extent
+   GeoBox.footprint
+   GeoBox.boundingbox
    GeoBox.geographic_extent
+   GeoBox.overlap_roi
    GeoBox.height
    GeoBox.is_empty
+   GeoBox.left
+   GeoBox.right
+   GeoBox.top
+   GeoBox.bottom
    GeoBox.pad
    GeoBox.pad_wh
    GeoBox.resolution
