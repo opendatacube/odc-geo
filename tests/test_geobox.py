@@ -230,6 +230,16 @@ def test_geobox():
         )
 
 
+def test_gbox_overlap_roi():
+    gbox = GeoBox(wh_(100, 30), Affine.translation(0, 0), epsg4326)
+    assert gbox.overlap_roi(gbox[3:7, 13:29]) == np.s_[3:7, 13:29]
+    assert gbox[10:20, 5:10].overlap_roi(gbox) == np.s_[0:10, 0:5]
+
+    a = gbox[10:20, 20:40]
+    b = gbox[11:30, 10:25]
+    assert a.overlap_roi(b) == np.s_[1:10, 0:5]
+
+
 def test_gbox_boundary():
     geobox = GeoBox(wh_(6, 2), Affine.translation(0, 0), epsg4326)
 
