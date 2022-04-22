@@ -13,7 +13,7 @@ from shapely.errors import ShapelyDeprecationWarning
 
 from odc.geo import CRS, BoundingBox, CRSMismatchError, geom, wh_
 from odc.geo.crs import norm_crs, norm_crs_or_error
-from odc.geo.geobox import GeoBox, _align_pix, _round_to_res
+from odc.geo.geobox import GeoBox, _round_to_res
 from odc.geo.geom import (
     bbox_intersection,
     bbox_union,
@@ -825,25 +825,6 @@ def test_geom_clone():
 
     assert b == geom.Geometry(b)
     assert b.geom is not geom.Geometry(b).geom
-
-
-@pytest.mark.parametrize(
-    "left, right, res, off, expect",
-    [
-        (20, 30, 10, 0, (20, 1)),
-        (20, 30.5, 10, 0, (20, 1)),
-        (20, 31.5, 10, 0, (20, 2)),
-        (20, 30, 10, 3, (13, 2)),
-        (20, 30, 10, -3, (17, 2)),
-        (20, 30, -10, 0, (30, 1)),
-        (19.5, 30, -10, 0, (30, 1)),
-        (18.5, 30, -10, 0, (30, 2)),
-        (20, 30, -10, 3, (33, 2)),
-        (20, 30, -10, -3, (37, 2)),
-    ],
-)
-def test_align_pix(left, right, res, off, expect):
-    assert _align_pix(left, right, res, off) == expect
 
 
 def test_lonlat_bounds():

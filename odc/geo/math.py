@@ -7,7 +7,7 @@ Various mathy helpers.
 
 Minimal dependencies in this module.
 """
-from math import floor, fmod
+from math import ceil, floor, fmod
 from typing import Literal, Optional, Tuple, Union
 
 import numpy as np
@@ -121,6 +121,53 @@ def is_almost_int(x: float, tol: float) -> bool:
     if x > 0.5:
         x = 1 - x
     return x < tol
+
+
+def _snap_edge_pos(x0: float, x1: float, res: float) -> Tuple[float, int]:
+    assert res > 0
+    assert x1 >= x0
+    _x0, _x1 = floor(x0 / res), ceil(x1 / res)
+    nx = max(1, _x1 - _x0)
+    return _x0 * res, nx
+
+
+def _snap_edge(x0: float, x1: float, res: float) -> Tuple[float, int]:
+    assert x1 >= x0
+    if res > 0:
+        return _snap_edge_pos(x0, x1, res)
+    _tx, nx = _snap_edge_pos(x0, x1, -res)
+    tx = _tx + nx * (-res)
+    return tx, nx
+
+
+def snap_grid(
+    x0: float, x1: float, res: float, off_pix: Optional[float] = 0
+) -> Tuple[float, int]:
+    """
+    Compute grid snapping for single axis.
+
+    :param x0: In point ``x0 <= x1``
+    :param x1: Out point ``x0 <= x1``
+    :param res: Pixel size and direction (can be negative)
+    :param off_pix:
+       Pixel fraction to align to ``x=0``.
+       0 - edge aligned
+       0.5 - center aligned
+       None - don't snap
+
+    :return: ``tx, nx`` that defines 1-d grid, such that ``x0`` and ``x1`` are within edge pixels.
+    """
+    assert (off_pix is None) or (0 <= off_pix < 1)
+    if off_pix is None:
+        if res > 0:
+            nx = ceil((x1 - x0) / res)
+            return x0, max(1, nx)
+        nx = ceil((x1 - x0) / (-res))
+        return x1, max(nx, 1)
+
+    off = off_pix * abs(res)
+    _tx, nx = _snap_edge(x0 - off, x1 - off, res)
+    return _tx + off, nx
 
 
 def data_resolution_and_offset(

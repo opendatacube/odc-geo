@@ -5,6 +5,7 @@
 import itertools
 import math
 from collections import OrderedDict, namedtuple
+from enum import Enum
 from textwrap import dedent
 from typing import Dict, Iterable, List, Literal, Optional, Tuple, Union
 
@@ -23,7 +24,7 @@ from .geom import (
     point,
     polygon_from_transform,
 )
-from .math import clamp, is_affine_st, is_almost_int
+from .math import clamp, is_affine_st, is_almost_int, snap_grid
 from .roi import Tiles as RoiTiles
 from .roi import align_up, polygon_path, roi_normalise, roi_shape
 from .types import (
@@ -47,27 +48,21 @@ OutlineMode = Union[
     Literal["native"], Literal["pixel"], Literal["geo"], Literal["auto"]
 ]
 
+
+class AnchorEnum(Enum):
+    """
+    Defines which way to snap geobox pixel grid.
+    """
+
+    EDGE = 0
+    CENTER = 1
+    FLOATING = 2
+
+
+GeoboxAnchor = Union[AnchorEnum, XY[float]]
+
 # pylint: disable=invalid-name,too-many-public-methods,too-many-lines
 Coordinate = namedtuple("Coordinate", ("values", "units", "resolution"))
-
-
-def _align_pix(left: float, right: float, res: float, off: float) -> Tuple[float, int]:
-    if res < 0:
-        res = -res
-        val = math.ceil((right - off) / res) * res + off
-        width = max(1, int(math.ceil((val - left - 0.1 * res) / res)))
-    else:
-        val = math.floor((left - off) / res) * res + off
-        width = max(1, int(math.ceil((right - val - 0.1 * res) / res)))
-    return val, width
-
-
-def _align_pix_tight(left: float, right: float, res: float) -> Tuple[float, int]:
-    if res < 0:
-        res = -res
-        return right, max(1, int(math.ceil((right - left - 0.1 * res) / res)))
-
-    return left, max(1, int(math.ceil((right - left - 0.1 * res) / res)))
 
 
 class GeoBox:
@@ -98,22 +93,35 @@ class GeoBox:
         tight: bool = False,
         shape: Optional[SomeShape] = None,
         resolution: Optional[SomeResolution] = None,
-        align: Optional[XY[float]] = None,
+        anchor: GeoboxAnchor = AnchorEnum.EDGE,
     ) -> "GeoBox":
         """
         Construct :py:class:`~odc.geo.geobox.GeoBox` from a bounding box.
 
         :param bbox: Bounding box in CRS units, lonlat is assumed when ``crs`` is not supplied
         :param crs: CRS of the bounding box (defaults to EPSG:4326)
-        :param tight: Supplying ``tight=True`` turns off pixel snapping.
         :param shape: Span that many pixels.
         :param resolution: Use specified resolution
-        :param align:
-        :return: :py:class:`~odc.geo.geobox.GeoBox` that covers supplied bounding box.
+        :param tight: Supplying ``tight=True`` turns off pixel snapping.
+        :param anchor:
+            By default snaps grid such pixel edges are align with axis. Ignored when tight mode is
+            used.
+
+        :return:
+           :py:class:`~odc.geo.geobox.GeoBox` that covers supplied bounding box.
         """
 
-        if align is None and tight is False:
-            align = xy_(0, 0)
+        _snap: Optional[XY[float]] = None
+
+        if tight:
+            anchor = AnchorEnum.FLOATING
+
+        if isinstance(anchor, XY):
+            _snap = anchor
+        if anchor == AnchorEnum.EDGE:
+            _snap = xy_(0, 0)
+        elif anchor == AnchorEnum.CENTER:
+            _snap = xy_(0.5, 0.5)
 
         if not isinstance(bbox, BoundingBox):
             bbox = BoundingBox(*bbox, crs=(crs or "epsg:4326"))
@@ -122,12 +130,12 @@ class GeoBox:
 
         if resolution is not None:
             rx, ry = res_(resolution).xy
-            if align is None:
-                offx, nx = _align_pix_tight(bbox.left, bbox.right, rx)
-                offy, ny = _align_pix_tight(bbox.bottom, bbox.top, ry)
+            if _snap is None:
+                offx, nx = snap_grid(bbox.left, bbox.right, rx, None)
+                offy, ny = snap_grid(bbox.bottom, bbox.top, ry, None)
             else:
-                offx, nx = _align_pix(bbox.left, bbox.right, rx, align.x)
-                offy, ny = _align_pix(bbox.bottom, bbox.top, ry, align.y)
+                offx, nx = snap_grid(bbox.left, bbox.right, rx, _snap.x)
+                offy, ny = snap_grid(bbox.bottom, bbox.top, ry, _snap.y)
 
             affine = Affine.translation(offx, offy) * Affine.scale(rx, ry)
             return GeoBox((ny, nx), crs=bbox.crs, affine=affine)
@@ -140,11 +148,11 @@ class GeoBox:
         rx = bbox.span_x / nx
         ry = -bbox.span_y / ny
 
-        if align is None:
+        if _snap is None:
             offx, offy = bbox.left, bbox.top
         else:
-            offx, _ = _align_pix(bbox.left, bbox.right, rx, align.x)
-            offy, _ = _align_pix(bbox.bottom, bbox.top, ry, align.y)
+            offx, _ = snap_grid(bbox.left, bbox.right, rx, _snap.x)
+            offy, _ = snap_grid(bbox.bottom, bbox.top, ry, _snap.y)
 
         affine = Affine.translation(offx, offy) * Affine.scale(rx, ry)
         return GeoBox((ny, nx), crs=bbox.crs, affine=affine)
@@ -154,7 +162,7 @@ class GeoBox:
         geopolygon: Geometry,
         resolution: SomeResolution,
         crs: MaybeCRS = None,
-        align: Optional[XY[float]] = None,
+        anchor: GeoboxAnchor = AnchorEnum.EDGE,
     ) -> "GeoBox":
         """
         Construct :py:class:`~odc.geo.geobox.GeoBox` from a polygon.
@@ -163,27 +171,15 @@ class GeoBox:
            Either a single number or a :py:class:`~odc.geo.types.Resolution` object.
         :param crs:
            CRS to use, if different from the geopolygon
-        :param align:
-           Align geobox such that point 'align' lies on the pixel boundary.
         """
         resolution = res_(resolution)
-        if align is None:
-            align = xy_(0.0, 0.0)
-
-        assert (
-            0.0 <= align.x <= abs(resolution.x)
-        ), "X align must be in [0, abs(x_resolution)] range"
-        assert (
-            0.0 <= align.y <= abs(resolution.y)
-        ), "Y align must be in [0, abs(y_resolution)] range"
-
         if crs is None:
             crs = geopolygon.crs
         else:
             geopolygon = geopolygon.to_crs(crs)
 
         return GeoBox.from_bbox(
-            geopolygon.boundingbox, crs, resolution=resolution, align=align
+            geopolygon.boundingbox, crs, resolution=resolution, anchor=anchor
         )
 
     def buffered(self, xbuff: float, ybuff: Optional[float] = None) -> "GeoBox":
