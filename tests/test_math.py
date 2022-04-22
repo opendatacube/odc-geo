@@ -16,6 +16,7 @@ from odc.geo.math import (
     maybe_int,
     maybe_zero,
     snap_affine,
+    snap_grid,
     snap_scale,
     split_translation,
 )
@@ -216,3 +217,20 @@ def test_snap_affine():
         ttol=0.2,
         stol=1e-3,
     ) == mkA(scale=(1 / 2, 1 / 3), translation=(10, 20))
+
+
+@pytest.mark.parametrize(
+    "left, right, res, off, expect",
+    [
+        (20, 30, 10, 0, (20, 1)),
+        (20, 30.5, 10, 0, (20, 2)),
+        (20, 31.5, 10, 0, (20, 2)),
+        (20, 30, 10, 3, (13, 2)),
+        (20, 30, -10, 0, (30, 1)),
+        (19.5, 30, -10, 0, (30, 2)),
+        (18.5, 30, -10, 0, (30, 2)),
+        (20, 30, -10, 3, (33, 2)),
+    ],
+)
+def test_snap_grid(left, right, res, off, expect):
+    assert snap_grid(left, right, res, off / abs(res)) == expect

@@ -7,8 +7,9 @@ import numpy as np
 import pytest
 from affine import Affine
 
-from odc.geo import CRS, geom, ixy_, resyx_, wh_
+from odc.geo import CRS, geom, ixy_, resyx_, wh_, xy_
 from odc.geo.geobox import (
+    AnchorEnum,
     GeoBox,
     bounding_box_in_pixel_domain,
     gbox_boundary,
@@ -307,6 +308,18 @@ def test_from_bbox():
         GeoBox.from_bbox(geom.BoundingBox(*bbox, "epsg:3857"), shape=shape).crs
         == "epsg:3857"
     )
+
+    assert GeoBox.from_bbox(
+        bbox, shape=shape, anchor=AnchorEnum.FLOATING
+    ) == GeoBox.from_bbox(bbox, shape=shape, tight=True)
+
+    assert GeoBox.from_bbox(
+        bbox, shape=shape, anchor=AnchorEnum.EDGE
+    ) == GeoBox.from_bbox(bbox, shape=shape, anchor=xy_(0, 0))
+
+    assert GeoBox.from_bbox(
+        bbox, shape=shape, anchor=AnchorEnum.CENTER
+    ) == GeoBox.from_bbox(bbox, shape=shape, anchor=xy_(0.5, 0.5))
 
     # one of resolution= or shape= must be supplied
     with pytest.raises(ValueError):
