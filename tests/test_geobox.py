@@ -290,6 +290,12 @@ def test_from_bbox():
     assert GeoBox.from_bbox(bbox, shape=shape, tight=False) != gbox
     assert GeoBox.from_bbox(bbox, resolution=gbox.resolution, tight=False) != gbox
 
+    assert GeoBox.from_bbox(geom.BoundingBox(*bbox), shape=shape).crs == "epsg:4326"
+    assert (
+        GeoBox.from_bbox(geom.BoundingBox(*bbox, "epsg:3857"), shape=shape).crs
+        == "epsg:3857"
+    )
+
     # one of resolution= or shape= must be supplied
     with pytest.raises(ValueError):
         _ = GeoBox.from_bbox(bbox)

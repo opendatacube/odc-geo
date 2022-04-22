@@ -113,11 +113,11 @@ class GeoBox:
 
         if align is None and tight is False:
             align = xy_(0, 0)
-        if crs is None:
-            crs = "EPSG:4326"
 
         if not isinstance(bbox, BoundingBox):
-            bbox = BoundingBox(*bbox)
+            bbox = BoundingBox(*bbox, crs=(crs or "epsg:4326"))
+        elif bbox.crs is None:
+            bbox = BoundingBox(*bbox.bbox, crs=(crs or "epsg:4326"))
 
         if resolution is not None:
             rx, ry = res_(resolution).xy
@@ -129,7 +129,7 @@ class GeoBox:
                 offy, ny = _align_pix(bbox.bottom, bbox.top, ry, align.y)
 
             affine = Affine.translation(offx, offy) * Affine.scale(rx, ry)
-            return GeoBox((ny, nx), crs=crs, affine=affine)
+            return GeoBox((ny, nx), crs=bbox.crs, affine=affine)
 
         if shape is None:
             raise ValueError("Must supply shape or resolution")
@@ -146,7 +146,7 @@ class GeoBox:
             offy, _ = _align_pix(bbox.bottom, bbox.top, ry, align.y)
 
         affine = Affine.translation(offx, offy) * Affine.scale(rx, ry)
-        return GeoBox((ny, nx), crs=crs, affine=affine)
+        return GeoBox((ny, nx), crs=bbox.crs, affine=affine)
 
     @staticmethod
     def from_geopolygon(
@@ -800,7 +800,7 @@ def bounding_box_in_pixel_domain(
 
     tx, ty = round(tx), round(ty)
     ny, nx = geobox.shape
-    return BoundingBox(tx, ty, tx + nx, ty + ny)
+    return BoundingBox(tx, ty, tx + nx, ty + ny, None)
 
 
 def geobox_union_conservative(geoboxes: List[GeoBox]) -> GeoBox:
@@ -840,11 +840,19 @@ def geobox_intersection_conservative(geoboxes: List[GeoBox]) -> GeoBox:
     # standardise empty geobox representation
     if bbox.left > bbox.right:
         bbox = BoundingBox(
-            left=bbox.left, bottom=bbox.bottom, right=bbox.left, top=bbox.top
+            left=bbox.left,
+            bottom=bbox.bottom,
+            right=bbox.left,
+            top=bbox.top,
+            crs=bbox.crs,
         )
     if bbox.bottom > bbox.top:
         bbox = BoundingBox(
-            left=bbox.left, bottom=bbox.bottom, right=bbox.right, top=bbox.bottom
+            left=bbox.left,
+            bottom=bbox.bottom,
+            right=bbox.right,
+            top=bbox.bottom,
+            crs=bbox.crs,
         )
 
     affine = reference.affine * Affine.translation(*bbox[:2])
