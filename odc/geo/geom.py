@@ -157,6 +157,10 @@ class BoundingBox(Sequence[float]):
         yy = [y for _, y in pts]
         return BoundingBox(min(xx), min(yy), max(xx), max(yy), self._crs)
 
+    @property
+    def polygon(self) -> "Geometry":
+        return box(*self.bbox, self.crs)
+
     @staticmethod
     def from_xy(
         x: Tuple[float, float], y: Tuple[float, float], crs: MaybeCRS = None
@@ -166,6 +170,7 @@ class BoundingBox(Sequence[float]):
 
         :param x: (left, right)
         :param y: (bottom, top)
+        :param crs: CRS
         """
         x1, x2 = sorted(x)
         y1, y2 = sorted(y)
@@ -180,8 +185,24 @@ class BoundingBox(Sequence[float]):
 
         :param p1: (x, y)
         :param p2: (x, y)
+        :param crs: CRS
         """
         return BoundingBox.from_xy((p1[0], p2[0]), (p1[1], p2[1]), crs)
+
+    @staticmethod
+    def from_transform(
+        shape: SomeShape, transform: Affine, crs: MaybeCRS = None
+    ) -> "BoundingBox":
+        """
+        Construct :py:class:`~odc.geo.geom.BoundingBox` from image shape and transform.
+
+        :param shape: image dimensions
+        :param transform: Affine mapping from pixel to world
+        :param crs: CRS
+        """
+        p1 = transform * (0, 0)
+        p2 = transform * shape_(shape).xy
+        return BoundingBox.from_points(p1, p2, crs=crs)
 
 
 def wrap_shapely(method):
