@@ -98,6 +98,12 @@ odc.geo.geom
    Geometry.to_crs
    Geometry.geojson
    BoundingBox
+   BoundingBox.from_xy
+   BoundingBox.from_points
+   BoundingBox.from_transform
+   BoundingBox.transform
+   BoundingBox.buffered
+
 
    box
    line
