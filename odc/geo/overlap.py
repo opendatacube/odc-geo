@@ -651,10 +651,11 @@ def compute_output_geobox(
        Desired CRS of the output
 
     :param resolution:
+
        * "same" use exactly the same resolution as src
        * "fit" use center pixel to determine scale change between the two
-       * "auto" is to use the same resolution on the output if CRS units are the same
-          between the source and destination and otherwise use "fit"
+       * | "auto" is to use the same resolution on the output if CRS units are the same
+         |  between the source and destination and otherwise use "fit"
 
     :param tight:
       By default output pixel grid is adjusted to align pixel edges to X/Y axis, suppling

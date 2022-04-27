@@ -26,6 +26,11 @@ import odc.geo.geom
 
 odc.geo.crs.geom = odc.geo.geom
 
+# autotypes work around 2
+import odc.geo.overlap
+
+odc.geo.overlap.CRS = odc.geo.crs.CRS
+
 # -- Project information -----------------------------------------------------
 
 project = "odc-geo"
