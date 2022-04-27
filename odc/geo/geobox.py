@@ -167,6 +167,8 @@ class GeoBox:
         geopolygon: Geometry,
         resolution: SomeResolution,
         crs: MaybeCRS = None,
+        align: Optional[XY[float]] = None,
+        *,
         anchor: GeoboxAnchor = AnchorEnum.EDGE,
         tol: float = 0.01,
     ) -> "GeoBox":
@@ -175,18 +177,26 @@ class GeoBox:
 
         :param resolution:
            Either a single number or a :py:class:`~odc.geo.types.Resolution` object.
+
         :param crs:
            CRS to use, if different from the geopolygon
+
+        :param align:
+            Deprecated: please switch to ``anchor=``
 
         :param anchor:
             By default snaps grid such that pixel edges fall on X/Y axis.
 
-         :param tol:
+        :param tol:
             Fraction of a pixel that can be ignored, defaults to 1/100. Bounding box of the output
             geobox is allowed to be smaller than supplied bounding box by that amount.
 
         """
         resolution = res_(resolution)
+        if align is not None:
+            # support old-style "align", which is basically anchor but in CRS units
+            ax, ay = align.xy
+            anchor = xy_(ax / abs(resolution.x), ay / abs(resolution.y))
         if crs is None:
             crs = geopolygon.crs
         else:
