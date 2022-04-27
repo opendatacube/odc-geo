@@ -287,6 +287,18 @@ def test_non_st():
         assert gbox.coordinates
 
 
+def test_from_polygon():
+    box = geom.box(1, 13, 17, 37, "epsg:4326")
+    gbox = GeoBox.from_geopolygon(box, 0.1)
+    assert gbox.crs == box.crs
+    assert gbox.extent.boundingbox == box.boundingbox
+    assert gbox.resolution.y < 0
+
+    # check that align= still works by name and by order
+    assert gbox == GeoBox.from_geopolygon(gbox.extent, gbox.resolution, None, xy_(0, 0))
+    assert gbox == GeoBox.from_geopolygon(gbox.extent, gbox.resolution, align=xy_(0, 0))
+
+
 def test_from_bbox():
     bbox = (1, 13, 17, 37)
     shape = (23, 47)
