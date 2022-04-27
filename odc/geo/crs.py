@@ -69,13 +69,11 @@ class CRS:
         :raises: :py:class:`pyproj.exceptions.CRSError`
         """
 
-        if isinstance(crs_spec, str):
-            self._crs, self._str, self._epsg = _make_crs(crs_spec)
-        elif isinstance(crs_spec, CRS):
-            self._crs = crs_spec._crs
-            self._epsg = crs_spec._epsg
-            self._str = crs_spec._str
-        elif isinstance(crs_spec, _CRS):
+        if isinstance(crs_spec, CRS):
+            self._crs: _CRS = crs_spec._crs
+            self._epsg: Optional[int] = crs_spec._epsg
+            self._str: str = crs_spec._str
+        elif isinstance(crs_spec, (str, _CRS)):
             self._crs, self._str, self._epsg = _make_crs(crs_spec)
         elif isinstance(crs_spec, dict):
             self._crs, self._str, self._epsg = _make_crs(_CRS.from_dict(crs_spec))
