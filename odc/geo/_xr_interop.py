@@ -105,18 +105,17 @@ def _get_crs_from_attrs(obj: XarrayObject, sdims: Tuple[str, str]) -> Optional[C
 def spatial_dims(
     xx: Union[xarray.DataArray, xarray.Dataset], relaxed: bool = False
 ) -> Optional[Tuple[str, str]]:
-    """Find spatial dimensions of `xx`.
+    """
+    Find spatial dimensions of ``xx``.
 
     Checks for presence of dimensions named:
-      y, x | latitude, longitude | lat, lon
+    ``y, x | latitude, longitude | lat, lon``
 
-    Returns
-    =======
-    None -- if no dimensions with expected names are found
-    ('y', 'x') | ('latitude', 'longitude') | ('lat', 'lon')
-
-    If *relaxed* is True and none of the above dimension names are found,
+    If ``relaxed=True`` and none of the above dimension names are found,
     assume that last two dimensions are spatial dimensions.
+
+    :returns: ``None`` if no dimensions with expected names are found
+    :returns: ``('y', 'x') | ('latitude', 'longitude') | ('lat', 'lon')``
     """
     guesses = [("y", "x"), ("latitude", "longitude"), ("lat", "lon")]
 
@@ -200,15 +199,12 @@ def xr_coords(
     Dictionary of Coordinates in xarray format.
 
     :param crs_coord_name:
-       Use custom name for CRS coordinate, default is "spatial_ref".
-       Set to ``None`` to not generate CRS coordinate at all.
+       Use custom name for CRS coordinate, default is "spatial_ref". Set to ``None`` to not generate
+       CRS coordinate at all.
 
-    Returns
-    =======
-
-    Dictionary name:str -> xr.DataArray
-
-    where names are either ``y,x`` for projected or ``latitude, longitude`` for geographic.
+    :returns:
+      Dictionary ``name:str -> xr.DataArray``. Where names are either ``y,x`` for projected or
+      ``latitude, longitude`` for geographic.
 
     """
     attrs = {}
@@ -523,7 +519,7 @@ def xr_zeros(
     Construct geo-registered xarray from a :py:class:`~odc.geo.geobox.GeoBox`.
 
     :param gbox: Desired footprint and resolution
-    :return: :class:py:`xarray.DataArray` filled with zeros
+    :return: :py:class:`xarray.DataArray` filled with zeros
     """
     return wrap_xr(
         numpy.zeros(geobox.shape, dtype=dtype),

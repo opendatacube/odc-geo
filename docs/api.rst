@@ -193,3 +193,39 @@ odc.geo.gridspec
    GridSpec.tiles_from_geopolygon
 
    GridSpec.geojson
+
+odc.geo.xr
+**********
+
+.. currentmodule:: odc.geo.xr
+.. autosummary::
+   :toctree: _api/
+
+   ODCExtension
+   ODCExtension.geobox
+   ODCExtension.output_geobox
+   ODCExtensionDa
+   ODCExtensionDa.assign_crs
+   ODCExtensionDa.write_cog
+   ODCExtensionDa.to_cog
+   ODCExtensionDa.reproject
+   ODCExtensionDs
+   assign_crs
+   rasterize
+   spatial_dims
+   wrap_xr
+   xr_coords
+   xr_reproject
+   xr_zeros
+
+odc.geo.overlap
+***************
+
+.. currentmodule:: odc.geo.overlap
+.. autosummary::
+   :toctree: _api/
+
+   ReprojectInfo
+   affine_from_pts
+   compute_output_geobox
+   compute_reproject_roi
