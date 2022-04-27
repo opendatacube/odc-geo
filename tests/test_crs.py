@@ -191,3 +191,16 @@ def test_crs_units_per_degree():
     assert crs_units_per_degree("EPSG:3857", 30, 0) == approx(111319.49, 0.5)
     assert crs_units_per_degree("EPSG:3857", 180, 0) == approx(111319.49, 0.5)
     assert crs_units_per_degree("EPSG:3857", -180, 0) == approx(111319.49, 0.5)
+
+
+def test_rio_crs__no_epsg():
+    rio_crs = rasterio.crs.CRS.from_wkt(
+        'PROJCS["unnamed",GEOGCS["Unknown datum based upon the custom spheroid",'
+        'DATUM["Not specified (based on custom spheroid)",'
+        'SPHEROID["Custom spheroid",6371007.181,0]],'
+        'PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433]],'
+        'PROJECTION["Sinusoidal"],PARAMETER["longitude_of_center",0],'
+        'PARAMETER["false_easting",0],PARAMETER["false_northing",0],'
+        'UNIT["Meter",1],AXIS["Easting",EAST],AXIS["Northing",NORTH]]'
+    )
+    assert CRS(rio_crs).epsg is None
