@@ -1072,7 +1072,7 @@ class GeoboxTiles:
         # A maps from X,Y in meters to chunk index
         bbox = bbox.transform(A)
 
-        NY, NX = self._tiles.base.yx
+        NY, NX = self._tiles.shape.yx
         xx = clamped_range(bbox.left, bbox.right, NX)
         yy = clamped_range(bbox.bottom, bbox.top, NY)
         return (yy, xx)
