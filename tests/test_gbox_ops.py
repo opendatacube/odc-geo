@@ -191,3 +191,9 @@ def test_gbox_tiles():
     assert tt.chunk_shape((0, 1)) == (h, 2)
     assert tt.chunk_shape((1, 1)) == (1, 2)
     assert tt.chunk_shape((1, 0)) == (1, w)
+
+    # check that overhang get's clamped properly
+    assert tt.range_from_bbox(gbox.pad(2).boundingbox) == (
+        range(0, tt.shape[0]),
+        range(0, tt.shape[1]),
+    )
