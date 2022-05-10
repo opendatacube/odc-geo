@@ -59,6 +59,17 @@ def test_geobox_xr_coords():
     cc = xr_coords(gbox, crs_coord_name="Albers")
     assert list(cc) == ["y", "x", "Albers"]
 
+    # non-axis aligned case
+    _gbox = gbox.rotate(33)
+    assert _gbox.axis_aligned is False
+    cc = xr_coords(_gbox)
+    assert list(cc) == ["y", "x", "spatial_ref"]
+    assert cc["spatial_ref"].shape == ()
+    assert cc["spatial_ref"].attrs["spatial_ref"] == gbox.crs.wkt
+    assert isinstance(cc["spatial_ref"].attrs["grid_mapping_name"], str)
+    assert cc["x"].encoding["_transform"] == _gbox.affine[:6]
+    assert cc["y"].encoding["_transform"] == _gbox.affine[:6]
+
     # geographic CRS
     A = mkA(0, scale=(0.1, -0.1), translation=(10, 30))
     gbox = GeoBox(_shape, A, "epsg:4326")
@@ -85,6 +96,13 @@ def test_xr_zeros(geobox_epsg4326: GeoBox):
     assert "_crs" in xx.coords
     assert xx.encoding["grid_mapping"] == "_crs"
     assert (xx.values == 0).all()
+
+    # rotated gebox
+    gbox = geobox_epsg4326.center_pixel.rotate(-45).pad_wh(10, 20)
+    xx = xr_zeros(gbox, dtype="uint16")
+    assert xx.odc.geobox == gbox
+    assert xx[3:, 1:].odc.geobox.affine[:6] == pytest.approx(gbox[3:, 1:].affine[:6])
+    assert xx[5:, 7:].odc.geobox.affine[:6] == pytest.approx(gbox[5:, 7:].affine[:6])
 
 
 def test_purge_crs_info(xx_epsg4326: xr.DataArray):

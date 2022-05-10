@@ -612,6 +612,13 @@ class GeoBox:
         return False
 
     @property
+    def axis_aligned(self):
+        """
+        Check if Geobox is axis-aligned (not rotated).
+        """
+        return self._confirm_axis_aligned()
+
+    @property
     def center_pixel(self) -> "GeoBox":
         """
         GeoBox of a center pixel.

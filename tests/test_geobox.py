@@ -178,6 +178,7 @@ def test_geobox():
     assert gbox.alignment.yx == (4, 0)  # 4 because -2983006 % 10 is 4
     assert isinstance(str(gbox), str)
     assert "EPSG:3577" in repr(gbox)
+    assert gbox.axis_aligned is True
 
     assert GeoBox((1, 1), mkA(0), epsg4326).geographic_extent.crs == epsg4326
     assert GeoBox((1, 1), mkA(0), None).dimensions == ("y", "x")
@@ -282,6 +283,7 @@ def test_non_st():
     gbox = GeoBox((1, 1), A, "epsg:3857")
 
     assert gbox._confirm_axis_aligned() is False
+    assert gbox.axis_aligned is False
 
     with pytest.raises(ValueError):
         assert gbox.coordinates

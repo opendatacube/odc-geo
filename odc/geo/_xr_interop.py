@@ -212,15 +212,30 @@ def xr_coords(
     if crs is not None:
         attrs["crs"] = str(crs)
 
-    coords: Dict[Hashable, xarray.DataArray] = {
-        name: _coord_to_xr(name, coord, **attrs)
-        for name, coord in gbox.coordinates.items()
-    }
+    if gbox.axis_aligned:
+        coords: Dict[Hashable, xarray.DataArray] = {
+            name: _coord_to_xr(name, coord, **attrs)
+            for name, coord in gbox.coordinates.items()
+        }
+    else:
+        coords = {
+            name: _mk_pixel_coord(name, sz, gbox.transform)
+            for name, sz in zip(gbox.dimensions, gbox.shape)
+        }
 
     if crs_coord_name is not None and crs is not None:
         coords[crs_coord_name] = _mk_crs_coord(crs, crs_coord_name)
 
     return coords
+
+
+def _mk_pixel_coord(name: str, sz: int, transform: Affine) -> xarray.DataArray:
+    data = numpy.arange(0.5, sz, dtype="float32")
+    xx = xarray.DataArray(
+        data, coords={name: data}, dims=(name,), attrs={"units": "pixel"}
+    )
+    xx.encoding["_transform"] = transform[:6]
+    return xx
 
 
 def _locate_crs_coords(xx: XarrayObject) -> List[xarray.DataArray]:
@@ -291,6 +306,13 @@ def _locate_geo_info(src: XarrayObject) -> GeoState:
         crs = _get_crs_from_attrs(src, sdims)
 
     if transform is not None:
+        _pix2world = _xx.encoding.get("_transform", None)
+        if _pix2world is not None:
+            # non-axis aligned geobox detected
+            # adjust transform
+            #  world <- pix' <- pix
+            transform = Affine(*_pix2world) * transform
+
         nx = _xx.shape[0]
         ny = _yy.shape[0]
         geobox = GeoBox((ny, nx), transform, crs)
