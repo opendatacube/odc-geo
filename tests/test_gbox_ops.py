@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 from affine import Affine
 
+from odc.geo import CRSMismatchError
 from odc.geo import geobox as gbx
 from odc.geo import geom as geometry
 from odc.geo import wh_
@@ -197,3 +198,6 @@ def test_gbox_tiles():
         range(0, tt.shape[0]),
         range(0, tt.shape[1]),
     )
+
+    with pytest.raises(CRSMismatchError):
+        _ = tt.range_from_bbox(gbox.geographic_extent.boundingbox)
