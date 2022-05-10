@@ -12,7 +12,7 @@ from typing import Dict, Iterable, List, Literal, Optional, Tuple, Union
 import numpy
 from affine import Affine
 
-from .crs import CRS, MaybeCRS, SomeCRS, norm_crs
+from .crs import CRS, CRSMismatchError, MaybeCRS, SomeCRS, norm_crs
 from .geom import (
     BoundingBox,
     Geometry,
@@ -1066,6 +1066,9 @@ class GeoboxTiles:
             _in = clamp(math.floor(v1), 0, N)
             _out = clamp(math.ceil(v2), 0, N)
             return range(_in, _out)
+
+        if bbox.crs != self._gbox.crs:
+            raise CRSMismatchError()
 
         sy, sx = self._tiles.tile_shape((0, 0)).yx
         A = Affine.scale(1.0 / sx, 1.0 / sy) * (~self._gbox.transform)
