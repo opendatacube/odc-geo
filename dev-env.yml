@@ -18,6 +18,7 @@ dependencies:
   # tests and dev
   ## to use from jupyter-lab: `python -m ipykernel install --user --name odc-geo`
   - ipykernel
+  - dask
 
   ## linting tools
   - autopep8
