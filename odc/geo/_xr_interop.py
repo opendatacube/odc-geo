@@ -534,6 +534,9 @@ def wrap_xr(
 def xr_zeros(
     geobox: GeoBox,
     dtype="float64",
+    *,
+    chunks: Optional[Union[Tuple[int, int], Tuple[int, int, int]]] = None,
+    time=None,
     crs_coord_name: Optional[str] = _DEFAULT_CRS_COORD_NAME,
     **kw,
 ) -> xarray.DataArray:
@@ -541,12 +544,34 @@ def xr_zeros(
     Construct geo-registered xarray from a :py:class:`~odc.geo.geobox.GeoBox`.
 
     :param gbox: Desired footprint and resolution
-    :return: :py:class:`xarray.DataArray` filled with zeros
+    :param dtype: Pixel data type
+    :param chunks: Create a dask array instead of numpy array
+    :param time: When set adds time dimension
+    :param crs_coord_name: allows to change name of the crs coordinate variable
+
+    :return: :py:class:`xarray.DataArray` filled with zeros (numpy or dask)
     """
+    if time is not None:
+        _shape: Tuple[int, ...] = (len(time), *geobox.shape.yx)
+    else:
+        _shape = geobox.shape.yx
+
+    if chunks is not None:
+        from dask import array as da  # pylint: disable=import-outside-toplevel
+
+        return wrap_xr(
+            da.zeros(_shape, dtype=dtype, chunks=chunks),
+            geobox,
+            crs_coord_name=crs_coord_name,
+            time=time,
+            **kw,
+        )
+
     return wrap_xr(
-        numpy.zeros(geobox.shape, dtype=dtype),
+        numpy.zeros(_shape, dtype=dtype),
         geobox,
         crs_coord_name=crs_coord_name,
+        time=time,
         **kw,
     )
 

@@ -5,6 +5,7 @@
 import numpy as np
 import pytest
 import xarray as xr
+from dask import is_dask_collection
 
 from odc.geo import geom
 from odc.geo.data import ocean_geom
@@ -103,6 +104,24 @@ def test_xr_zeros(geobox_epsg4326: GeoBox):
     assert xx.odc.geobox == gbox
     assert xx[3:, 1:].odc.geobox.affine[:6] == pytest.approx(gbox[3:, 1:].affine[:6])
     assert xx[5:, 7:].odc.geobox.affine[:6] == pytest.approx(gbox[5:, 7:].affine[:6])
+
+    # dask version
+    gbox = geobox_epsg4326.zoom_to((100, 200))
+    xx = xr_zeros(gbox, dtype="uint16", chunks=(10, 20))
+    assert is_dask_collection(xx) is True
+    assert xx.dtype == "uint16"
+    assert xx.data.chunksize == (10, 20)
+    assert xx.shape == gbox.shape
+
+    # time axis
+    gbox = geobox_epsg4326.zoom_to((100, 200))
+    xx = xr_zeros(
+        gbox, dtype="uint16", chunks=(1, 10, 20), time=["2020-01-01", "2020-01-02"]
+    )
+    assert is_dask_collection(xx) is True
+    assert xx.dtype == "uint16"
+    assert xx.data.chunksize == (1, 10, 20)
+    assert xx.shape == (2, *gbox.shape)
 
 
 def test_purge_crs_info(xx_epsg4326: xr.DataArray):
