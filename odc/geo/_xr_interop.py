@@ -351,7 +351,7 @@ def xr_reproject(
     assert isinstance(src.odc, ODCExtension)  # for mypy sake
 
     if src.odc.geobox is None:
-        raise ValueError("Can not reproject non-georestered array.")
+        raise ValueError("Can not reproject non-georegistered array.")
 
     if isinstance(how, GeoBox):
         dst_geobox = how
