@@ -196,3 +196,20 @@ def colorize(
         data = _np_colorize(x.data, cmap, clip)
 
     return xr.DataArray(data=data, dims=dims, coords=coords, attrs=attrs)
+
+
+def replace_transparent_pixels(
+    rgba: np.ndarray, color: Tuple[int, int, int] = (255, 0, 255)
+) -> np.ndarray:
+    """
+    Convert RGBA to RGB.
+
+    Replaces transparent pixels with a given color.
+    """
+    assert rgba.ndim == 3
+    assert rgba.shape[-1] == 4
+
+    m = rgba[..., -1] == 0
+    rgb = rgba[..., :3].copy()
+    rgb[m] = color
+    return rgb

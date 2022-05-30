@@ -27,6 +27,7 @@ from .types import Resolution, resxy_
 # pylint: disable=import-outside-toplevel
 if have.rasterio:
     from ._cog import to_cog, write_cog
+    from ._compress import compress
     from .warp import rio_reproject
 
 XarrayObject = Union[xarray.DataArray, xarray.Dataset]
@@ -450,6 +451,7 @@ class ODCExtensionDa(ODCExtension):
     if have.rasterio:
         write_cog = _wrap_op(write_cog)
         to_cog = _wrap_op(to_cog)
+        compress = _wrap_op(compress)
         reproject = _wrap_op(xr_reproject)
 
 
