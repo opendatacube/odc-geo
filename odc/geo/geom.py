@@ -286,7 +286,7 @@ class Geometry:
     by dropping the Z points.
     """
 
-    # pylint: disable=protected-access, too-many-public-methods
+    # pylint: disable=protected-access, too-many-public-methods, multiple-statements
 
     def __init__(
         self,
@@ -311,148 +311,83 @@ class Geometry:
     def clone(self) -> "Geometry":
         return Geometry(self)
 
+    # fmt: off
     @wrap_shapely
-    def contains(self, other: "Geometry") -> bool:
-        return self.contains(other)
-
+    def contains(self, other: "Geometry") -> bool: return self.contains(other)
     @wrap_shapely
-    def crosses(self, other: "Geometry") -> bool:
-        return self.crosses(other)
-
+    def crosses(self, other: "Geometry") -> bool: return self.crosses(other)
     @wrap_shapely
-    def disjoint(self, other: "Geometry") -> bool:
-        return self.disjoint(other)
-
+    def disjoint(self, other: "Geometry") -> bool: return self.disjoint(other)
     @wrap_shapely
-    def intersects(self, other: "Geometry") -> bool:
-        return self.intersects(other)
-
+    def intersects(self, other: "Geometry") -> bool: return self.intersects(other)
     @wrap_shapely
-    def touches(self, other: "Geometry") -> bool:
-        return self.touches(other)
-
+    def touches(self, other: "Geometry") -> bool: return self.touches(other)
     @wrap_shapely
-    def within(self, other: "Geometry") -> bool:
-        return self.within(other)
-
+    def within(self, other: "Geometry") -> bool: return self.within(other)
     @wrap_shapely
-    def overlaps(self, other: "Geometry") -> bool:
-        return self.overlaps(other)
-
+    def overlaps(self, other: "Geometry") -> bool: return self.overlaps(other)
     @wrap_shapely
-    def difference(self, other: "Geometry") -> "Geometry":
-        return self.difference(other)
-
+    def difference(self, other: "Geometry") -> "Geometry": return self.difference(other)
     @wrap_shapely
-    def intersection(self, other: "Geometry") -> "Geometry":
-        return self.intersection(other)
-
+    def intersection(self, other: "Geometry") -> "Geometry": return self.intersection(other)
     @wrap_shapely
-    def symmetric_difference(self, other: "Geometry") -> "Geometry":
-        return self.symmetric_difference(other)
-
+    def symmetric_difference(self, other: "Geometry") -> "Geometry": return self.symmetric_difference(other)
     @wrap_shapely
-    def union(self, other: "Geometry") -> "Geometry":
-        return self.union(other)
-
+    def union(self, other: "Geometry") -> "Geometry": return self.union(other)
     @wrap_shapely
-    def __and__(self, other: "Geometry") -> "Geometry":
-        return self.__and__(other)
-
+    def __and__(self, other: "Geometry") -> "Geometry": return self.__and__(other)
     @wrap_shapely
-    def __or__(self, other: "Geometry") -> "Geometry":
-        return self.__or__(other)
-
+    def __or__(self, other: "Geometry") -> "Geometry": return self.__or__(other)
     @wrap_shapely
-    def __xor__(self, other: "Geometry") -> "Geometry":
-        return self.__xor__(other)
-
+    def __xor__(self, other: "Geometry") -> "Geometry": return self.__xor__(other)
     @wrap_shapely
-    def __sub__(self, other: "Geometry") -> "Geometry":
-        return self.__sub__(other)
+    def __sub__(self, other: "Geometry") -> "Geometry": return self.__sub__(other)
 
-    def svg(self, *args, **kw) -> str:
-        return self.geom.svg(*args, *kw)
+    def svg(self, *args, **kw) -> str: return self.geom.svg(*args, *kw)
 
-    def _repr_svg_(self) -> str:
-        return self.geom._repr_svg_()
+    def _repr_svg_(self) -> str: return self.geom._repr_svg_()
 
     @property
-    def type(self) -> str:
-        return self.geom.type
-
+    def type(self) -> str: return self.geom.type
     @property
-    def is_empty(self) -> bool:
-        return self.geom.is_empty
-
+    def is_empty(self) -> bool: return self.geom.is_empty
     @property
-    def is_valid(self) -> bool:
-        return self.geom.is_valid
-
+    def is_valid(self) -> bool: return self.geom.is_valid
     @property
-    def is_ring(self) -> bool:
-        return self.geom.is_ring
-
+    def is_ring(self) -> bool: return self.geom.is_ring
     @property
-    def boundary(self) -> "Geometry":
-        return Geometry(self.geom.boundary, self.crs)
-
+    def boundary(self) -> "Geometry": return Geometry(self.geom.boundary, self.crs)
     @property
-    def exterior(self) -> "Geometry":
-        return Geometry(self.geom.exterior, self.crs)
-
+    def exterior(self) -> "Geometry": return Geometry(self.geom.exterior, self.crs)
     @property
-    def interiors(self) -> List["Geometry"]:
-        return [Geometry(g, self.crs) for g in self.geom.interiors]
-
+    def interiors(self) -> List["Geometry"]: return [Geometry(g, self.crs) for g in self.geom.interiors]
     @property
-    def centroid(self) -> "Geometry":
-        return Geometry(self.geom.centroid, self.crs)
-
+    def centroid(self) -> "Geometry": return Geometry(self.geom.centroid, self.crs)
     @property
-    def coords(self) -> CoordList:
-        return list(self.geom.coords)
-
+    def coords(self) -> CoordList: return list(self.geom.coords)
     @property
-    def points(self) -> CoordList:
-        return self.coords
-
+    def points(self) -> CoordList: return self.coords
     @property
-    def length(self) -> float:
-        return self.geom.length
-
+    def length(self) -> float: return self.geom.length
     @property
-    def area(self) -> float:
-        return self.geom.area
-
+    def area(self) -> float: return self.geom.area
     @property
-    def xy(self) -> Tuple[array.array, array.array]:
-        return self.geom.xy
-
+    def xy(self) -> Tuple[array.array, array.array]: return self.geom.xy
     @property
-    def convex_hull(self) -> "Geometry":
-        return Geometry(self.geom.convex_hull, self.crs)
-
+    def convex_hull(self) -> "Geometry": return Geometry(self.geom.convex_hull, self.crs)
     @property
-    def envelope(self) -> "Geometry":
-        return Geometry(self.geom.envelope, self.crs)
-
+    def envelope(self) -> "Geometry": return Geometry(self.geom.envelope, self.crs)
     @property
     def boundingbox(self) -> BoundingBox:
         minx, miny, maxx, maxy = self.geom.bounds
         return BoundingBox(left=minx, right=maxx, bottom=miny, top=maxy, crs=self.crs)
-
     @property
-    def wkt(self) -> str:
-        return self.geom.wkt
-
+    def wkt(self) -> str: return self.geom.wkt
     @property
-    def __array_interface__(self):
-        return self.geom.__array_interface__
-
+    def __array_interface__(self): return self.geom.__array_interface__
     @property
-    def __geo_interface__(self):
-        return self.geom.__geo_interface__
+    def __geo_interface__(self): return self.geom.__geo_interface__
+    # fmt: on
 
     @property
     def json(self):
