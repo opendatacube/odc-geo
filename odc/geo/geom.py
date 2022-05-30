@@ -142,7 +142,7 @@ class BoundingBox(Sequence[float]):
     @property
     def points(self) -> CoordList:
         """Extract four corners of the bounding box."""
-        x0, y0, x1, y1 = self
+        x0, y0, x1, y1 = self._box
         return list(itertools.product((x0, x1), (y0, y1)))
 
     def transform(self, transform: Affine) -> "BoundingBox":
@@ -156,6 +156,25 @@ class BoundingBox(Sequence[float]):
         xx = [x for x, _ in pts]
         yy = [y for _, y in pts]
         return BoundingBox(min(xx), min(yy), max(xx), max(yy), self._crs)
+
+    def to_crs(self, crs: SomeCRS, **kw) -> "BoundingBox":
+        """
+        Compute bounding box in other CRS.
+        """
+        return self.polygon.to_crs(crs, **kw).boundingbox
+
+    def map_bounds(self) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+        """
+        Convert to bounds in folium/ipyleaflet style.
+
+        Returns SW, and NE corners in lat/lon order.
+        ``((lat_w, lon_s), (lat_e, lon_n))``.
+        """
+        if self._crs == "epsg:4326" or self._crs is None:
+            x0, y0, x1, y1 = self._box
+            return (y0, x0), (y1, x1)
+        x0, y0, x1, y1 = self.to_crs("epsg:4326")
+        return (y0, x0), (y1, x1)
 
     @property
     def polygon(self) -> "Geometry":
