@@ -15,6 +15,7 @@ from odc.geo.math import (
     is_almost_int,
     maybe_int,
     maybe_zero,
+    resolution_from_affine,
     snap_affine,
     snap_grid,
     snap_scale,
@@ -238,3 +239,11 @@ def test_snap_grid(left, right, res, off, expect):
 
 def test_snap_grid_tol():
     assert snap_grid(0.95, 10.12, 1, 0, 0.1) == (1.0, 10)
+
+
+def test_res_affine():
+    assert resolution_from_affine(mkA(scale=(2, 3))).xy == (2, 3)
+    assert resolution_from_affine(mkA(rot=10, scale=(2, 3))).xy == pytest.approx((2, 3))
+    assert resolution_from_affine(mkA(rot=-45, scale=(10, -10))).xy == pytest.approx(
+        (10, -10)
+    )

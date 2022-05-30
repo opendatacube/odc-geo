@@ -13,7 +13,7 @@ from typing import List, Literal, Optional, Sequence, Tuple, TypeVar, Union
 import numpy as np
 from affine import Affine
 
-from .types import XY, SomeResolution, res_, xy_
+from .types import XY, Resolution, SomeResolution, res_, resxy_, xy_
 
 AffineX = TypeVar("AffineX", np.ndarray, Affine)
 
@@ -420,6 +420,20 @@ def affine_from_pts(X: Sequence[XY[float]], Y: Sequence[XY[float]]) -> Affine:
     a, d, b, e, c, f = mm.ravel()
 
     return Affine(a, b, c, d, e, f)
+
+
+def resolution_from_affine(A: Affine) -> Resolution:
+    """
+    Compute resolution from Affine matrix.
+
+    Deals with rotated case when needed.
+    """
+    if is_affine_st(A):
+        rx, _, _, _, ry, *_ = A
+        return resxy_(rx, ry)
+    _, _, A_ = decompose_rws(A)
+    rx, _, _, _, ry, *_ = A_
+    return resxy_(rx, ry)
 
 
 class Bin1D:
