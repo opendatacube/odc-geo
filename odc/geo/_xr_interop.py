@@ -16,6 +16,7 @@ import xarray
 from affine import Affine
 
 from ._interop import have
+from ._rgba import colorize, to_rgba
 from .crs import CRS, CRSError, SomeCRS, norm_crs_or_error
 from .geobox import Coordinate, GeoBox
 from .geom import Geometry
@@ -23,8 +24,9 @@ from .math import affine_from_axis
 from .overlap import compute_output_geobox
 from .types import Resolution, resxy_
 
+# pylint: disable=import-outside-toplevel
 if have.rasterio:
-    from ._cog import to_cog, write_cog  # pylint: disable=import-outside-toplevel
+    from ._cog import to_cog, write_cog
     from .warp import rio_reproject
 
 XarrayObject = Union[xarray.DataArray, xarray.Dataset]
@@ -443,6 +445,8 @@ class ODCExtensionDa(ODCExtension):
     ) -> xarray.DataArray:
         return assign_crs(self._xx, crs=crs, crs_coord_name=crs_coord_name)
 
+    colorize = _wrap_op(colorize)
+
     if have.rasterio:
         write_cog = _wrap_op(write_cog)
         to_cog = _wrap_op(to_cog)
@@ -467,6 +471,13 @@ class ODCExtensionDs(ODCExtension):
         self, crs: SomeCRS, crs_coord_name: str = _DEFAULT_CRS_COORD_NAME
     ) -> xarray.Dataset:
         return assign_crs(self._ds, crs=crs, crs_coord_name=crs_coord_name)
+
+    def to_rgba(
+        self,
+        clamp: Optional[Union[float, Tuple[float, float]]] = None,
+        bands: Optional[Tuple[str, str, str]] = None,
+    ) -> xarray.DataArray:
+        return to_rgba(self._ds, clamp=clamp, bands=bands)
 
 
 def _xarray_geobox(xx: XarrayObject) -> Optional[GeoBox]:
