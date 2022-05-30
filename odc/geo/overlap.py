@@ -4,15 +4,24 @@
 # SPDX-License-Identifier: Apache-2.0
 import math
 from dataclasses import dataclass
-from typing import List, Literal, Optional, Protocol, Sequence, Tuple, TypeVar, Union
+from typing import Literal, Optional, Protocol, Sequence, Tuple
 
 import numpy as np
 from affine import Affine
-from numpy import linalg
 
 from .crs import SomeCRS, norm_crs
 from .geobox import GeoBox, gbox_boundary
-from .math import clamp, is_affine_st, is_almost_int, maybe_int, snap_affine
+from .math import (
+    affine_from_pts,
+    clamp,
+    decompose_rws,
+    is_affine_st,
+    is_almost_int,
+    maybe_int,
+    snap_affine,
+    stack_xy,
+    unstack_xy,
+)
 from .roi import (
     NormalizedROI,
     NormalizedSlice,
@@ -23,9 +32,6 @@ from .roi import (
     scaled_up_roi,
 )
 from .types import XY, SomeShape, res_, shape_, xy_
-
-SomeAffine = Union[Affine, np.ndarray]
-AffineX = TypeVar("AffineX", np.ndarray, Affine)
 
 
 class PointTransform(Protocol):
@@ -181,92 +187,6 @@ class ReprojectInfo:
 
     transform: PointTransform
     """Mapping from src pixels to destination pixels."""
-
-
-def stack_xy(pts: Sequence[XY[float]]) -> np.ndarray:
-    """Turn into an ``Nx2`` ndarray of floats in X,Y order."""
-    return np.vstack([pt.xy for pt in pts])
-
-
-def unstack_xy(pts: np.ndarray) -> List[XY[float]]:
-    """Turn ``Nx2`` array in X,Y order into a list of XY points."""
-    assert pts.ndim == 2 and pts.shape[1] == 2
-    return [xy_(pt) for pt in pts]
-
-
-def decompose_rws(A: AffineX) -> Tuple[AffineX, AffineX, AffineX]:
-    """
-     Compute decomposition Affine matrix sans translation into Rotation, Shear and Scale.
-
-     Find matrices ``R,W,S`` such that ``A = R W S`` and
-
-     .. code-block:
-
-        R [ca -sa]  W [1, w]  S [sx,  0]
-          [sa  ca]    [0, 1]    [ 0, sy]
-
-    .. note:
-
-       There are ambiguities for negative scales.
-
-       * ``R(90)*S(1,1) == R(-90)*S(-1,-1)``
-
-       * ``(R*(-I))*((-I)*S) == R*S``
-
-
-     :return: Rotation, Sheer, Scale ``2x2`` matrices
-    """
-    # pylint: disable=too-many-locals
-
-    if isinstance(A, Affine):
-
-        def to_affine(m, t=(0, 0)):
-            a, b, d, e = m.ravel()
-            c, f = t
-            return Affine(a, b, c, d, e, f)
-
-        (a, b, c, d, e, f, *_) = A
-        R, W, S = decompose_rws(np.asarray([[a, b], [d, e]], dtype="float64"))
-
-        return to_affine(R, (c, f)), to_affine(W), to_affine(S)
-
-    assert A.shape == (2, 2)
-
-    WS = linalg.cholesky(A.T @ A).T
-    R = A @ linalg.inv(WS)
-
-    if linalg.det(R) < 0:
-        R[:, -1] *= -1
-        WS[-1, :] *= -1
-
-    ss = np.diag(WS)
-    S = np.diag(ss)
-    W = WS @ np.diag(1.0 / ss)
-
-    return R, W, S
-
-
-def affine_from_pts(X: Sequence[XY[float]], Y: Sequence[XY[float]]) -> Affine:
-    """
-    Given points ``X,Y`` compute ``A``, such that: ``Y = A*X``.
-
-    Needs at least 3 points.
-    """
-
-    assert len(X) == len(Y)
-    assert len(X) >= 3
-
-    n = len(X)
-
-    YY = stack_xy(Y)
-    XX = np.ones((n, 3), dtype="float64")
-    for i, pt in enumerate(X):
-        XX[i, :2] = pt.xy
-
-    mm, *_ = linalg.lstsq(XX, YY, rcond=-1)
-    a, d, b, e, c, f = mm.ravel()
-
-    return Affine(a, b, c, d, e, f)
 
 
 def get_scale_from_linear_transform(A: Affine) -> XY[float]:
