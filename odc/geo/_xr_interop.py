@@ -15,7 +15,7 @@ import numpy
 import xarray
 from affine import Affine
 
-from ._interop import have
+from ._interop import have, is_dask_collection
 from ._rgba import colorize, to_rgba
 from .crs import CRS, CRSError, SomeCRS, norm_crs_or_error
 from .geobox import Coordinate, GeoBox
@@ -352,8 +352,9 @@ def xr_reproject(
         )  # pragma: nocover
 
     assert isinstance(src.odc, ODCExtension)  # for mypy sake
+    src_gbox = src.odc.geobox
 
-    if src.odc.geobox is None:
+    if src_gbox is None:
         raise ValueError("Can not reproject non-georegistered array.")
 
     if isinstance(how, GeoBox):
@@ -361,19 +362,23 @@ def xr_reproject(
     else:
         dst_geobox = src.odc.output_geobox(how)
 
+    if is_dask_collection(src):
+        raise NotImplementedError("Dask inputs are not yet supported.")
+
+    # TODO: deal with RGB(A) inputs
     dst_shape = (*src.shape[:-2], *dst_geobox.shape)
     dst = numpy.empty(dst_shape, dtype=src.dtype)
-    nodata = src.attrs.get("nodata", None)
+    src_nodata = src.attrs.get("nodata", None)
     if dst_nodata is None:
-        dst_nodata = nodata
+        dst_nodata = src_nodata
 
     dst = rio_reproject(
         src.values,
         dst,
-        src.odc.geobox,
+        src_gbox,
         dst_geobox,
         resampling=resampling,
-        src_nodata=nodata,
+        src_nodata=src_nodata,
         dst_nodata=dst_nodata,
         **kw,
     )
