@@ -12,19 +12,16 @@ from affine import Affine
 from odc.geo import CRS, geom, resyx_, wh_, xy_
 from odc.geo.geobox import GeoBox, scaled_down_geobox
 from odc.geo.gridspec import GridSpec
-from odc.geo.math import is_affine_st
+from odc.geo.math import affine_from_pts, decompose_rws, is_affine_st, stack_xy
 from odc.geo.overlap import (
     LinearPointTransform,
     ReprojectInfo,
     _can_paste,
-    affine_from_pts,
     compute_axis_overlap,
     compute_output_geobox,
     compute_reproject_roi,
-    decompose_rws,
     get_scale_at_point,
     native_pix_transform,
-    stack_xy,
 )
 from odc.geo.roi import (
     roi_is_empty,

@@ -8,12 +8,14 @@ Various mathy helpers.
 Minimal dependencies in this module.
 """
 from math import ceil, floor, fmod
-from typing import Literal, Optional, Tuple, Union
+from typing import List, Literal, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
 from affine import Affine
 
-from .types import XY, SomeResolution, res_
+from .types import XY, SomeResolution, res_, xy_
+
+AffineX = TypeVar("AffineX", np.ndarray, Affine)
 
 
 def maybe_zero(x: float, tol: float) -> float:
@@ -332,6 +334,92 @@ def snap_affine(
     tx_ = maybe_int(tx, ttol)
     ty_ = maybe_int(ty, ttol)
     return Affine(sx_, 0, tx_, 0, sy_, ty_)
+
+
+def decompose_rws(A: AffineX) -> Tuple[AffineX, AffineX, AffineX]:
+    """
+     Compute decomposition Affine matrix sans translation into Rotation, Shear and Scale.
+
+     Find matrices ``R,W,S`` such that ``A = R W S`` and
+
+     .. code-block:
+
+        R [ca -sa]  W [1, w]  S [sx,  0]
+          [sa  ca]    [0, 1]    [ 0, sy]
+
+    .. note:
+
+       There are ambiguities for negative scales.
+
+       * ``R(90)*S(1,1) == R(-90)*S(-1,-1)``
+
+       * ``(R*(-I))*((-I)*S) == R*S``
+
+
+     :return: Rotation, Sheer, Scale ``2x2`` matrices
+    """
+    # pylint: disable=too-many-locals
+
+    if isinstance(A, Affine):
+
+        def to_affine(m, t=(0, 0)):
+            a, b, d, e = m.ravel()
+            c, f = t
+            return Affine(a, b, c, d, e, f)
+
+        (a, b, c, d, e, f, *_) = A
+        R, W, S = decompose_rws(np.asarray([[a, b], [d, e]], dtype="float64"))
+
+        return to_affine(R, (c, f)), to_affine(W), to_affine(S)
+
+    assert A.shape == (2, 2)
+
+    WS = np.linalg.cholesky(A.T @ A).T
+    R = A @ np.linalg.inv(WS)
+
+    if np.linalg.det(R) < 0:
+        R[:, -1] *= -1
+        WS[-1, :] *= -1
+
+    ss = np.diag(WS)
+    S = np.diag(ss)
+    W = WS @ np.diag(1.0 / ss)
+
+    return R, W, S
+
+
+def stack_xy(pts: Sequence[XY[float]]) -> np.ndarray:
+    """Turn into an ``Nx2`` ndarray of floats in X,Y order."""
+    return np.vstack([pt.xy for pt in pts])
+
+
+def unstack_xy(pts: np.ndarray) -> List[XY[float]]:
+    """Turn ``Nx2`` array in X,Y order into a list of XY points."""
+    assert pts.ndim == 2 and pts.shape[1] == 2
+    return [xy_(pt) for pt in pts]
+
+
+def affine_from_pts(X: Sequence[XY[float]], Y: Sequence[XY[float]]) -> Affine:
+    """
+    Given points ``X,Y`` compute ``A``, such that: ``Y = A*X``.
+
+    Needs at least 3 points.
+    """
+
+    assert len(X) == len(Y)
+    assert len(X) >= 3
+
+    n = len(X)
+
+    YY = stack_xy(Y)
+    XX = np.ones((n, 3), dtype="float64")
+    for i, pt in enumerate(X):
+        XX[i, :2] = pt.xy
+
+    mm, *_ = np.linalg.lstsq(XX, YY, rcond=-1)
+    a, d, b, e, c, f = mm.ravel()
+
+    return Affine(a, b, c, d, e, f)
 
 
 class Bin1D:
