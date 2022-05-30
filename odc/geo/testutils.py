@@ -13,7 +13,7 @@ from .geobox import GeoBox
 from .gridspec import GridSpec
 from .math import apply_affine
 
-# pylint: disable=invalid-name
+# pylint: disable=invalid-name,
 
 epsg4326 = CRS("EPSG:4326")
 epsg3577 = CRS("EPSG:3577")
@@ -206,3 +206,18 @@ def purge_crs_info(xx: xr.DataArray) -> xr.DataArray:
     # purge attributes from coords and xx
     cc = {name: _purge_attributes(coord) for name, coord in xx.coords.items()}
     return _purge_attributes(xx.assign_coords(cc))
+
+
+def daskify(xx, **kw):
+    # pylint: disable=import-outside-toplevel
+    from dask import array as da
+
+    if isinstance(xx, xr.Dataset):
+        return xr.Dataset({name: daskify(v) for name, v in xx.data_vars.items()})
+
+    return xr.DataArray(
+        data=da.from_array(xx.data, **kw),
+        dims=xx.dims,
+        coords=xx.coords,
+        attrs=xx.attrs,
+    )
