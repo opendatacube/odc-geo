@@ -80,3 +80,19 @@ def test_bbox_crs_mismatch(crss):
 
     with pytest.raises(ValueError):
         _ = bbox_intersection(BoundingBox(0, 0, 1, 1, crs) for crs in crss)
+
+
+def test_map_bounds():
+    bbox = BoundingBox(-180, -90, 180, 90, "epsg:4326")
+    assert bbox.map_bounds() == ((-90, -180), (90, 180))
+
+    bbox = BoundingBox(-180, -90, 180, 90)
+    assert bbox.map_bounds() == ((-90, -180), (90, 180))
+
+    bbox = BoundingBox(-10, -20, 24, 0, "epsg:4326")
+    assert bbox.to_crs("epsg:3857").map_bounds() == ((-20, -10), (0, 24))
+
+
+def test_bbox_to_crs():
+    bbox = BoundingBox(-10, -20, 100, 0, "epsg:4326")
+    assert bbox.to_crs("epsg:3857") == bbox.polygon.to_crs("epsg:3857").boundingbox
