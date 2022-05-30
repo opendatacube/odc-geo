@@ -5,9 +5,9 @@
 import numpy as np
 import pytest
 import xarray as xr
-from dask import is_dask_collection
 
 from odc.geo import geom
+from odc.geo._interop import is_dask_collection
 from odc.geo.data import ocean_geom
 from odc.geo.geobox import GeoBox
 from odc.geo.testutils import epsg3577, mkA, purge_crs_info
@@ -377,3 +377,12 @@ def test_xr_rasterize():
     )
     assert xx.odc.geobox.crs == "epsg:3857"
     assert xx.any().item() is False
+
+
+def test_is_dask_collection():
+    import dask
+
+    import odc.geo._interop
+
+    assert "is_dask_collection" in dir(odc.geo._interop)
+    assert is_dask_collection is dask.is_dask_collection

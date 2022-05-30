@@ -4,6 +4,9 @@ Tools for interop with other libraries.
 Check if libraries available without importing them which can be slow.
 """
 import importlib.util
+from typing import Any, Callable
+
+# pylint: disable=import-outside-toplevel
 
 
 class _LibChecker:
@@ -29,3 +32,27 @@ class _LibChecker:
 
 
 have = _LibChecker()
+__all__ = ("have",)
+
+
+def __dir__():
+    return [*__all__, "is_dask_collection"]
+
+
+def __getattr__(name):
+    if name == "is_dask_collection":
+        if have.dask:
+            import dask
+
+            return dask.is_dask_collection
+
+        # pylint: disable=redefined-outer-name
+        def is_dask_collection(_: Any) -> bool:
+            return False
+
+        return is_dask_collection
+
+    raise AttributeError(f"module {__name__} has no attribute {name}")
+
+
+is_dask_collection: Callable[[Any], bool]
