@@ -387,6 +387,40 @@ class GeoBox:
         span = max(bbox.span_x, bbox.span_y)
         return span / npoints
 
+    def to_crs(
+        self,
+        crs: SomeCRS,
+        *,
+        resolution: Literal["auto", "fit", "same"] = "auto",
+        tight: bool = False,
+    ) -> "GeoBox":
+        """
+        Compute GeoBox covering the same region in a different projection.
+
+        :param crs:
+           Desired CRS of the output
+
+        :param resolution:
+
+           * "same" use exactly the same resolution as src
+           * "fit" use center pixel to determine scale change between the two
+           * | "auto" is to use the same resolution on the output if CRS units are the same
+             |  between the source and destination and otherwise use "fit"
+
+        :param tight:
+          By default output pixel grid is adjusted to align pixel edges to X/Y axis, suppling
+          ``tight=True`` produces unaligned geobox on the output.
+
+        :return:
+           Similar resolution, axis aligned geobox that fully encloses this one but in a different
+           projection.
+        """
+        # pylint: disable=import-outside-toplevel
+        # can't be up-top due to circular imports issues
+        from .overlap import compute_output_geobox
+
+        return compute_output_geobox(self, crs, resolution=resolution, tight=tight)
+
     def footprint(
         self, crs: SomeCRS, buffer: float = 0, npoints: int = 100
     ) -> Geometry:

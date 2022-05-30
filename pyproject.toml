@@ -26,4 +26,5 @@ disable = [
   "invalid-name",
   "fixme",
   "wrong-import-order",
+  "cyclic-import",
 ]

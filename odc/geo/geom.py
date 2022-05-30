@@ -19,7 +19,7 @@ from .types import SomeShape, shape_
 
 CoordList = List[Tuple[float, float]]
 
-# pylint: disable=too-many-lines
+# pylint: disable=too-many-lines,too-many-public-methods
 
 
 class BoundingBox(Sequence[float]):
@@ -305,7 +305,7 @@ class Geometry:
     by dropping the Z points.
     """
 
-    # pylint: disable=protected-access, too-many-public-methods, multiple-statements
+    # pylint: disable=protected-access, multiple-statements
 
     def __init__(
         self,
