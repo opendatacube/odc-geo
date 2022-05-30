@@ -24,7 +24,7 @@ from .geom import (
     point,
     polygon_from_transform,
 )
-from .math import clamp, is_affine_st, is_almost_int, snap_grid
+from .math import clamp, is_affine_st, is_almost_int, resolution_from_affine, snap_grid
 from .roi import Tiles as RoiTiles
 from .roi import align_up, polygon_path, roi_normalise, roi_shape
 from .types import (
@@ -39,7 +39,6 @@ from .types import (
     SomeShape,
     iyx_,
     res_,
-    resxy_,
     shape_,
     xy_,
 )
@@ -328,8 +327,7 @@ class GeoBox:
     @property
     def resolution(self) -> Resolution:
         """Resolution, pixel size in CRS units."""
-        rx, _, _, _, ry, *_ = self._affine
-        return resxy_(rx, ry)
+        return resolution_from_affine(self._affine)
 
     @property
     def alignment(self) -> XY[float]:

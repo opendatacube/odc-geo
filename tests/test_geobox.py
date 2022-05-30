@@ -59,6 +59,8 @@ def test_geobox_simple():
     )
     expect_resolution = pytest.approx((-0.00025, 0.00025))
     assert t.resolution.yx == expect_resolution
+    assert t.rotate(33).resolution.yx == expect_resolution
+    assert t.rotate(-11.37).resolution.yx == expect_resolution
 
     assert t.coordinates["latitude"].values.shape == (4000,)
     assert t.coordinates["longitude"].values.shape == (4000,)
