@@ -452,6 +452,7 @@ def test_compute_output_geobox():
     assert dst.crs == "epsg:6933"
     assert dst.resolution == src.resolution
     assert dst.geographic_extent.contains(src.geographic_extent)
+    assert compute_output_geobox(src, "epsg:6933") == src.to_crs("epsg:6933")
 
     assert compute_output_geobox(
         src, "epsg:6933", resolution="auto"
