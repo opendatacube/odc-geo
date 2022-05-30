@@ -11,12 +11,10 @@ from affine import Affine
 from pytest import approx
 from shapely.errors import ShapelyDeprecationWarning
 
-from odc.geo import CRS, BoundingBox, CRSMismatchError, geom, wh_
+from odc.geo import CRS, CRSMismatchError, geom, wh_
 from odc.geo.crs import norm_crs, norm_crs_or_error
 from odc.geo.geobox import GeoBox, _round_to_res
 from odc.geo.geom import (
-    bbox_intersection,
-    bbox_union,
     chop_along_antimeridian,
     clip_lon180,
     densify,
@@ -371,88 +369,12 @@ def test_to_crs():
         poly.to_crs(epsg3857)
 
 
-def test_boundingbox():
-    bb = BoundingBox(0, 3, 2, 4)
-    assert bb.width == 2
-    assert bb.height == 1
-    assert bb.width == bb.span_x
-    assert bb.height == bb.span_y
-    assert bb.shape == (bb.height, bb.width)
-    assert bb.crs is None
-    assert bb.bbox == (0, 3, 2, 4)
-    assert "crs=" not in str(bb)
-    assert "crs=" not in repr(bb)
-
-    bb = BoundingBox(0, 3, 2.1, 4, "epsg:4326")
-    assert bb.width == 2
-    assert bb.height == 1
-    assert bb.span_x == 2.1
-    assert bb.width != bb.span_x
-    assert bb.height == bb.span_y
-    assert bb.crs.epsg == 4326
-    assert "crs=" in str(bb)
-    assert "crs=" in repr(bb)
-
-    assert BoundingBox.from_xy(bb.range_x, bb.range_y, bb.crs) == bb
-
-    assert BoundingBox.from_xy((1, 2), (10, 20)) == (1, 10, 2, 20)
-    assert BoundingBox.from_xy((2, 1), (20, 10)) == (1, 10, 2, 20)
-    assert BoundingBox.from_points((1, 11), (2, 22)) == (1, 11, 2, 22)
-    assert BoundingBox.from_points((1, 22), (2, 11)) == (1, 11, 2, 22)
-
-    assert BoundingBox(1, 3, 10, 20).buffered(1, 3) == (0, 0, 11, 23)
-    assert BoundingBox(1, 3, 10, 20).buffered(1) == (0, 2, 11, 21)
-
-    assert BoundingBox.from_transform(
-        wh_(10, 12), Affine.translation(1, 3), "epsg:3857"
-    ) == (1, 3, 11, 15)
-    assert (
-        BoundingBox.from_transform(
-            wh_(10, 12), Affine.translation(1, 3), "epsg:3857"
-        ).crs
-        == "epsg:3857"
-    )
-
-    assert bb.polygon.boundingbox == bb
-
-
 def test_densify():
     s_x10 = [(0, 0), (10, 0)]
     assert densify(s_x10, 20) == s_x10
     assert densify(s_x10, 200) == s_x10
     assert densify(s_x10, 5) == [(0, 0), (5, 0), (10, 0)]
     assert densify(s_x10, 4) == [(0, 0), (4, 0), (8, 0), (10, 0)]
-
-
-@pytest.mark.parametrize("crs", [None, "epsg:4326", epsg3857])
-def test_bbox_union(crs):
-    b1 = BoundingBox(0, 1, 10, 20, crs)
-    b2 = BoundingBox(5, 6, 11, 22, crs)
-
-    assert bbox_union([b1]) == b1
-    assert bbox_union([b2]) == b2
-
-    bb = bbox_union(iter([b1, b2]))
-    assert bb == BoundingBox(0, 1, 11, 22, crs)
-
-    bb = bbox_union(iter([b2, b1] * 10))
-    assert bb == BoundingBox(0, 1, 11, 22, crs)
-
-
-@pytest.mark.parametrize(
-    "crss",
-    [
-        (None, "epsg:4326", epsg3857),
-        ("epsg:4326", "epsg:3857"),
-        (*["epsg:4326"] * 4, "epsg:3857"),
-    ],
-)
-def test_bbox_crs_mismatch(crss):
-    with pytest.raises(ValueError):
-        _ = bbox_union(BoundingBox(0, 0, 1, 1, crs) for crs in crss)
-
-    with pytest.raises(ValueError):
-        _ = bbox_intersection(BoundingBox(0, 0, 1, 1, crs) for crs in crss)
 
 
 def test_unary_union():
