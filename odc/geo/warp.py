@@ -2,7 +2,7 @@
 #
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 
 import numpy as np
 import rasterio.crs
@@ -148,17 +148,23 @@ def rio_reproject(
 
     :returns: dst
     """
+    dtype_remap = {"int8": "int16", "bool": "uint8"}
+
+    def _alias_or_convert(arr: np.ndarray) -> Tuple[np.ndarray, bool]:
+        if arr.dtype.name not in dtype_remap:
+            return arr, False
+        wk_dtype = dtype_remap[arr.dtype.name]
+        if arr.dtype.name == "bool":
+            T, F = (np.array(v, dtype=wk_dtype) for v in [0, 255])
+            return np.where(arr, T, F), True
+        return arr.astype(wk_dtype), False
+
     if isinstance(resampling, str):
         resampling = resampling_s2rio(resampling)
 
     # GDAL support for int8 is patchy, warp doesn't support it, so we need to convert to int16
-    if src.dtype.name == "int8":
-        src = src.astype("int16")
-
-    if dst.dtype.name == "int8":
-        _dst = dst.astype("int16")
-    else:
-        _dst = dst
+    src, src_is_bool = _alias_or_convert(src)
+    _dst, _ = _alias_or_convert(dst)
 
     rasterio.warp.reproject(
         src,
@@ -175,6 +181,10 @@ def rio_reproject(
 
     if dst is not _dst:
         # int8 workaround copy pixels back to int8
-        np.copyto(dst, _dst, casting="unsafe")
+        if src_is_bool:
+            # undo [0, 1] to [0, 255] stretching of the src
+            np.copyto(dst, _dst > 127, casting="unsafe")
+        else:
+            np.copyto(dst, _dst, casting="unsafe")
 
     return dst
