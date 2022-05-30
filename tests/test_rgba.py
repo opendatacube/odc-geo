@@ -124,3 +124,17 @@ def test_rgba(ocean_raster_ds: xr.Dataset):
     # missing clamp for dask inputs
     with pytest.raises(ValueError):
         _ = _xx.odc.to_rgba()
+
+    # smoke-test compression
+    assert isinstance(cc.odc.compress("jpeg", 60, transparent=(0, 0, 0)), bytes)
+    assert isinstance(_cc.odc.compress("png", 9), bytes)
+    assert isinstance(cc.odc.compress(as_data_url=True), str)
+
+    assert isinstance(xx.red.astype("uint8").odc.compress(), bytes)
+
+    with pytest.raises(ValueError):
+        _ = xx.red.odc.compress("no-such-format")
+
+    with pytest.raises(ValueError):
+        # expect 2d/3d inputs
+        _ = xx.red[0].odc.compress()
