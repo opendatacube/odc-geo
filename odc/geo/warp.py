@@ -2,18 +2,19 @@
 #
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
-from typing import Optional, Tuple, Union
+from typing import Any, Iterable, Optional, Tuple, Union
 
 import numpy as np
-import rasterio.crs
 import rasterio.warp
 from affine import Affine
 
 from .geobox import GeoBox
+from .types import wh_
 
-Resampling = Union[str, int, rasterio.warp.Resampling]  # pylint: disable=invalid-name
-Nodata = Optional[Union[int, float]]  # pylint: disable=invalid-name
-_WRP_CRS = rasterio.crs.CRS.from_epsg(3857)
+# pylint: disable=invalid-name, too-many-arguments
+Resampling = Union[str, int, rasterio.warp.Resampling]
+Nodata = Optional[Union[int, float]]
+_WRP_CRS = "epsg:3857"
 
 
 def resampling_s2rio(name: str) -> rasterio.warp.Resampling:
@@ -59,40 +60,16 @@ def warp_affine_rio(
 
     :returns: dst
     """
-    crs = _WRP_CRS
-    src_transform = Affine.identity()
-    dst_transform = A
+    assert src.ndim == dst.ndim
+    assert src.ndim == 2
+    sh, sw = src.shape
+    dh, dw = dst.shape
 
-    if isinstance(resampling, str):
-        resampling = resampling_s2rio(resampling)
-
-    # GDAL support for int8 is patchy, warp doesn't support it, so we need to convert to int16
-    if src.dtype.name == "int8":
-        src = src.astype("int16")
-
-    if dst.dtype.name == "int8":
-        _dst = dst.astype("int16")
-    else:
-        _dst = dst
-
-    rasterio.warp.reproject(
-        src,
-        _dst,
-        src_transform=src_transform,
-        dst_transform=dst_transform,
-        src_crs=crs,
-        dst_crs=crs,
-        resampling=resampling,
-        src_nodata=src_nodata,
-        dst_nodata=dst_nodata,
-        **kwargs,
+    s_gbox = GeoBox(wh_(sw, sh), Affine.identity(), _WRP_CRS)
+    d_gbox = GeoBox(wh_(dw, dh), A, _WRP_CRS)
+    return _rio_reproject(
+        src, dst, s_gbox, d_gbox, resampling, src_nodata, dst_nodata, **kwargs
     )
-
-    if dst is not _dst:
-        # int8 workaround copy pixels back to int8
-        np.copyto(dst, _dst, casting="unsafe")
-
-    return dst
 
 
 def warp_affine(
@@ -131,6 +108,7 @@ def rio_reproject(
     resampling: Resampling,
     src_nodata: Nodata = None,
     dst_nodata: Nodata = None,
+    ydim: Optional[int] = None,
     **kwargs,
 ) -> np.ndarray:
     """
@@ -143,11 +121,55 @@ def rio_reproject(
     :param resampling: str|rasterio.warp.Resampling resampling strategy
     :param src_nodata: Value representing "no data" in the source image
     :param dst_nodata: Value to represent "no data" in the destination image
+    :param       ydim: Which dimension is y-axis, next one must be x
 
     :param     kwargs: any other args to pass to ``rasterio.warp.reproject``
 
     :returns: dst
     """
+    assert src.ndim == dst.ndim
+    if src.ndim == 2:
+        return _rio_reproject(
+            src, dst, s_gbox, d_gbox, resampling, src_nodata, dst_nodata, **kwargs
+        )
+
+    if ydim is None:
+        # Assume last two dimensions are Y/X
+        ydim = src.ndim - 2
+
+    extra_dims = (*src.shape[:ydim], *src.shape[ydim + 2 :])
+    # Selects each 2d plane in [...]YX[B] array
+    slices: Iterable[Any] = (
+        (*idx[:ydim], slice(None), slice(None), *idx[ydim:])
+        for idx in np.ndindex(*extra_dims)
+    )
+    for roi in slices:
+        _rio_reproject(
+            src[roi],
+            dst[roi],
+            s_gbox,
+            d_gbox,
+            resampling,
+            src_nodata,
+            dst_nodata,
+            **kwargs,
+        )
+    return dst
+
+
+def _rio_reproject(
+    src: np.ndarray,
+    dst: np.ndarray,
+    s_gbox: GeoBox,
+    d_gbox: GeoBox,
+    resampling: Resampling,
+    src_nodata: Nodata = None,
+    dst_nodata: Nodata = None,
+    **kwargs,
+) -> np.ndarray:
+    assert src.ndim == dst.ndim
+    assert src.ndim == 2
+
     dtype_remap = {"int8": "int16", "bool": "uint8"}
 
     def _alias_or_convert(arr: np.ndarray) -> Tuple[np.ndarray, bool]:
