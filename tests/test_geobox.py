@@ -253,6 +253,8 @@ def test_gbox_boundary():
     assert set(bb.T[0]) == {0.0, 3.0, 6.0}
     assert set(bb.T[1]) == {0.0, 1.0, 2.0}
 
+    assert geobox.map_bounds() == geobox.boundingbox.map_bounds()
+
 
 def test_geobox_scale_down():
 

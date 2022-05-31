@@ -415,6 +415,17 @@ class GeoBox:
         """GeoBox bounding box in the native CRS."""
         return BoundingBox.from_transform(self._shape, self._affine, crs=self._crs)
 
+    def map_bounds(
+        self, *args, **kw
+    ) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+        """
+        Query bounds in folium/ipyleaflet style.
+
+        Returns SW, and NE corners in lat/lon order.
+        ``((lat_w, lon_s), (lat_e, lon_n))``.
+        """
+        return self.boundingbox.map_bounds(*args, **kw)
+
     def _reproject_resolution(self, npoints: int = 100):
         bbox = self.extent.boundingbox
         span = max(bbox.span_x, bbox.span_y)
