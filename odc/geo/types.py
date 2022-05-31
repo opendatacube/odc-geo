@@ -128,6 +128,11 @@ class XY(Generic[T]):
         """
         return xy_(op(self.x), op(self.y))
 
+    @property
+    def aspect(self) -> float:
+        """Aspect ratio (X/Y)."""
+        return float(self.x) / float(self.y)  # type: ignore
+
 
 class Resolution(XY[float]):
     """

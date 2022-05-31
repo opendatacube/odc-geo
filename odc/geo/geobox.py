@@ -40,7 +40,6 @@ from .types import (
     iyx_,
     res_,
     shape_,
-    wh_,
     xy_,
 )
 
@@ -227,8 +226,8 @@ class GeoBox:
         return GeoBox.from_bbox(
             geopolygon.boundingbox,
             crs,
-            resolution=resolution,
             shape=shape,
+            resolution=resolution,
             anchor=anchor,
             tol=tol,
             tight=tight,
@@ -339,6 +338,11 @@ class GeoBox:
     def shape(self) -> Shape2d:
         """Shape in pixels ``(height, width)``."""
         return self._shape
+
+    @property
+    def aspect(self) -> float:
+        """Aspect ratio (X/Y in pixel space)."""
+        return self._shape.aspect
 
     @property
     def crs(self) -> Optional[CRS]:
@@ -570,13 +574,19 @@ class GeoBox:
         A = self._affine * Affine.scale(factor, factor)
         return GeoBox((ny, nx), A, self._crs)
 
-    def zoom_to(self, shape: SomeShape) -> "GeoBox":
+    def zoom_to(self, shape: Union[SomeShape, int, float]) -> "GeoBox":
         """
         Change GeoBox shape.
+
+        When supplied a single integer scale longest dimension to match that.
 
         :returns:
           GeoBox covering the same region but with different number of pixels and therefore resolution.
         """
+        if isinstance(shape, (int, float)):
+            nmax = max(*self._shape)
+            return self.zoom_out(nmax / shape)
+
         shape = shape_(shape)
         sy, sx = (N / float(n) for N, n in zip(self._shape, shape.shape))
         A = self._affine * Affine.scale(sx, sy)
