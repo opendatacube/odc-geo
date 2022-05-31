@@ -115,6 +115,11 @@ class BoundingBox(Sequence[float]):
         return self.top - self.bottom
 
     @property
+    def aspect(self) -> float:
+        """Aspect ratio."""
+        return self.span_x / self.span_y
+
+    @property
     def width(self) -> int:
         """``int(span_x)``"""
         return int(self.right - self.left)
