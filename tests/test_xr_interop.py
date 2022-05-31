@@ -91,6 +91,8 @@ def test_xr_zeros(geobox_epsg4326: GeoBox):
     assert (xx.values == 0).all()
     assert xx.spatial_ref.attrs["spatial_ref"] == gbox.crs.wkt
     assert xx.spatial_ref.attrs["grid_mapping_name"] == "latitude_longitude"
+    assert xx.odc.ydim == 0
+    assert xx.odc.xdim == 1
 
     # check custom name for crs coordinate
     xx = xr_zeros(gbox, dtype="uint16", crs_coord_name="_crs")
@@ -122,6 +124,8 @@ def test_xr_zeros(geobox_epsg4326: GeoBox):
     assert xx.dtype == "uint16"
     assert xx.data.chunksize == (1, 10, 20)
     assert xx.shape == (2, *gbox.shape)
+    assert xx.odc.ydim == 1
+    assert xx.odc.xdim == 2
 
 
 def test_purge_crs_info(xx_epsg4326: xr.DataArray):
