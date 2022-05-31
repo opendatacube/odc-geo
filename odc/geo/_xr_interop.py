@@ -39,6 +39,7 @@ from .types import Resolution, resxy_
 if have.rasterio:
     from ._cog import to_cog, write_cog
     from ._compress import compress
+    from ._map import add_to
     from .warp import rio_reproject
 
 XarrayObject = Union[xarray.DataArray, xarray.Dataset]
@@ -496,6 +497,7 @@ class ODCExtensionDa(ODCExtension):
         to_cog = _wrap_op(to_cog)
         compress = _wrap_op(compress)
         reproject = _wrap_op(xr_reproject)
+        add_to = _wrap_op(add_to)
 
 
 @xarray.register_dataset_accessor("odc")
