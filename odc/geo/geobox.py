@@ -40,6 +40,7 @@ from .types import (
     iyx_,
     res_,
     shape_,
+    wh_,
     xy_,
 )
 
@@ -90,7 +91,7 @@ class GeoBox:
         crs: MaybeCRS = None,
         *,
         tight: bool = False,
-        shape: Optional[SomeShape] = None,
+        shape: Union[SomeShape, int, None] = None,
         resolution: Optional[SomeResolution] = None,
         anchor: GeoboxAnchor = AnchorEnum.EDGE,
         tol: float = 0.01,
@@ -100,7 +101,9 @@ class GeoBox:
 
         :param bbox: Bounding box in CRS units, lonlat is assumed when ``crs`` is not supplied
         :param crs: CRS of the bounding box (defaults to EPSG:4326)
-        :param shape: Span that many pixels.
+        :param shape:
+           Span that many pixels, if it's a single number then span that many pixels along the
+           longest dimension, other dimension will be computed to maintain roughly square pixels.
         :param resolution: Use specified resolution
         :param tight: Supplying ``tight=True`` turns off pixel snapping.
         :param anchor:
@@ -113,7 +116,7 @@ class GeoBox:
         :return:
            :py:class:`~odc.geo.geobox.GeoBox` that covers supplied bounding box.
         """
-        # pylint: disable=too-many-locals
+        # pylint: disable=too-many-locals, too-many-branches
 
         _snap: Optional[XY[float]] = None
 
@@ -131,6 +134,13 @@ class GeoBox:
             bbox = BoundingBox(*bbox, crs=(crs or "epsg:4326"))
         elif bbox.crs is None:
             bbox = BoundingBox(*bbox.bbox, crs=(crs or "epsg:4326"))
+
+        if isinstance(shape, (int, float)):
+            if bbox.aspect > 1:
+                resolution = bbox.span_x / shape
+            else:
+                resolution = bbox.span_y / shape
+            shape = None
 
         if resolution is not None:
             rx, ry = res_(resolution).xy
@@ -164,10 +174,12 @@ class GeoBox:
     @staticmethod
     def from_geopolygon(
         geopolygon: Geometry,
-        resolution: SomeResolution,
+        resolution: Optional[SomeResolution] = None,
         crs: MaybeCRS = None,
         align: Optional[XY[float]] = None,
         *,
+        shape: Union[SomeShape, int, None] = None,
+        tight: bool = False,
         anchor: GeoboxAnchor = AnchorEnum.EDGE,
         tol: float = 0.01,
     ) -> "GeoBox":
@@ -177,7 +189,11 @@ class GeoBox:
         :param resolution:
            Either a single number or a :py:class:`~odc.geo.types.Resolution` object.
 
-        :param crs:
+        :param shape:
+           Span that many pixels, if it's a single number then span that many pixels along the
+           longest dimension, other dimension will be computed to maintain roughly square pixels.
+
+         :param crs:
            CRS to use, if different from the geopolygon
 
         :param align:
@@ -190,19 +206,32 @@ class GeoBox:
             Fraction of a pixel that can be ignored, defaults to 1/100. Bounding box of the output
             geobox is allowed to be smaller than supplied bounding box by that amount.
 
+        :param tight: Supplying ``tight=True`` turns off pixel snapping.
+
         """
-        resolution = res_(resolution)
         if align is not None:
             # support old-style "align", which is basically anchor but in CRS units
             ax, ay = align.xy
-            anchor = xy_(ax / abs(resolution.x), ay / abs(resolution.y))
+            if ax == 0 and ay == 0:
+                anchor = AnchorEnum.EDGE
+            else:
+                assert resolution is not None
+                resolution = res_(resolution)
+                anchor = xy_(ax / abs(resolution.x), ay / abs(resolution.y))
+
         if crs is None:
             crs = geopolygon.crs
         else:
             geopolygon = geopolygon.to_crs(crs)
 
         return GeoBox.from_bbox(
-            geopolygon.boundingbox, crs, resolution=resolution, anchor=anchor, tol=tol
+            geopolygon.boundingbox,
+            crs,
+            resolution=resolution,
+            shape=shape,
+            anchor=anchor,
+            tol=tol,
+            tight=tight,
         )
 
     def buffered(self, xbuff: float, ybuff: Optional[float] = None) -> "GeoBox":

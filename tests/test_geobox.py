@@ -302,6 +302,16 @@ def test_from_polygon():
     assert gbox == GeoBox.from_geopolygon(gbox.extent, gbox.resolution, None, xy_(0, 0))
     assert gbox == GeoBox.from_geopolygon(gbox.extent, gbox.resolution, align=xy_(0, 0))
 
+    box = geom.box(-1, 10, 2, 12, "epsg:4326")
+    gbox = GeoBox.from_geopolygon(box, tight=True, shape=300)
+    assert gbox.crs == box.crs
+    assert gbox.shape.wh == (300, 200)
+    assert gbox.resolution.x == -gbox.resolution.y
+
+    gbox = GeoBox.from_geopolygon(box, tight=True, shape=(100, 29))
+    assert gbox.crs == box.crs
+    assert gbox.shape.wh == (29, 100)
+
 
 def test_from_bbox():
     bbox = (1, 13, 17, 37)
@@ -324,6 +334,14 @@ def test_from_bbox():
         GeoBox.from_bbox(geom.BoundingBox(*bbox, "epsg:3857"), shape=shape).crs
         == "epsg:3857"
     )
+
+    gbox = GeoBox.from_bbox((0, 0, 2, 3), tight=True, shape=300, crs="epsg:3857")
+    assert gbox.shape.wh == (200, 300)
+    assert gbox.resolution.x == -gbox.resolution.y
+
+    gbox = GeoBox.from_bbox((-1, 0, 2, 2), tight=True, shape=300, crs="epsg:3857")
+    assert gbox.shape.wh == (300, 200)
+    assert gbox.resolution.x == -gbox.resolution.y
 
     assert GeoBox.from_bbox(
         bbox, shape=shape, anchor=AnchorEnum.FLOATING
