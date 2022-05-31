@@ -177,7 +177,7 @@ def _rio_reproject(
             return arr, False
         wk_dtype = dtype_remap[arr.dtype.name]
         if arr.dtype.name == "bool":
-            T, F = (np.array(v, dtype=wk_dtype) for v in [0, 255])
+            F, T = (np.array(v, dtype=wk_dtype) for v in [0, 255])
             return np.where(arr, T, F), True
         return arr.astype(wk_dtype), False
 
