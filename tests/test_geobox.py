@@ -307,6 +307,7 @@ def test_from_polygon():
     assert gbox.crs == box.crs
     assert gbox.shape.wh == (300, 200)
     assert gbox.resolution.x == -gbox.resolution.y
+    assert gbox.aspect == 300 / 200
 
     gbox = GeoBox.from_geopolygon(box, tight=True, shape=(100, 29))
     assert gbox.crs == box.crs
