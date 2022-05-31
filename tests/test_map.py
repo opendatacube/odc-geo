@@ -40,7 +40,7 @@ def test_add_to(ocean_raster: xr.DataArray):
             _ = xx.odc.add_to(not_a_map)
 
 
-@pytest.mark.sckipif(have.folium is False, reason="No folium installed")
+@pytest.mark.skipif(have.folium is False, reason="No folium installed")
 def test_add_to_folium(ocean_raster: xr.DataArray):
     import folium
 
@@ -52,7 +52,7 @@ def test_add_to_folium(ocean_raster: xr.DataArray):
     assert img_overlay is not None
 
 
-@pytest.mark.sckipif(have.ipyleaflet is False, reason="No ipyleaflet installed")
+@pytest.mark.skipif(have.ipyleaflet is False, reason="No ipyleaflet installed")
 def test_add_to_ipyleaflet(ocean_raster: xr.DataArray):
     import ipyleaflet
 
