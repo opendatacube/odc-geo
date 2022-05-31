@@ -32,6 +32,8 @@ dependencies:
   - pytest-timeout
   - geopandas
   - dask-core
+  - folium
+  - ipyleaflet
 
   # for docs
   - sphinx
