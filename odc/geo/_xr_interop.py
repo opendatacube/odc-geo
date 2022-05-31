@@ -351,7 +351,7 @@ def xr_reproject(
             "Please install `rasterio` to use this method"
         )  # pragma: nocover
 
-    assert isinstance(src.odc, ODCExtension)  # for mypy sake
+    assert isinstance(src.odc, ODCExtensionDa)  # for mypy sake
     src_gbox = src.odc.geobox
 
     if src_gbox is None:
@@ -365,8 +365,11 @@ def xr_reproject(
     if is_dask_collection(src):
         raise NotImplementedError("Dask inputs are not yet supported.")
 
-    # TODO: deal with RGB(A) inputs
-    dst_shape = (*src.shape[:-2], *dst_geobox.shape)
+    # compute destination shape by replacing spatial dimensions shape
+    ydim = src.odc.ydim
+    assert ydim + 1 == src.odc.xdim
+    dst_shape = (*src.shape[:ydim], *dst_geobox.shape, *src.shape[ydim + 2 :])
+
     dst = numpy.empty(dst_shape, dtype=src.dtype)
     src_nodata = src.attrs.get("nodata", None)
     if dst_nodata is None:
@@ -380,14 +383,23 @@ def xr_reproject(
         resampling=resampling,
         src_nodata=src_nodata,
         dst_nodata=dst_nodata,
+        ydim=ydim,
         **kw,
     )
 
     attrs = src.attrs.copy()
-    attrs.pop("nodata", None)
-    time = getattr(src, "time", None)
+    if dst_nodata is None:
+        attrs.pop("nodata", None)
+    else:
+        attrs.update(nodata=dst_nodata)
 
-    return wrap_xr(dst, dst_geobox, nodata=dst_nodata, attrs=attrs, time=time)
+    # new set of coords (replace x,y dims)
+    coords = dict((k, v) for k, v in src.coords.items() if k not in src.dims)
+    coords.update(xr_coords(dst_geobox))
+
+    dims = (*src.dims[:ydim], *dst_geobox.dimensions, *src.dims[ydim + 2 :])
+
+    return xarray.DataArray(dst, coords=coords, dims=dims, attrs=attrs)
 
 
 class ODCExtension:
