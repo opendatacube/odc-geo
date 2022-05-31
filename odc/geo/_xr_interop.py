@@ -9,7 +9,18 @@ import functools
 import warnings
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, Hashable, List, Optional, Set, Tuple, TypeVar, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Hashable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 import numpy
 import xarray
@@ -32,6 +43,7 @@ if have.rasterio:
 
 XarrayObject = Union[xarray.DataArray, xarray.Dataset]
 XrT = TypeVar("XrT", xarray.DataArray, xarray.Dataset)
+F = TypeVar("F", bound=Callable)
 
 _DEFAULT_CRS_COORD_NAME = "spatial_ref"
 
@@ -323,18 +335,18 @@ def _locate_geo_info(src: XarrayObject) -> GeoState:
     return GeoState(spatial_dims=sdims, transform=transform, crs=crs, geobox=geobox)
 
 
-def _wrap_op(method):
+def _wrap_op(method: F) -> F:
     @functools.wraps(method, assigned=("__doc__",))
     def wrapped(*args, **kw):
         # pylint: disable=protected-access
         _self, *rest = args
         return method(_self._xx, *rest, **kw)
 
-    return wrapped
+    return wrapped  # type: ignore
 
 
 def xr_reproject(
-    src: xarray.DataArray,
+    src: Any,
     how: Union[SomeCRS, GeoBox],
     *,
     resampling: Union[str, int] = "nearest",
@@ -346,6 +358,8 @@ def xr_reproject(
 
     This method uses :py:mod:`rasterio`.
     """
+    assert isinstance(src, xarray.DataArray)
+
     if have.rasterio is False:
         raise RuntimeError(
             "Please install `rasterio` to use this method"

@@ -1,6 +1,6 @@
 """ Helpers for dealing with RGB(A) images.
 """
-from typing import List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import numpy as np
 import xarray as xr
@@ -77,7 +77,7 @@ def _np_to_rgba(
 
 
 def to_rgba(
-    ds: xr.Dataset,
+    ds: Any,
     clamp: Optional[Union[float, Tuple[float, float]]] = None,
     bands: Optional[Tuple[str, str, str]] = None,
 ) -> xr.DataArray:
@@ -95,6 +95,8 @@ def to_rgba(
     :param bands: Which bands to use, order should be red,green,blue
     """
     # pylint: disable=too-many-locals
+    assert isinstance(ds, xr.Dataset)
+
     if bands is None:
         bands = _guess_rgb_names(list(ds.data_vars))
 
@@ -149,8 +151,8 @@ def _np_colorize(x, cmap, clip):
 
 
 def colorize(
-    x: xr.DataArray,
-    cmap: np.ndarray,
+    x: Any,
+    cmap: Any,
     attrs=None,
     *,
     clip: bool = False,
@@ -163,6 +165,7 @@ def colorize(
     :param attrs: xarray attributes table, if not supplied input attributes are copied across
     :param clip: If ``True`` clip values from ``x`` to be in the safe range for ``cmap``.
     """
+    assert isinstance(x, xr.DataArray)
     assert cmap.ndim == 2
     assert cmap.shape[1] in (3, 4)
 
