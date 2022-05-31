@@ -26,6 +26,14 @@ class _LibChecker:
     def dask(self) -> bool:
         return self._check("dask")
 
+    @property
+    def folium(self) -> bool:
+        return self._check("folium")
+
+    @property
+    def ipyleaflet(self) -> bool:
+        return self._check("ipyleaflet")
+
     @staticmethod
     def _check(lib_name):
         return importlib.util.find_spec(lib_name) is not None
