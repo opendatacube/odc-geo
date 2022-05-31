@@ -73,8 +73,8 @@ pygments_style = "friendly"
 autosummary_generate = True
 
 extlinks = {
-    "issue": ("https://github.com/opendatacube/odc-geo/issues/%s", "issue "),
-    "pull": ("https://github.com/opendatacube/odc-geo/pulls/%s", "PR "),
+    "issue": ("https://github.com/opendatacube/odc-geo/issues/%s", "issue %s"),
+    "pull": ("https://github.com/opendatacube/odc-geo/pulls/%s", "PR %s"),
 }
 
 intersphinx_mapping = {
