@@ -446,6 +446,18 @@ class ODCExtensionDa(ODCExtension):
     def uncached(self) -> "ODCExtensionDa":
         return ODCExtensionDa(self._xx)
 
+    @property
+    def ydim(self) -> int:
+        if (sdims := self.spatial_dims) is not None:
+            return self._xx.dims.index(sdims[0])
+        raise ValueError("Can't locate spatial dimensions")
+
+    @property
+    def xdim(self) -> int:
+        if (sdims := self.spatial_dims) is not None:
+            return self._xx.dims.index(sdims[1])
+        raise ValueError("Can't locate spatial dimensions")
+
     def assign_crs(
         self, crs: SomeCRS, crs_coord_name: str = _DEFAULT_CRS_COORD_NAME
     ) -> xarray.DataArray:
