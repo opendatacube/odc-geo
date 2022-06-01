@@ -60,6 +60,8 @@ def add_to(
     # RGB conversion parameters
     cmap: Optional[Any] = None,
     clip: bool = False,
+    vmin: Optional[float] = None,
+    vmax: Optional[float] = None,
     # passed to ImageOverlay constructor
     **kw,
 ) -> Any:
@@ -77,11 +79,18 @@ def add_to(
     :param max_size:
        If longest dimension is bigger than this, shrink it down before compression, defaults to 4096
     :param transparent_pixel: Replace transparent pixels with this value, needed for "jpeg".
+
     :param cmap: If supplied array is not RGB use this colormap to turn it into one
     :param clip: When converting to RGB clip input values to fit ``cmap``.
+    :param vmin: Used with matplotlib colormaps
+    :param vmax: Used with matplotlib colormapa
+
     :raises ValueError: when map object is not understood
     :return: ImageLayer that was added to a map
     :return: ``(url, bounds)`` when ``map is None``.
+
+    .. see-also:: :py:meth:`~odc.geo.xr.colorize`, :py:meth:`~odc.geo.xr.to_rgba`
+
     """
     from .xr import ODCExtensionDa
 
@@ -108,7 +117,7 @@ def add_to(
         xx = xx.odc.reproject(gbox)
 
     if not is_rgb(xx):
-        xx = colorize(xx, cmap=cmap, clip=clip)
+        xx = colorize(xx, cmap=cmap, clip=clip, vmin=vmin, vmax=vmax)
 
     compress_opts = [fmt]
     for opt in ["zlevel", "quality"]:

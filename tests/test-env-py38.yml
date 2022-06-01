@@ -34,6 +34,7 @@ dependencies:
   - dask-core
   - folium
   - ipyleaflet
+  - matplotlib
 
   # for docs
   - sphinx

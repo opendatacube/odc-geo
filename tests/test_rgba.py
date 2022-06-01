@@ -7,6 +7,12 @@ from odc.geo._rgba import is_rgb
 from odc.geo.testutils import daskify
 from odc.geo.xr import ODCExtensionDa, ODCExtensionDs
 
+try:
+    import matplotlib
+    import matplotlib.cm
+except ImportError:
+    matplotlib = None
+
 
 def test_colorize(ocean_raster: xr.DataArray):
     xx = ocean_raster
@@ -44,6 +50,28 @@ def test_colorize(ocean_raster: xr.DataArray):
     assert _cc.shape == (*_xx.shape, 4)
 
     assert bool((_cc.compute() == cc).all()) is True
+
+
+@pytest.mark.skipif(matplotlib is None, reason="Needs matplotlib")
+def test_colorize_matplotlib(ocean_raster: xr.DataArray):
+    xx = ocean_raster
+    cc = xx.odc.colorize("jet")
+    assert isinstance(cc.odc, ODCExtensionDa)
+    assert cc.odc.geobox == xx.odc.geobox
+    assert cc.dtype == "uint8"
+    assert cc.shape == (*xx.shape, 4)
+
+    cc = xx.astype("float32").odc.colorize(matplotlib.cm.get_cmap("viridis"))
+    assert isinstance(cc.odc, ODCExtensionDa)
+    assert cc.odc.geobox == xx.odc.geobox
+    assert cc.dtype == "uint8"
+    assert cc.shape == (*xx.shape, 4)
+
+    cc = xx.astype("float32").odc.colorize()
+    assert isinstance(cc.odc, ODCExtensionDa)
+    assert cc.odc.geobox == xx.odc.geobox
+    assert cc.dtype == "uint8"
+    assert cc.shape == (*xx.shape, 4)
 
 
 def test_rgba(ocean_raster_ds: xr.Dataset):
