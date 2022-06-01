@@ -52,7 +52,7 @@ def test_rgba(ocean_raster_ds: xr.Dataset):
     assert isinstance(xx.odc, ODCExtensionDs)
     assert xx.red.nodata == -1
 
-    cc = xx.odc.to_rgba((0, 3_000))
+    cc = xx.odc.to_rgba(vmin=0, vmax=3_000)
     assert isinstance(cc.odc, ODCExtensionDa)
     assert cc.odc.geobox == xx.odc.geobox
     assert cc.dtype == "uint8"
@@ -70,7 +70,7 @@ def test_rgba(ocean_raster_ds: xr.Dataset):
     for dv in _xx.data_vars.values():
         dv.attrs.pop("nodata", None)
 
-    cc = _xx.odc.to_rgba(3_000, bands=["b1", "b2", "b3"])
+    cc = _xx.odc.to_rgba(["b1", "b2", "b3"], vmax=3_000)  # vmin defaults to 0
     assert isinstance(cc.odc, ODCExtensionDa)
     assert cc.odc.geobox == xx.odc.geobox
     assert cc.dtype == "uint8"
@@ -81,17 +81,17 @@ def test_rgba(ocean_raster_ds: xr.Dataset):
 
     # can't guess band names
     with pytest.raises(ValueError):
-        _ = _xx.odc.to_rgba(3_000)
+        _ = _xx.odc.to_rgba(vmax=3_000)
 
     # too many red band candidates
     _xx = xx.rename({"red": "red1"})
     _xx["red2"] = xx.red
     with pytest.raises(ValueError):
-        _ = _xx.odc.to_rgba(3_000)
+        _ = _xx.odc.to_rgba(vmax=3_000)
 
     _xx = daskify(xx, chunks=(51, 39))
     assert is_dask_collection(_xx) is True
-    _cc = _xx.odc.to_rgba(clamp=3000)
+    _cc = _xx.odc.to_rgba(vmax=3_000)
     assert isinstance(_cc.odc, ODCExtensionDa)
     assert is_dask_collection(_cc) is True
     assert _cc.odc.geobox == xx.odc.geobox
