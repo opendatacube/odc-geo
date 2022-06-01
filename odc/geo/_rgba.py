@@ -1,11 +1,12 @@
 """ Helpers for dealing with RGB(A) images.
 """
-from typing import Any, List, Optional, Tuple, Union
 
 import numpy as np
 import xarray as xr
 
 from ._interop import is_dask_collection
+
+# pylint: disable=import-outside-toplevel
 
 
 def is_rgb(x: xr.DataArray):
@@ -41,13 +42,13 @@ def _auto_guess_clamp(ds: xr.Dataset) -> Tuple[float, float]:
     return (float(0), max(x.data.max() for x in ds.data_vars.values()))
 
 
-def _to_u8(x: np.ndarray, x_min: float, x_max: float) -> np.ndarray:
-    x = np.clip(x, x_min, x_max)
+def _to_u8(x: np.ndarray, vmin: float, vmax: float) -> np.ndarray:
+    x = np.clip(x, vmin, vmax)
 
     if x.dtype.kind == "f":
-        x = (x - x_min) * (255.0 / (x_max - x_min))
+        x = (x - vmin) * (255.0 / (vmax - vmin))
     else:
-        x = (x - x_min).astype("uint32") * 255 // (x_max - x_min)
+        x = (x - vmin).astype("uint32") * 255 // (vmax - vmin)
     return x.astype("uint8")
 
 
@@ -56,7 +57,8 @@ def _np_to_rgba(
     g: np.ndarray,
     b: np.ndarray,
     nodata: Optional[float],
-    clamp: Tuple[float, float],
+    vmin: float,
+    vmax: float,
 ) -> np.ndarray:
     rgba = np.zeros((*r.shape, 4), dtype="uint8")
 
@@ -71,15 +73,17 @@ def _np_to_rgba(
 
     rgba[..., 3] = valid.astype("uint8") * (0xFF)
     for idx, band in enumerate([r, g, b]):
-        rgba[..., idx] = _to_u8(band, *clamp)
+        rgba[..., idx] = _to_u8(band, vmin, vmax)
 
     return rgba
 
 
 def to_rgba(
     ds: Any,
-    clamp: Optional[Union[float, Tuple[float, float]]] = None,
     bands: Optional[Tuple[str, str, str]] = None,
+    *,
+    vmin: Optional[float] = None,
+    vmax: Optional[float] = None,
 ) -> xr.DataArray:
     """
     Convert dataset to RGBA image.
@@ -101,13 +105,18 @@ def to_rgba(
         bands = _guess_rgb_names(list(ds.data_vars))
 
     is_dask = is_dask_collection(ds)
+    if vmin is None:
+        if vmax is not None:
+            vmin = 0
 
-    if clamp is None:
+    if vmax is None:
         if is_dask:
             raise ValueError("Must specify clamp for Dask inputs")
-        clamp = _auto_guess_clamp(ds[list(bands)])
-    elif not isinstance(clamp, tuple):
-        clamp = (float(0), float(clamp))
+        _vmin, vmax = _auto_guess_clamp(ds[list(bands)])
+        vmin = _vmin if vmin is None else vmin
+
+    assert vmin is not None
+    assert vmax is not None
 
     _b = ds[bands[0]]
     nodata = getattr(_b, "nodata", None)
@@ -126,14 +135,15 @@ def to_rgba(
             g,
             b,
             nodata,
-            clamp,
+            vmin,
+            vmax,
             name=f"ro_rgba-{tokenize(r, g, b)}",
             dtype=np.uint8,
             chunks=(*_b.chunks, (4,)),
             new_axis=[r.ndim],
         )
     else:
-        data = _np_to_rgba(r, g, b, nodata, clamp)
+        data = _np_to_rgba(r, g, b, nodata, vmin, vmax)
 
     coords = dict(_b.coords.items())
     coords.update(band=xr.DataArray(data=["r", "g", "b", "a"], dims=("band",)))

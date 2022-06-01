@@ -521,10 +521,12 @@ class ODCExtensionDs(ODCExtension):
 
     def to_rgba(
         self,
-        clamp: Optional[Union[float, Tuple[float, float]]] = None,
         bands: Optional[Tuple[str, str, str]] = None,
+        *,
+        vmin: Optional[float] = None,
+        vmax: Optional[float] = None,
     ) -> xarray.DataArray:
-        return to_rgba(self._ds, clamp=clamp, bands=bands)
+        return to_rgba(self._ds, bands=bands, vmin=vmin, vmax=vmax)
 
 
 def _xarray_geobox(xx: XarrayObject) -> Optional[GeoBox]:
