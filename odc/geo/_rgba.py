@@ -1,5 +1,7 @@
 """ Helpers for dealing with RGB(A) images.
 """
+import functools
+from typing import Any, List, Optional, Tuple
 
 import numpy as np
 import xarray as xr
@@ -160,53 +162,86 @@ def _np_colorize(x, cmap, clip):
     return cmap[x]
 
 
+def _matplotlib_colorize(x, cmap, vmin=None, vmax=None):
+    from matplotlib import cm
+    from matplotlib.colors import Normalize
+
+    if cmap is None or isinstance(cmap, str):
+        cmap = cm.get_cmap(cmap)
+
+    return cmap(Normalize(vmin=vmin, vmax=vmax)(x), bytes=True)
+
+
 def colorize(
     x: Any,
-    cmap: Any,
+    cmap=None,
     attrs=None,
     *,
     clip: bool = False,
+    vmin: Optional[float] = None,
+    vmax: Optional[float] = None,
 ) -> xr.DataArray:
     """
-    Map categorical values from ``x`` to RGBA according to ``cmap`` lookup table.
+    Apply colormap to data.
+
+    There are two modes of operation:
+
+    * Map categorical values from ``x`` to RGBA according to ``cmap`` lookup table.
+    * Interpolate into RGBA using matplotlib colormaps (needs matplotlib installed)
+
+    .. note::
+
+       When using matplotlib colormaps with Dask inputs one must configure
+       vmin/vmax to ensure all chunks are colorized consistently.
+
 
     :param x: Input xarray data array (can be Dask)
-    :param cmap: Lookup table ``cmap[x] -> RGB(A)``
+    :param cmap: Lookup table ``cmap[x] -> RGB(A)`` or matplotlib colormap
+    :param vmin: Valid range to colorize
+    :param vmax: Valid range to colorize
     :param attrs: xarray attributes table, if not supplied input attributes are copied across
     :param clip: If ``True`` clip values from ``x`` to be in the safe range for ``cmap``.
     """
+    # pylint: disable=too-many-locals
+
     assert isinstance(x, xr.DataArray)
-    assert cmap.ndim == 2
-    assert cmap.shape[1] in (3, 4)
+    if isinstance(cmap, np.ndarray):
+        assert cmap.ndim == 2
+        assert cmap.shape[1] in (3, 4)
+        cmap_dtype = cmap.dtype
+        _impl = functools.partial(_np_colorize, clip=clip)
+        nc = cmap.shape[1]
+    else:
+        # Assume matplotlib
+        _impl = functools.partial(_matplotlib_colorize, vmin=vmin, vmax=vmax)
+        nc, cmap_dtype = 4, "uint8"
 
     if attrs is None:
         attrs = x.attrs
 
-    nc = cmap.shape[1]
     dims = (*x.dims, "band")
     coords = dict(x.coords.items())
     coords["band"] = xr.DataArray(data=["r", "g", "b", "a"][:nc], dims=("band",))
 
     if is_dask_collection(x.data):
-        # pylint: disable=import-outside-toplevel
         from dask import array as da
         from dask import delayed
         from dask.base import tokenize
 
-        _cmap = delayed(cmap)
+        _cmap = cmap if cmap is None or isinstance(cmap, str) else delayed(cmap)
+
         assert x.chunks is not None
         data = da.map_blocks(
-            _np_colorize,
+            _impl,
             x.data,
             _cmap,
-            clip,
-            name=f"colorize-{tokenize(x, cmap)}",
-            dtype=cmap.dtype,
+            name=f"colorize-{tokenize(x, cmap, clip, vmin, vmax)}",
+            dtype=cmap_dtype,
             chunks=(*x.chunks, (nc,)),
             new_axis=[x.data.ndim],
         )
     else:
-        data = _np_colorize(x.data, cmap, clip)
+        data = _impl(x.data, cmap)
 
     return xr.DataArray(data=data, dims=dims, coords=coords, attrs=attrs)
 
