@@ -11,14 +11,17 @@ Importing this module enables `.odc.` extension on :py:class:`xarray.DataArray` 
 For more details see: :py:class:`~odc.geo.xr.ODCExtension` and
 :py:class:`~odc.geo.xr.ODCExtensionDs`.
 """
+from ._interop import have
 from ._xr_interop import (
     ODCExtension,
     ODCExtensionDa,
     ODCExtensionDs,
     assign_crs,
+    colorize,
     rasterize,
     register_geobox,
     spatial_dims,
+    to_rgba,
     wrap_xr,
     xr_coords,
     xr_reproject,
@@ -27,7 +30,7 @@ from ._xr_interop import (
 
 wrap = wrap_xr
 
-__all__ = (
+__all__ = [
     "ODCExtension",
     "ODCExtensionDa",
     "ODCExtensionDs",
@@ -40,4 +43,20 @@ __all__ = (
     "wrap_xr",
     "xr_reproject",
     "xr_zeros",
-)
+    "colorize",
+    "to_rgba",
+]
+
+# pylint: disable=import-outside-toplevel,unused-import
+if have.rasterio:
+    from ._xr_interop import add_to, compress, rio_reproject, to_cog, write_cog
+
+    __all__.extend(
+        [
+            "to_cog",
+            "write_cog",
+            "add_to",
+            "rio_reproject",
+            "compress",
+        ]
+    )
