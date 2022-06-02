@@ -5,6 +5,7 @@ GeoBox
 .. autosummary::
    :toctree: _api/
 
+   GeoBox
    GeoBox.from_geopolygon
    GeoBox.from_bbox
    GeoBox.affine
@@ -43,18 +44,6 @@ GeoBox
    GeoBox.__mul__
    GeoBox.__rmul__
 
-Coordinate
-==========
-
-.. currentmodule:: odc.geo.geobox
-.. autosummary::
-   :toctree: _api/
-
-   Coordinate.count
-   Coordinate.index
-   Coordinate.resolution
-   Coordinate.units
-   Coordinate.values
 
 GeoboxTiles
 ===========
@@ -63,8 +52,33 @@ GeoboxTiles
 .. autosummary::
    :toctree: _api/
 
+   GeoboxTiles
    GeoboxTiles.base
    GeoboxTiles.chunk_shape
    GeoboxTiles.range_from_bbox
    GeoboxTiles.shape
    GeoboxTiles.tiles
+
+
+Standalone Methods
+==================
+
+.. currentmodule:: odc.geo.geobox
+.. autosummary::
+   :toctree: _api/
+
+   bounding_box_in_pixel_domain
+   geobox_intersection_conservative
+   geobox_union_conservative
+   scaled_down_geobox
+
+   affine_transform_pix
+   flipx
+   flipy
+   gbox_boundary
+   pad
+   pad_wh
+   rotate
+   translate_pix
+   zoom_out
+   zoom_to
