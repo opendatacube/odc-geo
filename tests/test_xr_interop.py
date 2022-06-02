@@ -153,6 +153,7 @@ def test_odc_extension(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox):
     assert xx.spatial_ref.attrs["grid_mapping_name"] == "latitude_longitude"
     assert xx.odc.uncached.transform == xx.odc.transform
     assert xx.odc.output_geobox("epsg:3857").crs == "epsg:3857"
+    assert xx.odc.map_bounds() == gbox.map_bounds()
 
     # this drops encoding/attributes, but crs/geobox should remain the same
     _xx = xx * 10.0
@@ -175,6 +176,16 @@ def test_odc_extension(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox):
     # when geobox is none output_geobox should fail
     with pytest.raises(ValueError):
         _ = _xx.XX.odc.output_geobox("epsg:4326")
+
+    # no geobox - no map bounds
+    with pytest.raises(ValueError):
+        _ = _xx.XX.odc.map_bounds()
+
+    # no spatial_dims - no ydim/xdim
+    with pytest.raises(ValueError):
+        _ = _xx.XX.odc.ydim
+    with pytest.raises(ValueError):
+        _ = _xx.XX.odc.xdim
 
 
 def test_odc_extension_ds(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox):
