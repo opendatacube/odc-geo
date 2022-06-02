@@ -1,4 +1,4 @@
-from odc.geo.data import data_path, gbox_css, ocean_geojson, ocean_geom
+from odc.geo.data import country_geom, data_path, gbox_css, ocean_geojson, ocean_geom
 
 
 def test_ocean_gjson():
@@ -15,6 +15,14 @@ def test_ocean_geom():
 
     g = ocean_geom("epsg:3857", (-180, -80, 180, 80))
     assert g.crs == "epsg:3857"
+
+
+def test_country_geom():
+    g = country_geom("AUS")
+    assert g.crs == "epsg:4326"
+
+    g = country_geom("AUS", "epsg:3577")
+    assert g.crs == "epsg:3577"
 
 
 def test_gbox_css():

@@ -39,3 +39,19 @@ def ocean_geom(
 def gbox_css() -> str:
     with open(data_path("gbox.css"), "rt", encoding="utf8") as src:
         return src.read()
+
+
+def country_geom(iso3: str, crs: MaybeCRS = None) -> Geometry:
+    """
+    Extract geometry for a country from geopandas sample data.
+    """
+    # pylint: disable=import-outside-toplevel
+    import geopandas as gpd
+
+    from ..converters import from_geopandas
+
+    df = gpd.read_file(gpd.datasets.get_path("naturalearth_lowres"))
+    (gg,) = from_geopandas(df[df.iso_a3 == iso3])
+    if crs is not None:
+        gg = gg.to_crs(crs)
+    return gg
