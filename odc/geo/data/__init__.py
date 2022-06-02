@@ -2,9 +2,9 @@ import json
 import lzma
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
-from ..geom import Geometry, multigeom
+from ..geom import Geometry, MaybeCRS, box, multigeom
 
 
 def data_path(fname: Optional[str] = None) -> Path:
@@ -21,10 +21,18 @@ def ocean_geojson() -> Dict[str, Any]:
         return json.load(xz)
 
 
-def ocean_geom() -> Geometry:
+def ocean_geom(
+    crs: MaybeCRS = None, bbox: Optional[Tuple[float, float, float, float]] = None
+) -> Geometry:
     """Return world oceans geometry."""
     gjson = ocean_geojson()
-    return multigeom([Geometry(f["geometry"], "epsg:4326") for f in gjson["features"]])
+    gg = multigeom([Geometry(f["geometry"], "epsg:4326") for f in gjson["features"]])
+    if bbox is not None:
+        gg = gg & box(*bbox, "epsg:4326")
+    if crs is not None:
+        gg = gg.to_crs(crs)
+
+    return gg
 
 
 @lru_cache

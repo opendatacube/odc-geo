@@ -13,6 +13,9 @@ def test_ocean_geom():
     g = ocean_geom()
     assert g.crs == "epsg:4326"
 
+    g = ocean_geom("epsg:3857", (-180, -80, 180, 80))
+    assert g.crs == "epsg:3857"
+
 
 def test_gbox_css():
     assert isinstance(gbox_css(), str)
