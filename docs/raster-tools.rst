@@ -2,10 +2,10 @@ Working with Rasters
 ====================
 
 
-Rasterize
----------
+Making Rasters from Geometries
+------------------------------
 
-Turn geometric shapes into geo-registered rasters.
+Turn geometric shapes into geo-registered raster images.
 
 .. jupyter-execute::
 
@@ -34,8 +34,8 @@ Creating PNG Images
    display(Image(data=xx.odc.colorize('bone').odc.compress()))
 
 
-Ploting on a map
-----------------
+Plotting on a map
+-----------------
 
 .. jupyter-execute::
 
