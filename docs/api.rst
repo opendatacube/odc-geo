@@ -5,90 +5,87 @@ API Reference
 
 .. highlight:: python
 
-odc.geo
-*******
+odc.geo.xr
+**********
 
-.. currentmodule:: odc.geo
+Interfacing with :py:class:`xarray.DataArray` and :py:class:`xarray.Dataset` classes.
+
+.. currentmodule:: odc.geo.xr
 .. autosummary::
    :toctree: _api/
 
-   XY
-   XY.xy
-   XY.yx
-   XY.lonlat
-   XY.latlon
-   XY.x
-   XY.y
-   XY.lon
-   XY.lat
-   XY.wh
-   XY.shape
+   ODCExtension
+   ODCExtension.geobox
+   ODCExtension.output_geobox
+   ODCExtension.spatial_dims
+   ODCExtension.crs
+   ODCExtension.map_bounds
 
-   Resolution
-   Shape2d
-   Index2d
+   ODCExtensionDa
+   ODCExtensionDa.assign_crs
+   ODCExtensionDa.write_cog
+   ODCExtensionDa.to_cog
+   ODCExtensionDa.reproject
+   ODCExtensionDa.colorize
+   ODCExtensionDa.add_to
+   ODCExtensionDa.compress
+   ODCExtensionDa.ydim
+   ODCExtensionDa.xdim
 
-   xy_
-   yx_
+   ODCExtensionDs
+   ODCExtensionDs.to_rgba
 
-   res_
-   resxy_
-   resyx_
+   assign_crs
+   rasterize
+   spatial_dims
+   wrap_xr
+   xr_coords
+   xr_reproject
+   xr_zeros
+   colorize
+   to_rgba
+   add_to
+   rio_reproject
+   to_cog
+   write_cog
+   compress
 
-   wh_
-   shape_
 
-   ixy_
-   iyx_
+odc.geo.geobox
+**************
 
+Methods for creating and manipulating geoboxes.
+
+.. include:: api-geobox.rst
 
 odc.geo.crs
 ***********
+
+Contains CRS class and related operations.
 
 .. currentmodule:: odc.geo.crs
 .. autosummary::
    :toctree: _api/
 
    CRS
+   CRS.to_epsg
+   CRS.to_wkt
+   CRS.transformer_to_crs
+
+   CRS.units
+   CRS.dimensions
 
    CRSMismatchError
+
    norm_crs
    norm_crs_or_error
    crs_units_per_degree
 
-.. include:: api-crs.rst
-
-odc.geo.geobox
-**************
-
-.. currentmodule:: odc.geo.geobox
-.. autosummary::
-   :toctree: _api/
-
-   GeoBox
-   GeoboxTiles
-
-   bounding_box_in_pixel_domain
-   geobox_intersection_conservative
-   geobox_union_conservative
-   scaled_down_geobox
-
-   affine_transform_pix
-   flipx
-   flipy
-   gbox_boundary
-   pad
-   pad_wh
-   rotate
-   translate_pix
-   zoom_out
-   zoom_to
-
-.. include:: api-geobox.rst
-
 
 odc.geo.geom
 ************
+
+Shapely geometry classes with CRS information attached.
 
 .. currentmodule:: odc.geo.geom
 .. autosummary::
@@ -130,8 +127,49 @@ odc.geo.geom
    unary_intersection
    unary_union
 
+odc.geo
+*******
+
+Basic types used for unambigous specification of X/Y values.
+
+.. currentmodule:: odc.geo
+.. autosummary::
+   :toctree: _api/
+
+   XY
+   XY.xy
+   XY.yx
+   XY.lonlat
+   XY.latlon
+   XY.x
+   XY.y
+   XY.lon
+   XY.lat
+   XY.wh
+   XY.shape
+
+   Resolution
+   Shape2d
+   Index2d
+
+   xy_
+   yx_
+
+   res_
+   resxy_
+   resyx_
+
+   wh_
+   shape_
+
+   ixy_
+   iyx_
+
+
 odc.geo.roi
 ***********
+
+Various helper methods for working with 2d slices into arrays.
 
 .. currentmodule:: odc.geo.roi
 .. autosummary::
@@ -199,49 +237,6 @@ odc.geo.gridspec
    GridSpec.tiles_from_geopolygon
 
    GridSpec.geojson
-
-odc.geo.xr
-**********
-
-.. currentmodule:: odc.geo.xr
-.. autosummary::
-   :toctree: _api/
-
-   ODCExtension
-   ODCExtension.geobox
-   ODCExtension.output_geobox
-   ODCExtension.spatial_dims
-   ODCExtension.crs
-   ODCExtension.map_bounds
-
-   ODCExtensionDa
-   ODCExtensionDa.assign_crs
-   ODCExtensionDa.write_cog
-   ODCExtensionDa.to_cog
-   ODCExtensionDa.reproject
-   ODCExtensionDa.colorize
-   ODCExtensionDa.add_to
-   ODCExtensionDa.compress
-   ODCExtensionDa.ydim
-   ODCExtensionDa.xdim
-
-   ODCExtensionDs
-   ODCExtensionDs.to_rgba
-
-   assign_crs
-   rasterize
-   spatial_dims
-   wrap_xr
-   xr_coords
-   xr_reproject
-   xr_zeros
-   colorize
-   to_rgba
-   add_to
-   rio_reproject
-   to_cog
-   write_cog
-   compress
 
 odc.geo.overlap
 ***************
