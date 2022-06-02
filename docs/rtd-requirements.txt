@@ -7,6 +7,11 @@ xarray
 numpy
 cachetools
 
+# optional dependencies used in docs
+folium
+matplotlib
+dask[array]
+
 ## for docs
 sphinx
 sphinx_rtd_theme
