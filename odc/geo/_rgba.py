@@ -170,6 +170,13 @@ def _matplotlib_colorize(x, cmap, vmin=None, vmax=None):
     if cmap is None or isinstance(cmap, str):
         cmap = cm.get_cmap(cmap)
 
+    if x.dtype.kind == "f":
+        if vmin is None:
+            vmin = np.nanmin(x)
+
+        if vmax is None:
+            vmax = np.nanmax(x)
+
     return cmap(Normalize(vmin=vmin, vmax=vmax)(x), bytes=True)
 
 
