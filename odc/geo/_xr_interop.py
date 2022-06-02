@@ -440,17 +440,19 @@ class ODCExtension:
 
     @property
     def crs(self) -> Optional[CRS]:
+        """Query :py:class:`~odc.geo.crs.CRS`."""
         return self._state.crs
 
     @property
     def geobox(self) -> Optional[GeoBox]:
+        """Query :py:class:`~odc.geo.geobox.GeoBox`."""
         return self._state.geobox
 
     def output_geobox(self, crs: SomeCRS, **kw) -> GeoBox:
         """
         Compute geobox of this data in other projection.
 
-        ..see-also:: :py:meth:`odc.geo.overlap.compute_output_geobox`
+        ..seealso:: :py:meth:`odc.geo.overlap.compute_output_geobox`
         """
         gbox = self.geobox
         if gbox is None:
@@ -483,12 +485,14 @@ class ODCExtensionDa(ODCExtension):
 
     @property
     def ydim(self) -> int:
+        """Index of the Y dimension."""
         if (sdims := self.spatial_dims) is not None:
             return self._xx.dims.index(sdims[0])
         raise ValueError("Can't locate spatial dimensions")
 
     @property
     def xdim(self) -> int:
+        """Index of the X dimension."""
         if (sdims := self.spatial_dims) is not None:
             return self._xx.dims.index(sdims[1])
         raise ValueError("Can't locate spatial dimensions")
@@ -496,6 +500,7 @@ class ODCExtensionDa(ODCExtension):
     def assign_crs(
         self, crs: SomeCRS, crs_coord_name: str = _DEFAULT_CRS_COORD_NAME
     ) -> xarray.DataArray:
+        """See :py:meth:`odc.geo.xr.assign_crs`."""
         return assign_crs(self._xx, crs=crs, crs_coord_name=crs_coord_name)
 
     colorize = _wrap_op(colorize)
@@ -535,6 +540,9 @@ class ODCExtensionDs(ODCExtension):
         vmax: Optional[float] = None,
     ) -> xarray.DataArray:
         return to_rgba(self._ds, bands=bands, vmin=vmin, vmax=vmax)
+
+
+ODCExtensionDs.to_rgba.__doc__ = to_rgba.__doc__
 
 
 def _xarray_geobox(xx: XarrayObject) -> Optional[GeoBox]:

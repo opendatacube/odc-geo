@@ -89,7 +89,7 @@ def add_to(
     :return: ImageLayer that was added to a map
     :return: ``(url, bounds)`` when ``map is None``.
 
-    .. see-also:: :py:meth:`~odc.geo.xr.colorize`, :py:meth:`~odc.geo.xr.to_rgba`
+    .. seealso:: :py:meth:`~odc.geo.xr.colorize`, :py:meth:`~odc.geo.xr.to_rgba`
 
     """
     from .xr import ODCExtensionDa

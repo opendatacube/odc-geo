@@ -19,6 +19,7 @@ GeoBox
    GeoBox.extent
    GeoBox.footprint
    GeoBox.boundingbox
+   GeoBox.map_bounds
    GeoBox.geographic_extent
    GeoBox.overlap_roi
    GeoBox.height
@@ -30,10 +31,12 @@ GeoBox
    GeoBox.pad
    GeoBox.pad_wh
    GeoBox.resolution
+   GeoBox.aspect
    GeoBox.rotate
    GeoBox.shape
    GeoBox.transform
    GeoBox.translate_pix
+   GeoBox.to_crs
    GeoBox.width
    GeoBox.zoom_out
    GeoBox.zoom_to
