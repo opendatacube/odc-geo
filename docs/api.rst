@@ -210,12 +210,24 @@ odc.geo.xr
    ODCExtension
    ODCExtension.geobox
    ODCExtension.output_geobox
+   ODCExtension.spatial_dims
+   ODCExtension.crs
+   ODCExtension.map_bounds
+
    ODCExtensionDa
    ODCExtensionDa.assign_crs
    ODCExtensionDa.write_cog
    ODCExtensionDa.to_cog
    ODCExtensionDa.reproject
+   ODCExtensionDa.colorize
+   ODCExtensionDa.add_to
+   ODCExtensionDa.compress
+   ODCExtensionDa.ydim
+   ODCExtensionDa.xdim
+
    ODCExtensionDs
+   ODCExtensionDs.to_rgba
+
    assign_crs
    rasterize
    spatial_dims
@@ -223,6 +235,13 @@ odc.geo.xr
    xr_coords
    xr_reproject
    xr_zeros
+   colorize
+   to_rgba
+   add_to
+   rio_reproject
+   to_cog
+   write_cog
+   compress
 
 odc.geo.overlap
 ***************

@@ -94,9 +94,10 @@ def to_rgba(
     containing ``uint8`` rgba image.
 
     :param ds: :py:class:`xarray.Dataset`
-    :param clamp:
-      ``(min_intensity, max_intensity) | max_intensity == (0, max_intensity)``. Can also
-       supply ``None`` for non-dask inputs, in which case clamp is set to ``(0, max(r,g,b))``.
+    :param vmin: Defaults to ``0`` when ``vmax`` is supplied.
+    :param vmax:
+       Configure range, must be supplied for Dask inputs. When not configured
+       ``vmin=0, vmax=max(r,g,b))`` is used.
 
     :param bands: Which bands to use, order should be red,green,blue
     """
