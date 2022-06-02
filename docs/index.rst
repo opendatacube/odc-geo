@@ -10,6 +10,7 @@ odc-geo
 
    intro.rst
    intro-geobox.rst
+   intro-xr.rst
 
 .. toctree::
    :caption: Developer Guide
