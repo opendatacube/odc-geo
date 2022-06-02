@@ -458,6 +458,14 @@ class ODCExtension:
 
         return compute_output_geobox(gbox, crs, **kw)
 
+    def map_bounds(self) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+        """See :py:meth:`odc.geo.geobox.GeoBox.map_bounds`."""
+        gbox = self.geobox
+        if gbox is None:
+            raise ValueError("Not geo registered")
+
+        return gbox.map_bounds()
+
 
 @xarray.register_dataarray_accessor("odc")
 class ODCExtensionDa(ODCExtension):
