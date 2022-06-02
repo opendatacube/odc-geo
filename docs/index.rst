@@ -11,6 +11,7 @@ odc-geo
    intro.rst
    intro-geobox.rst
    intro-xr.rst
+   raster-tools.rst
 
 .. toctree::
    :caption: Developer Guide
