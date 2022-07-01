@@ -129,7 +129,7 @@ def rio_reproject(
     """
     assert src.ndim == dst.ndim
     if dst_nodata is None:
-        if dst.dtype.kind == 'f':
+        if dst.dtype.kind == "f":
             dst_nodata = np.nan
 
     if src.ndim == 2:
