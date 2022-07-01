@@ -236,14 +236,14 @@ def colorize(
         from dask import delayed
         from dask.base import tokenize
 
-        _cmap = cmap if cmap is None or isinstance(cmap, str) else delayed(cmap)
+        _cmap = delayed(cmap) if isinstance(cmap, np.ndarray) else cmap
 
         assert x.chunks is not None
         data = da.map_blocks(
             _impl,
             x.data,
             _cmap,
-            name=f"colorize-{tokenize(x, cmap, clip, vmin, vmax)}",
+            name=f"colorize-{tokenize(x, _cmap, clip, vmin, vmax)}",
             dtype=cmap_dtype,
             chunks=(*x.chunks, (nc,)),
             new_axis=[x.data.ndim],
