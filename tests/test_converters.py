@@ -28,5 +28,6 @@ def test_have():
     assert isinstance(have.dask, bool)
     assert isinstance(have.folium, bool)
     assert isinstance(have.ipyleaflet, bool)
+    assert isinstance(have.datacube, bool)
     assert have.rasterio is True
     assert have.xarray is True

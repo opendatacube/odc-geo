@@ -34,6 +34,10 @@ class _LibChecker:
     def ipyleaflet(self) -> bool:
         return self._check("ipyleaflet")
 
+    @property
+    def datacube(self) -> bool:
+        return self._check("datacube")
+
     @staticmethod
     def _check(lib_name):
         return importlib.util.find_spec(lib_name) is not None
