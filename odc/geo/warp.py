@@ -128,6 +128,10 @@ def rio_reproject(
     :returns: dst
     """
     assert src.ndim == dst.ndim
+    if dst_nodata is None:
+        if dst.dtype.kind == 'f':
+            dst_nodata = np.nan
+
     if src.ndim == 2:
         return _rio_reproject(
             src, dst, s_gbox, d_gbox, resampling, src_nodata, dst_nodata, **kwargs
