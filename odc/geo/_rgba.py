@@ -163,7 +163,7 @@ def _np_colorize(x, cmap, clip):
     return cmap[x]
 
 
-def _matplotlib_colorize(x, cmap, vmin=None, vmax=None):
+def _matplotlib_colorize(x, cmap, vmin=None, vmax=None, nodata=None):
     from matplotlib import cm
     from matplotlib.colors import Normalize
 
@@ -176,6 +176,9 @@ def _matplotlib_colorize(x, cmap, vmin=None, vmax=None):
 
         if vmax is None:
             vmax = np.nanmax(x)
+
+    if nodata is not None:
+        x = np.where(x == nodata, np.float32("nan"), x)
 
     return cmap(Normalize(vmin=vmin, vmax=vmax)(x), bytes=True)
 
@@ -221,7 +224,12 @@ def colorize(
         nc = cmap.shape[1]
     else:
         # Assume matplotlib
-        _impl = functools.partial(_matplotlib_colorize, vmin=vmin, vmax=vmax)
+        _impl = functools.partial(
+            _matplotlib_colorize,
+            vmin=vmin,
+            vmax=vmax,
+            nodata=getattr(x, "nodata", None),
+        )
         nc, cmap_dtype = 4, "uint8"
 
     if attrs is None:
