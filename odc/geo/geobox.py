@@ -2,6 +2,7 @@
 #
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
+import importlib
 import itertools
 import math
 from collections import OrderedDict, namedtuple
@@ -706,6 +707,19 @@ class GeoBox:
         GeoBox of a center pixel.
         """
         return self[self.shape.map(lambda x: x // 2).yx]
+
+    @property
+    def compat(self):
+        """
+        Convert to :py:class:`datacube.utils.geometry.GeoBox`
+        """
+        try:
+            geom = importlib.import_module("datacube.utils.geometry")
+        except ModuleNotFoundError:
+            return None
+
+        w, h = self.shape.wh
+        return geom.GeoBox(w, h, self._affine, str(self._crs))
 
     def svg(
         self,
