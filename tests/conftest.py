@@ -1,9 +1,16 @@
+from pathlib import Path
+
 import pytest
 import xarray as xr
 
 from odc.geo.data import ocean_geom
 from odc.geo.geobox import GeoBox
 from odc.geo.xr import rasterize
+
+
+@pytest.fixture(scope="session")
+def data_dir():
+    return Path(__file__).parent.joinpath("data")
 
 
 @pytest.fixture()
