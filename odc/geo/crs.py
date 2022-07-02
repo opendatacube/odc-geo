@@ -304,6 +304,9 @@ class CRS:
 
         return result
 
+    def __dask_tokenize__(self):
+        return ("odc.geo.crs.CRS", str(self))
+
 
 class CRSMismatchError(ValueError):
     """
