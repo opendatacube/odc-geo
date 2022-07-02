@@ -16,7 +16,7 @@ from shapely import geometry, ops
 from shapely.geometry import base
 
 from .crs import CRS, CRSMismatchError, MaybeCRS, SomeCRS, norm_crs, norm_crs_or_error
-from .types import SomeShape, shape_
+from .types import SomeShape, SupportsCoords, shape_
 
 CoordList = List[Tuple[float, float]]
 
@@ -301,7 +301,7 @@ def _clone_shapely_geom(geom: base.BaseGeometry) -> base.BaseGeometry:
     return type(geom)(geom)
 
 
-class Geometry:
+class Geometry(SupportsCoords[float]):
     """
     2D Geometry with CRS.
 

@@ -4,6 +4,7 @@ from typing import (
     Generic,
     Iterable,
     Iterator,
+    List,
     Literal,
     Optional,
     Protocol,
@@ -212,17 +213,34 @@ SomeShape = Union[Tuple[int, int], XY[int], Shape2d, Index2d]
 SomeIndex2d = Union[Tuple[int, int], XY[int], Index2d]
 SomeResolution = Union[float, int, Resolution]
 
+
+class SupportsCoords(Protocol[T]):
+    """
+    Needed for Point geometry -> XY conversion.
+    """
+
+    # pylint: disable=too-few-public-methods
+    @property
+    def coords(self) -> List[Tuple[T, T]]:
+        ...
+
+
 # fmt: off
 @overload
 def xy_(x: T, y: T, /) -> XY[T]: ...
 @overload
-def xy_(x: Iterable[T], y: Literal[None] = None, /) -> XY[T]: ...
-@overload
 def xy_(x: XY[T], y: Literal[None] = None, /) -> XY[T]: ...
+@overload
+def xy_(x: SupportsCoords[T], y: Literal[None] = None, /) -> XY[T]: ...
+@overload
+def xy_(x: Iterable[T], y: Literal[None] = None, /) -> XY[T]: ...
 # fmt: on
 
 
-def xy_(x: Union[T, XY[T], Iterable[T]], y: Optional[T] = None) -> XY[T]:
+def xy_(
+    x: Union[T, XY[T], SupportsCoords[T], Iterable[T]],
+    y: Optional[T] = None,
+) -> XY[T]:
     """
     Construct from X,Y order.
 
@@ -239,6 +257,10 @@ def xy_(x: Union[T, XY[T], Iterable[T]], y: Optional[T] = None) -> XY[T]:
 
     if isinstance(x, XY):
         return x
+
+    if (coords := getattr(x, "coords", None)) is not None:
+        ((x, y),) = cast(List[Tuple[T, T]], coords)
+        return XY(x=x, y=y)
 
     if not isinstance(x, Iterable):
         raise ValueError("Expect 2 arguments or a single iterable.")
