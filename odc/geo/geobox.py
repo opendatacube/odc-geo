@@ -721,6 +721,14 @@ class GeoBox:
         w, h = self.shape.wh
         return geom.GeoBox(w, h, self._affine, str(self._crs))
 
+    def __dask_tokenize__(self):
+        return (
+            "odc.geo.geobox.GeoBox",
+            str(self.crs),
+            *self._shape.yx,
+            *self._affine[:6],
+        )
+
     def svg(
         self,
         scale_factor: float = 1.0,
@@ -1198,3 +1206,10 @@ class GeoboxTiles:
             gbox = self[idx]
             if gbox.extent.intersects(poly):
                 yield idx
+
+    def __dask_tokenize__(self):
+        return (
+            "odc.geo.geobox.GeoboxTiles",
+            *self._tiles.shape.yx,
+            *self._gbox.__dask_tokenize__()[1:],
+        )
