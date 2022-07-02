@@ -233,7 +233,8 @@ def colorize(
         nc, cmap_dtype = 4, "uint8"
 
     if attrs is None:
-        attrs = x.attrs
+        attrs = dict(**x.attrs)
+        attrs.pop("nodata", None)
 
     dims = (*x.dims, "band")
     coords = dict(x.coords.items())
