@@ -6,6 +6,7 @@ import array
 import functools
 import itertools
 import math
+import warnings
 from collections import abc
 from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple, Union
 
@@ -585,10 +586,18 @@ class Geometry:
         for g in ops.split(self.geom, splitter.geom).geoms:
             yield Geometry(g, self.crs)
 
-    def __iter__(self) -> Iterator["Geometry"]:
+    @property
+    def geoms(self) -> Iterator["Geometry"]:
         sub_geoms = getattr(self.geom, "geoms", [])
         for geom in sub_geoms:
             yield Geometry(geom, self.crs)
+
+    def __iter__(self) -> Iterator["Geometry"]:
+        warnings.warn(
+            "Iteration interface is deprecated, please use `.geoms`",
+            category=DeprecationWarning,
+        )
+        yield from self.geoms
 
     def __nonzero__(self) -> bool:
         return not self.is_empty
@@ -649,7 +658,7 @@ class Geometry:
             )
 
         if self.is_multi:
-            return "".join([g.svg_path(ndecimal) for g in self])
+            return "".join([g.svg_path(ndecimal) for g in self.geoms])
 
         if self.type == "Polygon":
             return "".join(
@@ -737,7 +746,7 @@ def clip_lon180(geom: Geometry, tol=1e-6) -> Geometry:
         return _clip_180(xx, clip), yy
 
     if geom.type.startswith("Multi"):
-        return multigeom(g.transform(transformer) for g in geom)
+        return multigeom(g.transform(transformer) for g in geom.geoms)
 
     return geom.transform(transformer)
 

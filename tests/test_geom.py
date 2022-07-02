@@ -186,8 +186,9 @@ def test_ops():
     assert pt.coords[0] == (0, 1)
     assert isinstance(pt.coords, list)
 
-    with pytest.raises(TypeError):
-        pt.interpolate(3)
+    with pytest.warns(ShapelyDeprecationWarning):
+        with pytest.raises(TypeError):
+            pt.interpolate(3)
 
     # test array interface
     with pytest.warns(ShapelyDeprecationWarning):
@@ -232,7 +233,7 @@ def test_ops():
         },
         "EPSG:4326",
     )
-    pp = list(poly_2_parts)
+    pp = list(poly_2_parts.geoms)
     assert len(pp) == 2
     assert all(p.crs == poly_2_parts.crs for p in pp)
 
@@ -272,7 +273,7 @@ def test_multigeom():
     bb = multigeom([b1, b2])
     assert bb.type == "MultiPolygon"
     assert bb.crs is b1.crs
-    assert len(list(bb)) == 2
+    assert len(list(bb.geoms)) == 2
 
     assert geom.multipolygon([[b1.boundary.coords], [b2.boundary.coords]], b1.crs) == bb
 
@@ -281,7 +282,7 @@ def test_multigeom():
     gg = multigeom(iter([g1, g2, g1]))
     assert gg.type == "MultiLineString"
     assert gg.crs is g1.crs
-    assert len(list(gg)) == 3
+    assert len(list(gg.geoms)) == 3
     assert geom.multiline([[p1, p2], [p3, p4], [p1, p2]], None) == gg
 
     g1 = geom.point(*p1, epsg3857)
@@ -290,10 +291,10 @@ def test_multigeom():
     gg = multigeom(iter([g1, g2, g3]))
     assert gg.type == "MultiPoint"
     assert gg.crs is g1.crs
-    assert len(list(gg)) == 3
-    assert list(gg)[0] == g1
-    assert list(gg)[1] == g2
-    assert list(gg)[2] == g3
+    assert len(list(gg.geoms)) == 3
+    assert list(gg.geoms)[0] == g1
+    assert list(gg.geoms)[1] == g2
+    assert list(gg.geoms)[2] == g3
 
     assert geom.multipoint([p1, p2, p3], epsg3857) == gg
 
@@ -535,7 +536,7 @@ def test_chop():
     chopped = chop_along_antimeridian(poly)
     assert chopped.crs is poly.crs
     assert chopped.type == "MultiPolygon"
-    assert len(list(chopped)) == 2
+    assert len(list(chopped.geoms)) == 2
 
     poly = geom.box(0, 0, 10, 20, "EPSG:4326")._to_crs(epsg3857)
     assert poly.crs is epsg3857
@@ -561,7 +562,7 @@ def test_clip_lon180():
     assert clip_lon180(b_neg(-180 + err)) == b_neg(-180)
 
     bb = multigeom([b(180 - err), b_neg(180 - err)])
-    bb_ = list(clip_lon180(bb))
+    bb_ = list(clip_lon180(bb).geoms)
     assert bb_[0] == b(180)
     assert bb_[1] == b_neg(-180)
 
@@ -815,11 +816,28 @@ def test_mul_affine():
     g = geom.point(1, 2, epsg4326)
     x10 = Affine.scale(10)
 
-    assert Affine.translation(10, 100) * g == geom.point(11, 102, epsg4326)
-    assert x10 * g == geom.point(10, 20, epsg4326)
-    assert x10 * g == g.transform(x10)
+    with pytest.warns(DeprecationWarning):
+        # it warns because x10.__mul__(g) is called first and it attempts to
+        # iterate over g, which is deprecated.
+        #
+        # Only then g.__rmul__(x10) is called
+        assert Affine.translation(10, 100) * g == geom.point(11, 102, epsg4326)
+
+        assert x10 * g == geom.point(10, 20, epsg4326)
+        assert x10 * g == g.transform(x10)
 
     mg = geom.multigeom([g, g, g])
     assert mg.is_multi
     assert mg.transform(x10).is_multi
-    assert x10 * mg == mg.transform(x10)
+    with pytest.warns(DeprecationWarning):
+        assert x10 * mg == mg.transform(x10)
+
+
+def test_deprecation_warnings():
+    g = geom.point(1, 2, epsg4326)
+    mg = g | g.buffer(10).boundary
+    assert mg.is_multi
+
+    with pytest.warns(DeprecationWarning):
+        for _ in mg:
+            pass
