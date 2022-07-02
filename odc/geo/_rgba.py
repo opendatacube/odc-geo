@@ -163,22 +163,32 @@ def _np_colorize(x, cmap, clip):
     return cmap[x]
 
 
-def _matplotlib_colorize(x, cmap, vmin=None, vmax=None, nodata=None):
+def _matplotlib_colorize(x, cmap, vmin=None, vmax=None, nodata=None, robust=False):
     from matplotlib import cm
     from matplotlib.colors import Normalize
 
     if cmap is None or isinstance(cmap, str):
         cmap = cm.get_cmap(cmap)
 
-    if x.dtype.kind == "f":
+    if nodata is not None:
+        x = np.where(x == nodata, np.float32("nan"), x)
+
+    if robust:
+        if x.dtype.kind != "f":
+            x = x.astype("float32")
+        _vmin, _vmax = np.nanpercentile(x, [2, 98])
+
+        # do not override configured values
+        if vmin is None:
+            vmin = _vmin
+        if vmax is None:
+            vmax = _vmax
+    elif x.dtype.kind == "f":
         if vmin is None:
             vmin = np.nanmin(x)
 
         if vmax is None:
             vmax = np.nanmax(x)
-
-    if nodata is not None:
-        x = np.where(x == nodata, np.float32("nan"), x)
 
     return cmap(Normalize(vmin=vmin, vmax=vmax)(x), bytes=True)
 
@@ -191,6 +201,7 @@ def colorize(
     clip: bool = False,
     vmin: Optional[float] = None,
     vmax: Optional[float] = None,
+    robust: Optional[bool] = None,
 ) -> xr.DataArray:
     """
     Apply colormap to data.
@@ -210,12 +221,15 @@ def colorize(
     :param cmap: Lookup table ``cmap[x] -> RGB(A)`` or matplotlib colormap
     :param vmin: Valid range to colorize
     :param vmax: Valid range to colorize
+    :param robust: Use percentiles for clamping ``vmin=2%, vmax=98%``
     :param attrs: xarray attributes table, if not supplied input attributes are copied across
     :param clip: If ``True`` clip values from ``x`` to be in the safe range for ``cmap``.
     """
     # pylint: disable=too-many-locals
 
     assert isinstance(x, xr.DataArray)
+    _is_dask = is_dask_collection(x.data)
+
     if isinstance(cmap, np.ndarray):
         assert cmap.ndim == 2
         assert cmap.shape[1] in (3, 4)
@@ -224,11 +238,25 @@ def colorize(
         nc = cmap.shape[1]
     else:
         # Assume matplotlib
+
+        # default robust=True for float, non-dask inputs when vmin/vmax/robust are not configured
+        if (
+            vmin is None
+            and vmax is None
+            and robust is None
+            and x.dtype.kind == "f"
+            and not _is_dask
+        ):
+            robust = True
+        elif robust is None:
+            robust = False
+
         _impl = functools.partial(
             _matplotlib_colorize,
             vmin=vmin,
             vmax=vmax,
             nodata=getattr(x, "nodata", None),
+            robust=robust,
         )
         nc, cmap_dtype = 4, "uint8"
 
@@ -240,7 +268,7 @@ def colorize(
     coords = dict(x.coords.items())
     coords["band"] = xr.DataArray(data=["r", "g", "b", "a"][:nc], dims=("band",))
 
-    if is_dask_collection(x.data):
+    if _is_dask:
         from dask import array as da
         from dask import delayed
         from dask.base import tokenize
@@ -252,7 +280,7 @@ def colorize(
             _impl,
             x.data,
             _cmap,
-            name=f"colorize-{tokenize(x, _cmap, clip, vmin, vmax)}",
+            name=f"colorize-{tokenize(x, _cmap, clip, vmin, vmax, robust)}",
             dtype=cmap_dtype,
             chunks=(*x.chunks, (nc,)),
             new_axis=[x.data.ndim],
