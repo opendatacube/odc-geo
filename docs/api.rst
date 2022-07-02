@@ -71,6 +71,7 @@ Contains CRS class and related operations.
    CRS.to_epsg
    CRS.to_wkt
    CRS.transformer_to_crs
+   CRS.authority
 
    CRS.units
    CRS.dimensions

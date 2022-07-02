@@ -18,7 +18,16 @@ from odc.geo.geobox import (
     scaled_down_geobox,
 )
 from odc.geo.math import apply_affine, is_affine_st
-from odc.geo.testutils import epsg3577, epsg3857, epsg4326, mkA, xy_from_gbox, xy_norm
+from odc.geo.testutils import (
+    epsg3577,
+    epsg3857,
+    epsg4326,
+    esri54019,
+    mkA,
+    modis_crs,
+    xy_from_gbox,
+    xy_norm,
+)
 
 # pylint: disable=pointless-statement,too-many-statements,protected-access
 
@@ -391,14 +400,23 @@ def test_html_repr():
     # smoke test only
     gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
     assert isinstance(gbox._repr_html_(), str)
+    assert ">EPSG<" in gbox._repr_html_()
     # empties should still work
     assert isinstance(gbox[:0]._repr_html_(), str)
     assert isinstance(gbox[:0, :0]._repr_html_(), str)
+
+    # non-epsg authority
+    gbox = GeoBox.from_bbox((0, 0, 100, 200), esri54019, resolution=1)
+    assert ">ESRI<" in gbox._repr_html_()
+
+    # no authority CRS
+    assert ">EPSG<" not in gbox.to_crs(modis_crs)._repr_html_()
 
     # no crs case
     gbox = GeoBox(wh_(200, 100), Affine.translation(-10, 20), None)
     assert gbox.crs is None
     assert isinstance(gbox._repr_html_(), str)
+    assert ">EPSG<" not in gbox._repr_html_()
 
     # empty should still work
     assert isinstance((gbox[:3] & gbox[3:])._repr_html_(), str)

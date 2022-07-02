@@ -16,7 +16,7 @@ from odc.geo.geom import common_crs
 from odc.geo.testutils import epsg3577, epsg3857, epsg4326
 
 # pylint: disable=missing-class-docstring,use-implicit-booleaness-not-comparison
-# pylint: disable=comparison-with-itself,no-self-use
+# pylint: disable=comparison-with-itself
 
 
 def test_common_crs():
@@ -70,6 +70,7 @@ def test_no_epsg():
 
     assert c.epsg is None
     assert b.epsg is None
+    assert c.authority == ("", "")
 
 
 def test_crs():
@@ -142,6 +143,7 @@ def test_crs_compat():
 
     crs = CRS("epsg:3577")
     assert crs.epsg == 3577
+    assert crs.authority == ("EPSG", 3577)
     assert str(crs) == "EPSG:3577"
     crs2 = CRS(crs)
     assert crs.epsg == crs2.epsg
@@ -170,6 +172,8 @@ def test_crs_compat():
     wkt_crs = SimpleNamespace(to_wkt=Mock(return_value=crs.to_wkt()))
     assert getattr(wkt_crs, "to_epsg", None) is None
     assert CRS(wkt_crs) == crs
+
+    assert CRS("ESRI:54019").authority == ("ESRI", 54019)
 
 
 def test_crs_hash():

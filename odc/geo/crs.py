@@ -193,6 +193,25 @@ class CRS:
 
         raise ValueError("Neither projected nor geographic")  # pragma: no cover
 
+    @property
+    def authority(self) -> Tuple[str, Union[str, int]]:
+        """
+        Get ``(authority_name, code)`` tuple.
+
+        :returns: ``("", "")`` when not available
+        """
+        if self._epsg is not None:
+            return ("EPSG", self._epsg)
+
+        if (r := self._crs.to_authority()) is not None:
+            name, code = r
+            try:
+                return (name, int(code))
+            except ValueError:
+                return (name, code)
+
+        return ("", "")
+
     def __str__(self) -> str:
         return self._str
 

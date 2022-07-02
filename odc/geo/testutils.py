@@ -18,6 +18,10 @@ from .math import apply_affine
 epsg4326 = CRS("EPSG:4326")
 epsg3577 = CRS("EPSG:3577")
 epsg3857 = CRS("EPSG:3857")
+esri54019 = CRS("ESRI:54019")
+modis_crs = CRS(
+    "+proj=sinu +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+)
 
 AlbersGS = GridSpec(
     crs=epsg3577,
