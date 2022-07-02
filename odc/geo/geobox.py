@@ -865,24 +865,27 @@ class GeoBox:
 
         crs = self._crs
         if crs is None:
-            epsg = "not set"
+            authority = ("", "")
             wkt = "not set"
             units = ""
             svg_global_txt = ""
         else:
-            epsg = "undefined" if crs.epsg is None else f"{crs.epsg:d}"
+            authority = crs.authority
             wkt = crs.to_wkt(pretty=True).replace("\n", "<br/>").replace(" ", "&nbsp;")
             units = crs.units[0]
             svg_global_txt = svg_base_map(
                 sz=200, target=self.geographic_extent.centroid.coords[0]
             )
 
+        if authority == ("", ""):
+            authority = ("CRS", "WKT")
+
         units = norm_units(units)
         pix_sz = max(*self.resolution.map(abs).xy)
 
         info = [
             ("Dimensions", f"{W:,d}x{H:,d}"),
-            ("EPSG", f"{epsg}"),
+            authority,
             ("Resolution", f"{pix_sz:g}{units}"),
             ("Cell", f"{grid_step:,d}px"),
         ]
