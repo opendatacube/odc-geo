@@ -86,6 +86,21 @@ right thing in most cases. It was also hard to disable as you needed to supply
 transform the geometry point by point unless explicitly configured by the user
 to perform higher precision transformation.
 
+:py:meth:`~odc.geo.geom.Geometry.__iter__`
+==========================================
+
+Geometry class is no longer iterable, shapely has deprecated that and instead
+provides ``.geoms`` accessor to iterate over sub geometries, so that's the interface
+we provide as well.
+
+.. code-block:: diff
+
+   - for g in multi_geom: 
+   + for g in multi_geom.geoms:
+
+Removing iterable interface from :py:class:`~odc.geo.geom.Geometry` helps a lot with type
+resolution in operator overloading.
+
 
 :py:class:`~odc.geo.geobox.GeoBox`
 ==================================
