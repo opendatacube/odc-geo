@@ -57,7 +57,7 @@ Plotting on a map
    
    # Plot each sample image with different colormap
    aus.odc.add_to(m, opacity=0.5)
-   png.odc.add_to(m, opacity=0.5, cmap="spring")
+   png.odc.add_to(m, opacity=0.5, cmap="spring", robust=True)   # vmin=2%,vmax=98%
    nzl.odc.add_to(m, opacity=0.5, cmap="jet", vmin=0, vmax=800) # force vmin/vmax
    
    # Zoom map to Australia 
