@@ -3,6 +3,7 @@ from collections import abc
 import pytest
 
 from odc.geo import ixy_, iyx_, res_, resxy_, resyx_, shape_, wh_, xy_, yx_
+from odc.geo.geom import point
 
 
 def test_basics():
@@ -112,3 +113,7 @@ def test_bad_inputs():
 def test_map():
     assert xy_(1, 2).map(lambda x: x + 1) == xy_(2, 3)
     assert xy_(1, 2).map(lambda x: [x]) == xy_([1], [2])
+
+
+def test_geom_interop():
+    assert xy_(1.0, 2.0) == xy_(point(1.0, 2.0, "epsg:4326"))
