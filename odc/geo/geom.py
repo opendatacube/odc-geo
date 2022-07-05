@@ -176,10 +176,10 @@ class BoundingBox(Sequence[float]):
         Returns SW, and NE corners in lat/lon order.
         ``((lat_w, lon_s), (lat_e, lon_n))``.
         """
+        x0, y0, x1, y1 = self._box
         if self._crs == "epsg:4326" or self._crs is None:
-            x0, y0, x1, y1 = self._box
             return (y0, x0), (y1, x1)
-        x0, y0, x1, y1 = self.to_crs("epsg:4326")
+        (x0, y0), _, (x1, y1) = self.polygon.exterior.to_crs("epsg:4326").points[:3]
         return (y0, x0), (y1, x1)
 
     @property
