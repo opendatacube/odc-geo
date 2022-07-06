@@ -2,13 +2,14 @@
 from pathlib import Path
 
 import pytest
+from mock import MagicMock
 
 rasterio = pytest.importorskip("rasterio")
 gpd = pytest.importorskip("geopandas")
 gpd_datasets = pytest.importorskip("geopandas.datasets")
 
 from odc.geo._interop import have
-from odc.geo.converters import extract_gcps, from_geopandas
+from odc.geo.converters import extract_gcps, from_geopandas, map_crs
 
 
 def test_from_geopandas():
@@ -53,3 +54,10 @@ def test_extract_gcps(data_dir: Path):
         assert src.gcps == ([], None)
         with pytest.raises(ValueError):
             _ = extract_gcps(src)
+
+
+def test_map_crs():
+    proj_3031 = "+proj=stere +lat_0=-90 +lat_ts=-71 +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +type=crs"
+    assert map_crs(MagicMock(crs="EPSG4326")).epsg == 4326
+    assert map_crs(MagicMock(crs=dict(name="EPSG3857"))).epsg == 3857
+    assert map_crs(MagicMock(crs=dict(name="custom", proj4def=proj_3031))).epsg == 3031

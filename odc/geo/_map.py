@@ -4,6 +4,7 @@ import xarray as xr
 
 from ._interop import have
 from ._rgba import colorize, is_rgb
+from .converters import map_crs
 
 
 # pylint: disable=import-outside-toplevel, redefined-builtin, too-many-locals
@@ -100,6 +101,7 @@ def add_to(
     assert isinstance(xx.odc, ODCExtensionDa)
 
     _add_to = _get_add_to_method(map)  # raises on error
+    _crs = map_crs(map)
 
     need_reproject = False
 
@@ -107,9 +109,9 @@ def add_to(
     assert gbox is not None
     assert gbox.crs is not None
 
-    if gbox.crs.epsg != 3857:
+    if _crs is not None and gbox.crs != _crs:
         need_reproject = True
-        gbox = gbox.to_crs("epsg:3857", tight=True)
+        gbox = gbox.to_crs(_crs, tight=True)
 
     if max(*gbox.shape) > max_size:
         need_reproject = True
