@@ -31,6 +31,9 @@ import odc.geo.overlap
 
 odc.geo.overlap.CRS = odc.geo.crs.CRS
 
+# Try to force font-cache warning to happen earlier
+from matplotlib import pyplot as plt
+
 # -- Project information -----------------------------------------------------
 
 project = "odc-geo"
