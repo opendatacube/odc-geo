@@ -2,7 +2,7 @@
 # odc-geo dependencies
 pyproj
 shapely
-rasterio
+rasterio==1.2.10
 xarray
 numpy
 cachetools
