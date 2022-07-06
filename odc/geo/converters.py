@@ -2,9 +2,10 @@
 Interop with other geometry libraries.
 """
 
-from typing import List, Tuple
+import re
+from typing import Any, List, Tuple
 
-from .crs import CRS, MaybeCRS, norm_crs
+from .crs import CRS, MaybeCRS, Optional, norm_crs
 from .geom import Geometry, point
 from .types import XY, xy_
 
@@ -55,3 +56,25 @@ def extract_gcps(
         wld_pts = (pt.to_crs(output_crs) for pt in wld_pts)
 
     return pix, list(wld_pts)
+
+
+def map_crs(m: Any, /) -> Optional[CRS]:
+    def _from_name(srs: str) -> Optional[CRS]:
+        if match := re.match(r"epsg:?(?P<code>\d+)", srs.lower()):
+            return CRS(f"epsg:{match['code']}")
+        return None
+
+    _crs = getattr(m, "crs", None)
+    if isinstance(_crs, str):
+        # probably folium map
+        return _from_name(_crs)
+
+    if isinstance(_crs, dict):
+        # ipylealflet uses dict
+        if (name := _crs.get("name", None)) is not None:
+            if (crs := _from_name(name)) is not None:
+                return crs
+        if (proj4def := _crs.get("proj4def", None)) is not None:
+            return CRS(proj4def)
+
+    return None
