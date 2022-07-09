@@ -4,6 +4,8 @@ from typing import Optional, Tuple, Union
 
 import numpy as np
 import rasterio
+import rasterio.env
+import rasterio.session
 import xarray as xr
 
 from ._interop import is_dask_collection
@@ -36,10 +38,11 @@ def _compress_image(im: np.ndarray, driver="PNG", **opts) -> bytes:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", rasterio.errors.NotGeoreferencedWarning)
 
-        with rasterio.MemoryFile() as mem:
-            with mem.open(**rio_opts) as dst:
-                dst.write(bands)
-            return mem.read()
+        with rasterio.env.Env(session=rasterio.session.DummySession()):
+            with rasterio.MemoryFile() as mem:
+                with mem.open(**rio_opts) as dst:
+                    dst.write(bands)
+                return mem.read()
 
 
 def compress(
