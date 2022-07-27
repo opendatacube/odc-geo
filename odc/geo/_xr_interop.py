@@ -386,7 +386,9 @@ def xr_reproject(
     dst_shape = (*src.shape[:ydim], *dst_geobox.shape, *src.shape[ydim + 2 :])
 
     dst = numpy.empty(dst_shape, dtype=src.dtype)
-    src_nodata = src.attrs.get("nodata", None)
+    src_nodata = kw.pop("src_nodata", None)
+    if src_nodata is None:
+        src_nodata = src.attrs.get("nodata", None)
     if dst_nodata is None:
         dst_nodata = src_nodata
 
