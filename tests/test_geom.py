@@ -190,11 +190,6 @@ def test_ops():
         with pytest.raises(TypeError):
             pt.interpolate(3)
 
-    # test array interface
-    with pytest.warns(ShapelyDeprecationWarning):
-        assert line.__array_interface__ is not None
-        assert np.array(line).shape == (3, 2)
-
     # test simplify
     poly = geom.polygon([(0, 0), (0, 5), (10, 5)], epsg4326)
     assert poly.simplify(100) == poly
