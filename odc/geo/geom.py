@@ -409,8 +409,6 @@ class Geometry(SupportsCoords[float]):
     @property
     def wkt(self) -> str: return self.geom.wkt
     @property
-    def __array_interface__(self): return self.geom.__array_interface__
-    @property
     def __geo_interface__(self): return self.geom.__geo_interface__
     # fmt: on
 
