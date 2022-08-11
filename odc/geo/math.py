@@ -7,7 +7,7 @@ Various mathy helpers.
 
 Minimal dependencies in this module.
 """
-from math import ceil, floor, fmod
+from math import ceil, floor, fmod, isfinite
 from typing import List, Literal, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
@@ -36,6 +36,9 @@ def split_float(x: float) -> Tuple[float, float]:
     :param x: floating point number
     :return: ``whole, fraction``
     """
+    if not isfinite(x):
+        return (x, 0)
+
     x_part = fmod(x, 1.0)
     x_whole = x - x_part
     if x_part > 0.5:
@@ -53,6 +56,8 @@ def maybe_int(x: float, tol: float) -> Union[int, float]:
 
     pass through other values unmodified.
     """
+    if not isfinite(x):
+        return x
 
     x_whole, x_part = split_float(x)
 
@@ -119,6 +124,9 @@ def is_almost_int(x: float, tol: float) -> bool:
     :param x: number to check
     :param tol: tolerance to use.
     """
+    if not isfinite(x):
+        return False
+
     x = abs(fmod(x, 1))
     if x > 0.5:
         x = 1 - x
