@@ -8,7 +8,18 @@ import itertools
 import math
 import warnings
 from collections import abc
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 import numpy
 from affine import Affine
@@ -664,6 +675,45 @@ class Geometry(SupportsCoords[float]):
             )
 
         return render_ring(self, close=self.is_ring)
+
+    def filter(self, pred: Callable[[float, float], bool]) -> "Geometry":
+        """
+        Keep only those points for which `pred(x,y) is True`.
+        """
+
+        if self.type == "Polygon":
+            # TODO: deal with interior rings
+            pts = [(x, y) for x, y in self.exterior.points if pred(x, y)]
+            return polygon(pts, self.crs)
+
+        if self.type in ("LinearRing", "LineString"):
+            pts = [(x, y) for x, y in self.points if pred(x, y)]
+            _geom = type(self.geom)(pts)
+            return Geometry(_geom, self.crs)
+
+        if self.type == "Point":
+            x, y = self.coords[0]
+            if pred(x, y):
+                return self
+            return Geometry(geometry.Point(), self.crs)
+
+        if self.type == "MultiPoint":
+            pts = [(x, y) for x, y in [pt.points[0] for pt in self.geoms] if pred(x, y)]
+            return multipoint(pts, self.crs)
+
+        if self.is_multi:
+            _filtered = [g.filter(pred).geom for g in self.geoms]
+            _filtered = [g for g in _filtered if not g.is_empty]
+            _geom = type(self.geom)(_filtered)
+            return Geometry(_geom, self.crs)
+
+        raise AssertionError("Unhandled geometry type detected")  # pragma: no cover
+
+    def dropna(self) -> "Geometry":
+        """
+        Only keep finite points.
+        """
+        return self.filter(lambda x, y: math.isfinite(x) and math.isfinite(y))
 
 
 def common_crs(geoms: Iterable[Geometry]) -> Optional[CRS]:

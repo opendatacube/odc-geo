@@ -485,7 +485,7 @@ class GeoBox:
             buffer = buffer * max(*self.resolution.xy)
             ext = ext.buffer(buffer)
 
-        return ext.to_crs(crs, resolution=self._reproject_resolution(npoints))
+        return ext.to_crs(crs, resolution=self._reproject_resolution(npoints)).dropna()
 
     @property
     def geographic_extent(self) -> Geometry:
@@ -786,7 +786,7 @@ class GeoBox:
 
         dx, dy = self._affine * (step, 0)
         res = math.sqrt(dx * dx + dy * dy) / 5
-        return lines.to_crs("epsg:4326", resolution=res)
+        return lines.to_crs("epsg:4326", resolution=res).dropna()
 
     def outline(self, mode: OutlineMode = "native", notch: float = 0.1) -> Geometry:
         """
@@ -838,7 +838,7 @@ class GeoBox:
         bbox = native.boundingbox
         res = max(bbox.span_x, bbox.span_y) / 100
 
-        return native.to_crs("EPSG:4326", resolution=res)
+        return native.to_crs("EPSG:4326", resolution=res).dropna()
 
     def _display_bbox(self, pad_fraction: float = 0.1):
         bbox = self.geographic_extent.boundingbox
