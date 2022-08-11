@@ -313,7 +313,7 @@ def _norm_slice(s: SomeSlice, n: int) -> NormalizedSlice:
 @overload
 def roi_normalise(roi: SomeSlice, shape: Union[int, Tuple[int]]) -> NormalizedSlice: ...
 @overload
-def roi_normalise( roi: Tuple[SomeSlice, ...], shape: Tuple[int, ...]
+def roi_normalise(roi: Tuple[SomeSlice, ...], shape: Tuple[int, ...]
 ) -> Tuple[NormalizedSlice, ...]: ...
 # fmt: on
 
@@ -352,7 +352,7 @@ def roi_normalise(
 @overload
 def roi_pad(roi: SomeSlice, pad: int, shape: int) -> NormalizedSlice: ...
 @overload
-def roi_pad(roi: Tuple[SomeSlice,...], pad: int, shape: Tuple[int, ...]) -> Tuple[NormalizedSlice, ...]: ...
+def roi_pad(roi: Tuple[SomeSlice, ...], pad: int, shape: Tuple[int, ...]) -> Tuple[NormalizedSlice, ...]: ...
 # fmt: on
 
 
@@ -474,6 +474,16 @@ def roi_from_points(
 
     assert len(shape) == 2
     assert xy.ndim == 2 and xy.shape[1] == 2
+
+    # keep finite points only
+    #  if any points are not finite remove them
+    ok_mask = np.isfinite(xy)
+    if not ok_mask.all():
+        keep = ok_mask.T[0] * ok_mask.T[1]
+        xy = xy[keep, :]
+
+    if xy.shape[0] == 0:
+        return np.s_[0:0, 0:0]
 
     ny, nx = shape
 

@@ -34,7 +34,7 @@ from odc.geo.testutils import (
 )
 
 # pylint: disable=protected-access, pointless-statement
-# pylint: disable=too-many-statements,too-many-locals,too-many-lines
+# pylint: disable=too-many-statements,too-many-locals,too-many-lines,unnecessary-lambda-assignment
 
 
 def test_pickleable():
@@ -836,3 +836,22 @@ def test_deprecation_warnings():
     with pytest.warns(DeprecationWarning):
         for _ in mg:
             pass
+
+
+def test_filter():
+    _keep = lambda x, y: True
+    _drop = lambda x, y: False
+
+    pt = geom.point(1, 2, epsg4326)
+    poly = geom.box(1, 2, 3, 4, epsg4326)
+    ring = poly.exterior
+    multi_pt = geom.multipoint([(1, 1), (2, 2)], epsg4326)
+
+    for g in [pt, poly, ring, multi_pt, pt | ring, ring.buffer(1) | ring]:
+        assert g.filter(_drop).is_empty
+        assert g.filter(_keep) == g
+        assert g.dropna() == g
+
+    multi_pt_nan = multi_pt | geom.point(float("nan"), 7, epsg4326)
+    assert len(list(multi_pt_nan.geoms)) == len(list(multi_pt.geoms)) + 1
+    assert multi_pt_nan.dropna() == multi_pt
