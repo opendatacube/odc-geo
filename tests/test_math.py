@@ -19,6 +19,7 @@ from odc.geo.math import (
     snap_affine,
     snap_grid,
     snap_scale,
+    split_float,
     split_translation,
 )
 from odc.geo.testutils import mkA
@@ -46,12 +47,18 @@ def test_math_ops():
     assert maybe_int(37 + 1e-8, 1e-6) == 37
     assert maybe_int(37 - 1e-8, 1e-6) == 37
     assert maybe_int(3.4, 1e-6) == 3.4
+    assert str(maybe_int(float("nan"), 1e-6)) == str(float("nan"))
+    assert str(maybe_int(float("inf"), 1e-6)) == str(float("inf"))
+    assert str(maybe_int(float("-inf"), 1e-6)) == str(float("-inf"))
 
     assert is_almost_int(129, 1e-6)
     assert is_almost_int(129 + 1e-8, 1e-6)
     assert is_almost_int(-129, 1e-6)
     assert is_almost_int(-129 + 1e-8, 1e-6)
     assert is_almost_int(0.3, 1e-6) is False
+    assert is_almost_int(float("nan"), 1e-6) is False
+    assert is_almost_int(float("inf"), 1e-6) is False
+    assert is_almost_int(float("-inf"), 1e-6) is False
 
 
 def test_snap_scale():
@@ -247,3 +254,28 @@ def test_res_affine():
     assert resolution_from_affine(mkA(rot=-45, scale=(10, -10))).xy == pytest.approx(
         (10, -10)
     )
+
+
+@pytest.mark.parametrize(
+    "ab, expect_a, expect_b",
+    [
+        (1.0, 1, 0),
+        (1.3, 1, 0.3),
+        (0.99, 1, -0.01),
+        (0.6, 1, -0.4),
+        (100.6, 101, -0.4),
+        (2000.3, 2000, 0.3),
+        (float("nan"), float("nan"), 0),
+        (float("inf"), float("inf"), 0),
+    ],
+)
+def test_split_float(ab, expect_a, expect_b):
+    a, b = split_float(ab)
+
+    assert b == pytest.approx(expect_b)
+    if np.isnan(expect_a):
+        assert np.isnan(a)
+        return
+
+    assert a == pytest.approx(expect_a)
+    assert (a + b) == pytest.approx(ab)
