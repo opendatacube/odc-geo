@@ -8,10 +8,11 @@ Various mathy helpers.
 Minimal dependencies in this module.
 """
 from math import ceil, floor, fmod, isfinite
-from typing import List, Literal, Optional, Sequence, Tuple, TypeVar, Union
+from typing import Any, List, Literal, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
 from affine import Affine
+from numpy.polynomial.polynomial import polygrid2d, polyval2d
 
 from .types import XY, Resolution, SomeResolution, res_, resxy_, xy_
 
@@ -407,6 +408,31 @@ def unstack_xy(pts: np.ndarray) -> List[XY[float]]:
     return [xy_(pt) for pt in pts]
 
 
+def norm_xy(
+    pts: np.ndarray, out: Optional[np.ndarray] = None
+) -> Tuple[np.ndarray, Affine]:
+    """
+    Normalize ``Nx2`` points.
+
+    Scale and translate such that mean is at 0 and mean distance from 0 is sqrt(2).
+
+    :returns: Normalized array and affine matrix of the normalization.
+    """
+    assert pts.ndim == 2 and pts.shape[1] == 2
+    assert out is None or out.shape == pts.shape
+
+    _mean = pts.mean(axis=0)
+    XX = np.subtract(pts, _mean, out=out)
+
+    sx = (((XX**2).sum(axis=1) * 0.5) ** -0.5).mean()
+    XX *= sx
+
+    tx, ty = -_mean * sx
+    A = Affine(sx, 0, tx, 0, sx, ty)
+
+    return XX, A
+
+
 def affine_from_pts(X: Sequence[XY[float]], Y: Sequence[XY[float]]) -> Affine:
     """
     Given points ``X,Y`` compute ``A``, such that: ``Y = A*X``.
@@ -514,3 +540,93 @@ class Bin1D:
         origin = x0 - sz * idx * direction
 
         return Bin1D(sz, origin, direction=direction)
+
+
+class Poly2d:
+    """
+    Wrapper around polyval2d with input normalization.
+    """
+
+    def __init__(self, cc: np.ndarray, A: Affine) -> None:
+        assert cc.shape == (3, 3, 2)
+        tol = 1e-6
+        self._cc = cc
+        self._A = A
+        self._safe_to_grid = False
+
+        sx, zx, tx, zy, sy, ty, *_ = A
+        if abs(zx) < tol and abs(zy) < tol:
+            self._norm = lambda x, y: (np.polyval([sx, tx], x), np.polyval([sy, ty], y))
+            self._safe_to_grid = True
+        else:
+            self._norm = lambda x, y: A * (x, y)
+
+    def __call__(self, x: Any, y: Any) -> Any:
+        """
+        Evaluate at points (x, y).
+        """
+        x, y = self._norm(x, y)
+        return polyval2d(x, y, self._cc)
+
+    def grid2d(self, x: Any, y: Any) -> Any:
+        """
+        Evaluate on the Cartesian product of x and y.
+        """
+        assert self._safe_to_grid
+
+        x, y = self._norm(x, y)
+        return polygrid2d(x, y, self._cc)
+
+    def with_input_transform(self, A: Affine) -> "Poly2d":
+        """
+        Make a new transform by chaining a linear mapping ``A`` on input side.
+
+        usefull when cropping original image with GCPs.
+        """
+        return Poly2d(self._cc, self._A * A)
+
+    @staticmethod
+    def fit(aa: np.ndarray, bb: np.ndarray) -> "Poly2d":
+        """
+        Fit 2d polynomial that minimizes ``poly(aa) - bb``.
+
+        Where ``aa``,``bb`` are point correspondences of ``Nx2`` shape.
+        """
+        assert aa.shape[1] == 2
+        assert aa.shape == bb.shape
+        N = aa.shape[0]
+        if N < 9:
+            raise ValueError(f"Need at least 9 points, got {N}")
+
+        aa_, Ain = norm_xy(aa)
+        bb_, Ab = norm_xy(bb)
+
+        x, y = aa_.T
+        AA = np.empty((N, 9), dtype="float64")
+
+        #   1,     y,     y^2
+        #   x,   x*y,   x*y^2
+        # x^2, x^2*y, x^2*y^2
+
+        AA[:, 0] = 1
+        AA[:, 1] = y
+        AA[:, 2] = y * y
+
+        AA[:, 3] = x
+        AA[:, 4] = x * y
+        AA[:, 5] = AA[:, 4] * y
+
+        AA[:, 6] = x * x
+        AA[:, 7] = AA[:, 6] * y
+        AA[:, 8] = AA[:, 7] * y
+
+        cc, *_ = np.linalg.lstsq(AA, bb_, rcond=-1)
+
+        # denorm output side, assumes `sx==sy`
+        s, _, tx, _, _, ty, *_ = ~Ab
+        cc = cc * s
+        cc[0, :2] += (tx, ty)
+
+        cc = cc.reshape(3, 3, 2)
+
+        return Poly2d(cc, Ain)
