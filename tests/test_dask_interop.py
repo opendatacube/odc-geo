@@ -3,8 +3,10 @@ import pytest
 
 pytest.importorskip("dask")
 
+import numpy as np
 from dask.base import tokenize
 
+from odc.geo.gcp import GCPGeoBox, GCPMapping
 from odc.geo.geobox import CRS, GeoBox, GeoboxTiles
 
 
@@ -27,3 +29,24 @@ def test_tokenize_geobox():
     assert tokenize(crs) == tokenize(CRS(crs))
     assert tokenize(CRS("epsg:4326")) == tokenize(CRS("EPSG:4326"))
     assert tokenize(CRS("epsg:4326")) != tokenize(CRS("EPSG:3857"))
+
+
+def test_tokenize_gcpgeobox():
+    pts = np.vstack([c.ravel() for c in np.meshgrid([0, 2, 3], [0, 1, 2, 5])]).T
+    assert pts.shape[0] > 9
+    assert pts.shape[1] == 2
+
+    mapping = GCPMapping(pts, pts + 10, "epsg:3857")
+    mapping2 = GCPMapping(pts, pts + 10, "epsg:4326")
+    mapping_ = GCPMapping(mapping._pix, mapping._wld, mapping.crs)
+
+    assert tokenize(mapping) == tokenize(mapping_)
+
+    gbox = GCPGeoBox((10, 20), mapping)
+    gbox_ = GCPGeoBox((10, 20), mapping_)
+
+    gbox2 = GCPGeoBox((10, 20), mapping2)
+    assert tokenize(gbox) == tokenize(gbox_)
+    assert tokenize(gbox[:3, :2]) == tokenize(gbox[0:3, 0:2])
+
+    assert tokenize(gbox) != tokenize(gbox2)
