@@ -434,3 +434,7 @@ ROI = Tuple[SomeSlice, SomeSlice]
 
 NormalizedROI = Tuple[NormalizedSlice, NormalizedSlice]
 """Normalized 2d slice into an image plane."""
+
+OutlineMode = Union[
+    Literal["native"], Literal["pixel"], Literal["geo"], Literal["auto"]
+]

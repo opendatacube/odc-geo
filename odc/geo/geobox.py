@@ -7,24 +7,14 @@ import itertools
 import math
 from collections import OrderedDict, namedtuple
 from enum import Enum
-from textwrap import dedent
 from typing import Dict, Iterable, List, Literal, Optional, Tuple, Union
 
 import numpy
 from affine import Affine
 
+from . import geom
 from .crs import CRS, CRSMismatchError, MaybeCRS, SomeCRS, norm_crs
-from .geom import (
-    BoundingBox,
-    Geometry,
-    bbox_intersection,
-    bbox_union,
-    line,
-    multigeom,
-    multiline,
-    point,
-    polygon_from_transform,
-)
+from .geom import BoundingBox, Geometry, bbox_intersection, bbox_union
 from .math import clamp, is_affine_st, is_almost_int, resolution_from_affine, snap_grid
 from .roi import Tiles as RoiTiles
 from .roi import align_up, polygon_path, roi_normalise, roi_shape
@@ -33,6 +23,7 @@ from .types import (
     Index2d,
     MaybeInt,
     NormalizedROI,
+    OutlineMode,
     Resolution,
     Shape2d,
     SomeIndex2d,
@@ -43,10 +34,6 @@ from .types import (
     shape_,
     xy_,
 )
-
-OutlineMode = Union[
-    Literal["native"], Literal["pixel"], Literal["geo"], Literal["auto"]
-]
 
 
 class AnchorEnum(Enum):
@@ -65,7 +52,7 @@ GeoboxAnchor = Union[AnchorEnum, XY[float]]
 Coordinate = namedtuple("Coordinate", ("values", "units", "resolution"))
 
 
-class GeoBox:
+class GeoBoxBase:
     """
     Defines the location and resolution of a rectangular grid of data,
     including it's :py:class:`~odc.geo.crs.CRS`.
@@ -75,7 +62,7 @@ class GeoBox:
     :param affine: Affine transformation defining the location of the geobox
     """
 
-    __slots__ = ("_shape", "_affine", "_crs", "_extent")
+    __slots__ = ("_shape", "_affine", "_crs", "_extent", "_lazy_ui")
 
     def __init__(self, shape: SomeShape, affine: Affine, crs: MaybeCRS):
         shape = shape_(shape)
@@ -84,6 +71,252 @@ class GeoBox:
         self._affine = affine
         self._crs = norm_crs(crs)
         self._extent: Optional[Geometry] = None
+        self._lazy_ui = None
+
+    @property
+    def width(self) -> int:
+        """Width in pixels (nx)."""
+        return self._shape.x
+
+    @property
+    def height(self) -> int:
+        """Height in pixels (ny)."""
+        return self._shape.y
+
+    @property
+    def shape(self) -> Shape2d:
+        """Shape in pixels ``(height, width)``."""
+        return self._shape
+
+    @property
+    def aspect(self) -> float:
+        """Aspect ratio (X/Y in pixel space)."""
+        return self._shape.aspect
+
+    @property
+    def crs(self) -> Optional[CRS]:
+        """Coordinate Reference System of the GeoBox."""
+        return self._crs
+
+    @property
+    def dimensions(self) -> Tuple[str, str]:
+        """List of dimension names of the GeoBox."""
+        crs = self._crs
+        if crs is None:
+            return ("y", "x")
+        return crs.dimensions
+
+    dims = dimensions
+
+    def is_empty(self) -> bool:
+        """Check if geobox is "empty"."""
+        return 0 in self._shape
+
+    def __bool__(self) -> bool:
+        return not self.is_empty()
+
+    @property
+    def resolution(self) -> Resolution:
+        """Resolution, pixel size in CRS units."""
+        return resolution_from_affine(self._affine)
+
+    def boundary(self, pts_per_side: int = 16) -> numpy.ndarray:
+        """
+        Boundary of a :py:class:`~odc.geo.geobox.GeoBox`.
+
+        Construct a ring of points in pixel space along the edge of the geobox.
+
+        :param pts_per_side: Number of points per side, default is 16.
+
+        :return:
+          Points in pixel space along the perimeter of a GeoBox as a ``Nx2`` array
+          in pixel coordinates.
+        """
+        ny, nx = self._shape.yx
+        xx = numpy.linspace(0, nx, pts_per_side, dtype="float32")
+        yy = numpy.linspace(0, ny, pts_per_side, dtype="float32")
+
+        return polygon_path(xx, yy).T[:-1]
+
+    @property
+    def alignment(self) -> XY[float]:
+        """
+        Alignment of pixel boundaries in CRS units.
+
+        This is usally ``(0,0)``.
+        """
+        rx, _, tx, _, ry, ty, *_ = self._affine
+        return xy_(tx % abs(rx), ty % abs(ry))
+
+    @property
+    def linear(self) -> bool:
+        return True
+
+    def wld2pix(self, x, y):
+        return (~self._affine) * (x, y)
+
+    def pix2wld(self, x, y):
+        return self._affine * (x, y)
+
+    @property
+    def extent(self) -> Geometry:
+        """GeoBox footprint in native CRS."""
+        if self._extent is not None:
+            return self._extent
+
+        if self.linear:
+            _extent = geom.polygon_from_transform(self._shape, self._affine, self._crs)
+        else:
+            _extent = geom.polygon(self.boundary(16).tolist(), self._crs).transform(
+                self.pix2wld
+            )
+
+        self._extent = _extent
+        return _extent
+
+    @property
+    def boundingbox(self) -> BoundingBox:
+        """GeoBox bounding box in the native CRS."""
+        return BoundingBox.from_transform(self._shape, self._affine, crs=self._crs)
+
+    def _reproject_resolution(self, npoints: int = 100):
+        bbox = self.extent.boundingbox
+        span = max(bbox.span_x, bbox.span_y)
+        return span / npoints
+
+    def footprint(
+        self, crs: SomeCRS, buffer: float = 0, npoints: int = 100
+    ) -> Geometry:
+        """
+        Compute footprint in foreign CRS.
+
+        :param crs: CRS of the destination
+        :param buffer: amount to buffer in source pixels before transforming
+        :param npoints: number of points per-side to use, higher number
+                        is slower but more accurate
+        """
+        assert self.crs is not None
+        ext = self.extent
+        if buffer > 0:
+            buffer = buffer * max(*self.resolution.xy)
+            ext = ext.buffer(buffer)
+
+        return ext.to_crs(crs, resolution=self._reproject_resolution(npoints)).dropna()
+
+    @property
+    def geographic_extent(self) -> Geometry:
+        """GeoBox extent in EPSG:4326."""
+        if self._crs is None or self._crs.geographic:
+            return self.extent
+        return self.footprint("epsg:4326")
+
+    @property
+    def _ui(self):
+        # pylint: disable=import-outside-toplevel
+        from .ui import PixelGridDisplay
+
+        if self._lazy_ui is not None:
+            return self._lazy_ui
+
+        gsd = max(*self.resolution.map(abs).xy)
+        self._lazy_ui = PixelGridDisplay(self, self.pix2wld, gsd)
+        return self._lazy_ui
+
+    def svg(
+        self,
+        scale_factor: float = 1.0,
+        mode: OutlineMode = "auto",
+        notch: float = 0.0,
+        grid_stroke: str = "pink",
+    ) -> str:
+        """
+        Produce SVG paths.
+
+        :param mode: One of pixel, native, geo (default is geo)
+        :return: SVG path
+        """
+        return self._ui.svg(
+            scale_factor=scale_factor, mode=mode, notch=notch, grid_stroke=grid_stroke
+        )
+
+    def grid_lines(self, step: int = 0, mode: OutlineMode = "native") -> Geometry:
+        """
+        Construct pixel edge aligned grid lines.
+        """
+        return self._ui.grid_lines(step=step, mode=mode)
+
+    def outline(self, mode: OutlineMode = "native", notch: float = 0.1) -> Geometry:
+        return self._ui.outline(mode, notch=notch)
+
+    def _repr_svg_(self):
+        # pylint: disable=protected-access
+        return self._ui._render_svg()
+
+    def _repr_html_(self):
+        # pylint: disable=protected-access
+        return self._ui._repr_html_()
+
+    def compute_crop(self, roi) -> Tuple[Shape2d, Affine]:
+        if isinstance(roi, int):
+            roi = (slice(roi, roi + 1), slice(None, None))
+
+        if isinstance(roi, slice):
+            roi = (roi, slice(None, None))
+
+        if len(roi) > 2:
+            raise ValueError("Expect 2d slice")
+
+        roi = roi_normalise(roi, self._shape.shape)
+
+        if not all(s.step is None or s.step == 1 for s in roi):
+            raise NotImplementedError("scaling not implemented, yet")
+
+        ty, tx = (s.start for s in roi)
+        ny, nx = roi_shape(roi)
+
+        affine = self._affine * Affine.translation(tx, ty)
+        return shape_((ny, nx)), affine
+
+    def compute_zoom_out(self, factor: float) -> Tuple[Shape2d, Affine]:
+        ny, nx = (max(1, math.ceil(s / factor)) for s in self.shape)
+        A = self._affine * Affine.scale(factor, factor)
+        return (shape_((ny, nx)), A)
+
+    def compute_zoom_to(
+        self, shape: Union[SomeShape, int, float]
+    ) -> Tuple[Shape2d, Affine]:
+        """
+        Change GeoBox shape.
+
+        When supplied a single integer scale longest dimension to match that.
+
+        :returns:
+          GeoBox covering the same region but with different number of pixels and therefore resolution.
+        """
+        if isinstance(shape, (int, float)):
+            nmax = max(*self._shape)
+            return self.compute_zoom_out(nmax / shape)
+
+        shape = shape_(shape)
+        sy, sx = (N / float(n) for N, n in zip(self._shape, shape.shape))
+        A = self._affine * Affine.scale(sx, sy)
+        return (shape, A)
+
+
+class GeoBox(GeoBoxBase):
+    """
+    Defines the location and resolution of a rectangular grid of data,
+    including it's :py:class:`~odc.geo.crs.CRS`.
+
+    :param shape: Shape in pixels ``(ny, nx)``
+    :param crs: Coordinate Reference System
+    :param affine: Affine transformation defining the location of the geobox
+    """
+
+    __slots__ = ()
+
+    def __init__(self, shape: SomeShape, affine: Affine, crs: MaybeCRS):
+        GeoBoxBase.__init__(self, shape, affine, crs)
 
     @staticmethod
     def from_bbox(
@@ -256,26 +489,8 @@ class GeoBox:
         )
 
     def __getitem__(self, roi) -> "GeoBox":
-        if isinstance(roi, int):
-            roi = (slice(roi, roi + 1), slice(None, None))
-
-        if isinstance(roi, slice):
-            roi = (roi, slice(None, None))
-
-        if len(roi) > 2:
-            raise ValueError("Expect 2d slice")
-
-        roi = roi_normalise(roi, self._shape.shape)
-
-        if not all(s.step is None or s.step == 1 for s in roi):
-            raise NotImplementedError("scaling not implemented, yet")
-
-        ty, tx = (s.start for s in roi)
-        ny, nx = roi_shape(roi)
-
-        affine = self._affine * Affine.translation(tx, ty)
-
-        return GeoBox(shape=(ny, nx), affine=affine, crs=self._crs)
+        _shape, _affine = self.compute_crop(roi)
+        return GeoBox(shape=_shape, affine=_affine, crs=self._crs)
 
     def __or__(self, other) -> "GeoBox":
         """A geobox that encompasses both self and other."""
@@ -284,13 +499,6 @@ class GeoBox:
     def __and__(self, other) -> "GeoBox":
         """A geobox that is contained in both self and other."""
         return geobox_intersection_conservative([self, other])
-
-    def is_empty(self) -> bool:
-        """Check if geobox is "empty"."""
-        return 0 in self._shape
-
-    def __bool__(self) -> bool:
-        return not self.is_empty()
 
     def __hash__(self):
         return hash((*self._shape, self._crs, self._affine))
@@ -326,54 +534,6 @@ class GeoBox:
         return self._affine
 
     @property
-    def width(self) -> int:
-        """Width in pixels (nx)."""
-        return self._shape.x
-
-    @property
-    def height(self) -> int:
-        """Height in pixels (ny)."""
-        return self._shape.y
-
-    @property
-    def shape(self) -> Shape2d:
-        """Shape in pixels ``(height, width)``."""
-        return self._shape
-
-    @property
-    def aspect(self) -> float:
-        """Aspect ratio (X/Y in pixel space)."""
-        return self._shape.aspect
-
-    @property
-    def crs(self) -> Optional[CRS]:
-        """Coordinate Reference System of the GeoBox."""
-        return self._crs
-
-    @property
-    def dimensions(self) -> Tuple[str, str]:
-        """List of dimension names of the GeoBox."""
-        crs = self._crs
-        if crs is None:
-            return ("y", "x")
-        return crs.dimensions
-
-    @property
-    def resolution(self) -> Resolution:
-        """Resolution, pixel size in CRS units."""
-        return resolution_from_affine(self._affine)
-
-    @property
-    def alignment(self) -> XY[float]:
-        """
-        Alignment of pixel boundaries in CRS units.
-
-        This is usally ``(0,0)``.
-        """
-        rx, _, tx, _, ry, ty, *_ = self._affine
-        return xy_(tx % abs(rx), ty % abs(ry))
-
-    @property
     def coordinates(self) -> Dict[str, Coordinate]:
         """
         Query coordinates.
@@ -402,19 +562,7 @@ class GeoBox:
             )
         )
 
-    @property
-    def extent(self) -> Geometry:
-        """GeoBox footprint in native CRS."""
-        if self._extent is not None:
-            return self._extent
-        _extent = polygon_from_transform(self._shape, self._affine, crs=self._crs)
-        self._extent = _extent
-        return _extent
-
-    @property
-    def boundingbox(self) -> BoundingBox:
-        """GeoBox bounding box in the native CRS."""
-        return BoundingBox.from_transform(self._shape, self._affine, crs=self._crs)
+    coords = coordinates
 
     def map_bounds(self) -> Tuple[Tuple[float, float], Tuple[float, float]]:
         """
@@ -428,11 +576,6 @@ class GeoBox:
         else:
             (x0, y0), _, (x1, y1) = self.extent.exterior.points[:3]
         return (y0, x0), (y1, x1)
-
-    def _reproject_resolution(self, npoints: int = 100):
-        bbox = self.extent.boundingbox
-        span = max(bbox.span_x, bbox.span_y)
-        return span / npoints
 
     def to_crs(
         self,
@@ -467,35 +610,6 @@ class GeoBox:
         from .overlap import compute_output_geobox
 
         return compute_output_geobox(self, crs, resolution=resolution, tight=tight)
-
-    def footprint(
-        self, crs: SomeCRS, buffer: float = 0, npoints: int = 100
-    ) -> Geometry:
-        """
-        Compute footprint in foreign CRS.
-
-        :param crs: CRS of the destination
-        :param buffer: amount to buffer in source pixels before transforming
-        :param npoints: number of points per-side to use, higher number
-                        is slower but more accurate
-        """
-        assert self.crs is not None
-        ext = self.extent
-        if buffer > 0:
-            buffer = buffer * max(*self.resolution.xy)
-            ext = ext.buffer(buffer)
-
-        return ext.to_crs(crs, resolution=self._reproject_resolution(npoints)).dropna()
-
-    @property
-    def geographic_extent(self) -> Geometry:
-        """GeoBox extent in EPSG:4326."""
-        if self._crs is None or self._crs.geographic:
-            return self.extent
-        return self.footprint("epsg:4326")
-
-    coords = coordinates
-    dims = dimensions
 
     def __str__(self):
         return self.__repr__()
@@ -583,10 +697,8 @@ class GeoBox:
         :returns:
            GeoBox covering the same region but with different pixels (i.e. lower or higher resolution)
         """
-
-        ny, nx = (max(1, math.ceil(s / factor)) for s in self.shape)
-        A = self._affine * Affine.scale(factor, factor)
-        return GeoBox((ny, nx), A, self._crs)
+        _shape, _affine = self.compute_zoom_out(factor)
+        return GeoBox(_shape, _affine, self._crs)
 
     def zoom_to(self, shape: Union[SomeShape, int, float]) -> "GeoBox":
         """
@@ -597,14 +709,8 @@ class GeoBox:
         :returns:
           GeoBox covering the same region but with different number of pixels and therefore resolution.
         """
-        if isinstance(shape, (int, float)):
-            nmax = max(*self._shape)
-            return self.zoom_out(nmax / shape)
-
-        shape = shape_(shape)
-        sy, sx = (N / float(n) for N, n in zip(self._shape, shape.shape))
-        A = self._affine * Affine.scale(sx, sy)
-        return GeoBox(shape, A, self._crs)
+        _shape, _affine = self.compute_zoom_to(shape)
+        return GeoBox(_shape, _affine, self._crs)
 
     def flipy(self) -> "GeoBox":
         """
@@ -671,24 +777,6 @@ class GeoBox:
         c0 = self._affine * (nx * 0.5, ny * 0.5)
         return Affine.rotation(deg, c0) * self
 
-    def boundary(self, pts_per_side: int = 16) -> numpy.ndarray:
-        """
-        Boundary of a :py:class:`~odc.geo.geobox.GeoBox`.
-
-        Construct a ring of points in pixel space along the edge of the geobox.
-
-        :param pts_per_side: Number of points per side, default is 16.
-
-        :return:
-          Points in pixel space along the perimeter of a GeoBox as a ``Nx2`` array
-          in pixel coordinates.
-        """
-        ny, nx = self._shape.yx
-        xx = numpy.linspace(0, nx, pts_per_side, dtype="float32")
-        yy = numpy.linspace(0, ny, pts_per_side, dtype="float32")
-
-        return polygon_path(xx, yy).T[:-1]
-
     def _confirm_axis_aligned(self, raise_error: Optional[str] = None) -> bool:
         if is_affine_st(self._affine):
             return True
@@ -716,12 +804,12 @@ class GeoBox:
         Convert to :py:class:`datacube.utils.geometry.GeoBox`
         """
         try:
-            geom = importlib.import_module("datacube.utils.geometry")
+            dc_geom = importlib.import_module("datacube.utils.geometry")
         except ModuleNotFoundError:
             return None
 
         w, h = self.shape.wh
-        return geom.GeoBox(w, h, self._affine, str(self._crs))
+        return dc_geom.GeoBox(w, h, self._affine, str(self._crs))
 
     def __dask_tokenize__(self):
         return (
@@ -729,206 +817,6 @@ class GeoBox:
             str(self.crs),
             *self._shape.yx,
             *self._affine[:6],
-        )
-
-    def svg(
-        self,
-        scale_factor: float = 1.0,
-        mode: OutlineMode = "auto",
-        notch: float = 0.0,
-        grid_stroke: str = "pink",
-    ) -> str:
-        """
-        Produce SVG paths.
-
-        :param mode: One of pixel, native, geo (default is geo)
-        :return: SVG path
-        """
-        if mode == "auto":
-            mode = "native" if self._crs is None else "geo"
-
-        grids = self.grid_lines(mode=mode)
-        outline = self.outline(mode, notch=notch)
-
-        grid_svg = (
-            '<path fill="none" opacity="0.8"'
-            f' stroke-width="{0.8*scale_factor}"'
-            f' stroke="{grid_stroke}"'
-            f' d="{grids.svg_path()}" />'
-        )
-
-        return outline.svg(scale_factor) + grid_svg
-
-    def grid_lines(self, step: int = 0, mode: OutlineMode = "native") -> Geometry:
-        """
-        Construct pixel edge aligned grid lines.
-        """
-        from .ui import pick_grid_step  # pylint: disable=import-outside-toplevel
-
-        nx, ny = self._shape.xy
-        if nx > 0 and ny > 0:
-            if step == 0:
-                step = pick_grid_step(max(nx, ny))
-            xx = [*range(0, nx, step), nx]
-            yy = [*range(0, ny, step), ny]
-            vertical = [list(itertools.product([x], yy)) for x in xx[1:-1]]
-            horizontal = [list(itertools.product(xx, [y])) for y in yy[1:-1]]
-            lines = multiline(vertical + horizontal, self._crs)
-        else:
-            lines = multiline([], self._crs)
-
-        if mode == "pixel":
-            return lines
-
-        lines = lines.transform(self._affine)
-        if mode == "native":
-            return lines
-
-        dx, dy = self._affine * (step, 0)
-        res = math.sqrt(dx * dx + dy * dy) / 5
-        return lines.to_crs("epsg:4326", resolution=res).dropna()
-
-    def outline(self, mode: OutlineMode = "native", notch: float = 0.1) -> Geometry:
-        """
-        Produce Line Geometry around perimeter.
-
-        .. code-block:: txt
-
-             +---+-------------+
-             |   |             |
-             +---+             |
-             |                 |
-             |                 |
-             +-----------------+
-        """
-
-        assert notch < 1
-        w, h = self._shape.wh
-        if notch > 0:
-            nn = min(notch * max(w, h), w, h)
-            pix = line(
-                [
-                    (0, nn),
-                    (0, 0),
-                    (nn, 0),
-                    (w, 0),
-                    (w, h),
-                    (0, h),
-                    (0, nn),
-                    (nn, nn),
-                    (nn, 0),
-                ],
-                self._crs,
-            )
-        else:
-            pix = multigeom(
-                [
-                    line([(0, 0), (w, 0), (w, h), (0, h), (0, 0)], self._crs),
-                    point(0, 0, self._crs),
-                ]
-            )
-        if mode == "pixel":
-            return pix
-
-        native = pix.transform(self._affine)
-        if mode == "native":
-            return native
-
-        # about 100 pts per side
-        bbox = native.boundingbox
-        res = max(bbox.span_x, bbox.span_y) / 100
-
-        return native.to_crs("EPSG:4326", resolution=res).dropna()
-
-    def _display_bbox(self, pad_fraction: float = 0.1):
-        bbox = self.geographic_extent.boundingbox
-        pad_deg = max(bbox.span_x, bbox.span_y) * pad_fraction
-        return bbox.buffered(pad_deg)
-
-    def _render_svg(self, sz=360):
-        # pylint: disable=import-outside-toplevel
-        from .ui import make_svg, svg_base_map
-
-        if self._crs is None:
-            bbox = self.extent.boundingbox
-            margin = 0.1 * max(bbox.span_x, bbox.span_y)
-            bbox = bbox.buffered(margin)
-            return make_svg(
-                self,
-                bbox=bbox,
-                sz=sz,
-            )
-
-        return svg_base_map(self, bbox=self._display_bbox(), sz=sz)
-
-    def _repr_svg_(self):
-        return self._render_svg()
-
-    def _repr_html_(self):
-        # pylint: disable=import-outside-toplevel,too-many-locals
-        from .data import gbox_css
-        from .ui import norm_units, pick_grid_step, svg_base_map
-
-        W, H = self._shape.wh
-        grid_step = pick_grid_step(max(W, H))
-        svg_zoomed_txt = self._render_svg(sz=320)
-
-        crs = self._crs
-        if crs is None:
-            authority = ("", "")
-            wkt = "not set"
-            units = ""
-            svg_global_txt = ""
-        else:
-            authority = crs.authority
-            wkt = crs.to_wkt(pretty=True).replace("\n", "<br/>").replace(" ", "&nbsp;")
-            units = crs.units[0]
-            svg_global_txt = svg_base_map(
-                sz=200, target=self.geographic_extent.centroid.coords[0]
-            )
-
-        if authority == ("", ""):
-            authority = ("CRS", "WKT")
-
-        units = norm_units(units)
-        pix_sz = max(*self.resolution.map(abs).xy)
-
-        info = [
-            ("Dimensions", f"{W:,d}x{H:,d}"),
-            authority,
-            ("Resolution", f"{pix_sz:g}{units}"),
-            ("Cell", f"{grid_step:,d}px"),
-        ]
-
-        info_html = "\n".join(
-            [
-                (
-                    f'<div class="row"><div class="column">{hdr}</div>'
-                    f'<div class="column value">{val}</div></div>'
-                )
-                for hdr, val in info
-            ]
-        )
-
-        return dedent(
-            f"""\
-        <style>{gbox_css()}</style>
-        <div class="gbox-info">
-        <h4>GeoBox</h4>
-        <div class="row">
-            <div class="column">
-                <div class="info-box">
-                    {info_html}
-                    <div>{svg_global_txt}</div>
-                </div>
-            </div>
-            <div class="column svg-zoomed">{svg_zoomed_txt}</div>
-        </div>
-        <details>
-            <summary>WKT</summary>
-            <div class="wkt">{wkt}</div>
-        </details>
-        </div>"""
         )
 
 
