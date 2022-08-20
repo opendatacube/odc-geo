@@ -8,6 +8,7 @@ import numpy as np
 import rasterio.warp
 from affine import Affine
 
+from .gcp import GCPGeoBox
 from .geobox import GeoBox
 from .types import wh_
 
@@ -103,7 +104,7 @@ def warp_affine(
 def rio_reproject(
     src: np.ndarray,
     dst: np.ndarray,
-    s_gbox: GeoBox,
+    s_gbox: Union[GeoBox, GCPGeoBox],
     d_gbox: GeoBox,
     resampling: Resampling,
     src_nodata: Nodata = None,
@@ -164,7 +165,7 @@ def rio_reproject(
 def _rio_reproject(
     src: np.ndarray,
     dst: np.ndarray,
-    s_gbox: GeoBox,
+    s_gbox: Union[GCPGeoBox, GeoBox],
     d_gbox: GeoBox,
     resampling: Resampling,
     src_nodata: Nodata = None,
@@ -188,6 +189,14 @@ def _rio_reproject(
     if isinstance(resampling, str):
         resampling = resampling_s2rio(resampling)
 
+    src_transform = None
+    gcps = None
+
+    if isinstance(s_gbox, GCPGeoBox):
+        gcps = s_gbox.gcps()
+    else:
+        src_transform = s_gbox.transform
+
     # GDAL support for int8 is patchy, warp doesn't support it, so we need to convert to int16
     src, src_is_bool = _alias_or_convert(src)
     _dst, _ = _alias_or_convert(dst)
@@ -195,9 +204,10 @@ def _rio_reproject(
     rasterio.warp.reproject(
         src,
         _dst,
-        src_transform=s_gbox.transform,
-        dst_transform=d_gbox.transform,
+        src_transform=src_transform,
+        gcps=gcps,
         src_crs=str(s_gbox.crs),
+        dst_transform=d_gbox.transform,
         dst_crs=str(d_gbox.crs),
         resampling=resampling,
         src_nodata=src_nodata,
