@@ -283,6 +283,29 @@ def force_2d(geojson: Dict[str, Any]) -> Dict[str, Any]:
     return {"type": geojson["type"], "coordinates": go(geojson["coordinates"])}
 
 
+def _geojson_to_shapely(xx: Any) -> base.BaseGeometry:
+    _type = xx.get("type", None)
+
+    def to_geom(x) -> base.BaseGeometry:
+        return geometry.shape(force_2d(x))
+
+    if _type is None:
+        raise ValueError("Not a valid GeoJSON")
+
+    _type = _type.lower()
+    if _type == "featurecollection":
+        features = xx.get("features", [])
+        if len(features) == 1:
+            return to_geom(features[0]["geometry"])
+
+        return _multigeom([to_geom(feature["geometry"]) for feature in features])
+
+    if _type == "feature":
+        return to_geom(xx["geometry"])
+
+    return to_geom(xx)
+
+
 def densify(coords: CoordList, resolution: float) -> CoordList:
     """
     Adds points so they are at most `resolution` units apart.
@@ -335,12 +358,19 @@ class Geometry(SupportsCoords[float]):
             self.geom: base.BaseGeometry = _clone_shapely_geom(geom.geom)
             return
 
+        if crs is None:
+            if isinstance(geom, dict) and geom.get("type", "").lower().startswith(
+                "feature"
+            ):
+                # Assume 4326 for geojson inputs
+                crs = "epsg:4326"
+
         crs = norm_crs(crs)
         self.crs = crs
         if isinstance(geom, base.BaseGeometry):
             self.geom = geom
         elif isinstance(geom, dict):
-            self.geom = geometry.shape(force_2d(geom))
+            self.geom = _geojson_to_shapely(geom)
         else:
             raise ValueError(f"Unexpected type {type(geom)}")
 
@@ -942,25 +972,26 @@ def sides(poly: Geometry) -> Iterable[Geometry]:
         yield line([p1, p2], crs)
 
 
-def multigeom(geoms: Iterable[Geometry]) -> Geometry:
-    """Construct ``Multi{Polygon|LineString|Point}``."""
-    geoms = list(geoms)  # force into list
+def _multigeom(geoms: List[base.BaseGeometry]) -> base.BaseGeometry:
     src_type = {g.type for g in geoms}
-    raw_geoms = [g.geom for g in geoms]
-    crs = common_crs(geoms)  # will raise if some differ
-
     if len(src_type) > 1:
-        return Geometry(geometry.GeometryCollection(raw_geoms), crs)
+        return geometry.GeometryCollection(geoms)
 
     src_type = src_type.pop()
     if src_type == "Polygon":
-        return Geometry(geometry.MultiPolygon(raw_geoms), crs)
+        return geometry.MultiPolygon(geoms)
     if src_type == "Point":
-        return Geometry(geometry.MultiPoint(raw_geoms), crs)
+        return geometry.MultiPoint(geoms)
     if src_type == "LineString":
-        return Geometry(geometry.MultiLineString(raw_geoms), crs)
+        return geometry.MultiLineString(geoms)
+    return geometry.GeometryCollection(geoms)
 
-    raise ValueError("Only understand Polygon|LineString|Point")
+
+def multigeom(geoms: Iterable[Geometry]) -> Geometry:
+    """Construct ``Multi{Polygon|LineString|Point}``."""
+    geoms = list(geoms)  # force into list
+    crs = common_crs(geoms)  # will raise if some differ
+    return Geometry(_multigeom([g.geom for g in geoms]), crs)
 
 
 ###########################################
