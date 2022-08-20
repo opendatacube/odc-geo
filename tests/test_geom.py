@@ -303,9 +303,7 @@ def test_multigeom():
     with pytest.raises(CRSMismatchError):
         multigeom([geom.line([p1, p2], epsg4326), geom.line([p3, p4], epsg3857)])
 
-    # only some types are supported on input
-    with pytest.raises(ValueError):
-        multigeom([gg])
+    assert multigeom([gg]).type == "GeometryCollection"
 
 
 def test_shapely_wrappers():
@@ -793,8 +791,40 @@ def test_geojson():
     assert gjson["type"] == "Feature"
     assert gjson["properties"] == {"region_code": "33"}
 
+    _b = geom.Geometry(gjson, crs=epsg4326)
+    assert (b - _b).area < 1e-6
+
+    _b = geom.Geometry(gjson)
+    assert _b.crs == epsg4326
+    assert (b - _b).area < 1e-6
+
+    _b = geom.Geometry(dict(type="FeatureCollection", features=[gjson]))
+    assert _b.crs == epsg4326
+    assert (b - _b).area < 1e-6
+
     _b = geom.Geometry(gjson["geometry"], crs=epsg4326)
     assert (b - _b).area < 1e-6
+
+    with pytest.raises(ValueError):
+        _ = geom.Geometry({})
+
+    gg = geom.Geometry(
+        {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": [0, 1]},
+                },
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": [10, 20]},
+                },
+            ],
+        }
+    )
+    assert gg.type == "MultiPoint"
+    assert len(list(gg.geoms)) == 2
 
 
 @pytest.mark.xfail(
