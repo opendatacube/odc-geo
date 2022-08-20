@@ -255,6 +255,26 @@ class GCPGeoBox(GeoBoxBase):
             and self._affine == __o._affine
         )
 
+    def gcps(self):
+        """Extract GCPs in rasterio format."""
+        # pylint: disable=import-outside-toplevel
+        from rasterio.control import GroundControlPoint
+
+        pix, wld = self._mapping.points()
+
+        a_inv = ~self._affine
+
+        def to_gcp(pix: Geometry, wld: Geometry, _id) -> GroundControlPoint:
+            ((wx, wy),) = wld.coords
+
+            ((px, py),) = pix.coords
+            px, py = a_inv * (px, py)
+            return GroundControlPoint(row=py, col=px, x=wx, y=wy, id=_id)
+
+        return [
+            to_gcp(p, w, idx) for idx, (p, w) in enumerate(zip(pix.geoms, wld.geoms))
+        ]
+
     def __dask_tokenize__(self):
         return (
             "odc.geo._gcp.GCPGeoBox",
