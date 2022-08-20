@@ -29,11 +29,12 @@ from affine import Affine
 from ._interop import have, is_dask_collection
 from ._rgba import colorize, to_rgba
 from .crs import CRS, CRSError, SomeCRS, norm_crs_or_error
+from .gcp import GCPGeoBox, GCPMapping
 from .geobox import Coordinate, GeoBox
 from .geom import Geometry
 from .math import affine_from_axis
 from .overlap import compute_output_geobox
-from .types import Resolution, resxy_
+from .types import Resolution, resxy_, xy_
 
 # pylint: disable=import-outside-toplevel
 if have.rasterio:
@@ -45,6 +46,7 @@ if have.rasterio:
 XarrayObject = Union[xarray.DataArray, xarray.Dataset]
 XrT = TypeVar("XrT", xarray.DataArray, xarray.Dataset)
 F = TypeVar("F", bound=Callable)
+SomeGeoBox = Union[GeoBox, GCPGeoBox]
 
 _DEFAULT_CRS_COORD_NAME = "spatial_ref"
 
@@ -58,7 +60,8 @@ class GeoState:
     spatial_dims: Optional[Tuple[str, str]] = None
     transform: Optional[Affine] = None
     crs: Optional[CRS] = None
-    geobox: Optional[GeoBox] = None
+    geobox: Optional[SomeGeoBox] = None
+    gcp: Optional[GCPMapping] = None
 
 
 def _get_crs_from_attrs(obj: XarrayObject, sdims: Tuple[str, str]) -> Optional[CRS]:
@@ -290,18 +293,31 @@ def _extract_crs(crs_coord: xarray.DataArray) -> Optional[CRS]:
         return None
 
 
-def _locate_geo_info(src: XarrayObject) -> GeoState:
-    sdims = spatial_dims(src, relaxed=True)
-    if sdims is None:
-        return GeoState()
+def _extract_gcps(crs_coord: xarray.DataArray) -> Optional[GCPMapping]:
+    gcps = crs_coord.attrs.get("gcps", None)
+    if gcps is None:
+        return None
+    crs = _extract_crs(crs_coord)
+    try:
+        wld = Geometry(gcps, crs=crs)
+        pix = [
+            xy_(f["properties"]["col"], f["properties"]["row"])
+            for f in gcps["features"]
+        ]
+        return GCPMapping(pix, wld)
+    except (IndexError, ValueError):
+        return None
 
-    transform: Optional[Affine] = None
-    crs: Optional[CRS] = None
-    geobox: Optional[GeoBox] = None
-    fallback_res: Optional[Resolution] = None
+
+def _extract_transform(src: XarrayObject, sdims: Tuple[str, str]) -> Optional[Affine]:
+    if any(dim not in src.coords for dim in sdims):
+        # special case of no spatial dims at all
+        # happens for GCP sources loaded by rioxarray
+        return None
 
     _yy, _xx = (src[dim] for dim in sdims)
     rx, ry = (coord.attrs.get("resolution", None) for coord in (_xx, _yy))
+    fallback_res = None
     if rx is not None and ry is not None:
         fallback_res = resxy_(float(rx), float(ry))
 
@@ -309,31 +325,49 @@ def _locate_geo_info(src: XarrayObject) -> GeoState:
         transform = affine_from_axis(_xx.values, _yy.values, fallback_res)
     except ValueError:
         # this can fail when any dimension is shorter than 2 elements
-        pass
+        return None
+
+    _pix2world = _xx.encoding.get("_transform", None)
+    if _pix2world is not None:
+        # non-axis aligned geobox detected
+        # adjust transform
+        #  world <- pix' <- pix
+        transform = Affine(*_pix2world) * transform
+    return transform
+
+
+def _locate_geo_info(src: XarrayObject) -> GeoState:
+    # pylint: disable=too-many-locals
+    sdims = spatial_dims(src, relaxed=True)
+    if sdims is None:
+        return GeoState()
+
+    transform = _extract_transform(src, sdims)
+    crs: Optional[CRS] = None
+    geobox: Optional[SomeGeoBox] = None
+    gcp: Optional[GCPMapping] = None
+
+    ny, nx = (src.coords[dim].shape[0] for dim in sdims)
 
     _crs_coords = _locate_crs_coords(src)
-    num_candiates = len(_crs_coords)
-    if num_candiates > 0:
-        if num_candiates > 1:
+    num_candidates = len(_crs_coords)
+    if num_candidates > 0:
+        if num_candidates > 1:
             warnings.warn("Multiple CRS coordinates are present")
         crs = _extract_crs(_crs_coords[0])
+        gcp = _extract_gcps(_crs_coords[0])
     else:
         # try looking in attributes
         crs = _get_crs_from_attrs(src, sdims)
 
-    if transform is not None:
-        _pix2world = _xx.encoding.get("_transform", None)
-        if _pix2world is not None:
-            # non-axis aligned geobox detected
-            # adjust transform
-            #  world <- pix' <- pix
-            transform = Affine(*_pix2world) * transform
-
-        nx = _xx.shape[0]
-        ny = _yy.shape[0]
+    if gcp is not None:
+        geobox = GCPGeoBox((ny, nx), gcp, transform)
+    elif transform is not None:
         geobox = GeoBox((ny, nx), transform, crs)
 
-    return GeoState(spatial_dims=sdims, transform=transform, crs=crs, geobox=geobox)
+    return GeoState(
+        spatial_dims=sdims, transform=transform, crs=crs, geobox=geobox, gcp=gcp
+    )
 
 
 def _wrap_op(method: F) -> F:
@@ -446,8 +480,8 @@ class ODCExtension:
         return self._state.crs
 
     @property
-    def geobox(self) -> Optional[GeoBox]:
-        """Query :py:class:`~odc.geo.geobox.GeoBox`."""
+    def geobox(self) -> Optional[SomeGeoBox]:
+        """Query :py:class:`~odc.geo.geobox.GeoBox` or :py:class:`~odc.geo.gcp.GCPGeoBox`."""
         return self._state.geobox
 
     def output_geobox(self, crs: SomeCRS, **kw) -> GeoBox:

@@ -185,6 +185,19 @@ class GCPGeoBox(GeoBoxBase):
         """
         return self[self.shape.map(lambda x: x // 2).yx]
 
+    def map_bounds(self) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+        """
+        Query bounds in folium/ipyleaflet style.
+
+        Returns SW, and NE corners in lat/lon order.
+        ``((lat_w, lon_s), (lat_e, lon_n))``.
+        """
+        if self._crs is not None:
+            x0, y0, x1, y1 = self.geographic_extent.boundingbox.bbox
+        else:
+            x0, y0, x1, y1 = self.extent.boundingbox.bbox
+        return (y0, x0), (y1, x1)
+
     def pad(self, padx: int, pady: MaybeInt = None) -> "GCPGeoBox":
         """
         Pad geobox.
