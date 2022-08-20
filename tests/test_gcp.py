@@ -73,6 +73,8 @@ def test_gcp_geobox_basics(au_gcp_geobox: GCPGeoBox):
 
     assert len(set([gbox, gbox.center_pixel, gbox[:1, :2], gbox[:1, :2]])) == 3
 
+    assert len(gbox.gcps()) == 24
+
 
 def test_gcp_mapping():
     gbox0 = GeoBox.from_bbox([0, 0, 20, 10], crs="epsg:4326", resolution=1)
