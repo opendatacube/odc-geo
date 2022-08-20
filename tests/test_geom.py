@@ -876,8 +876,18 @@ def test_filter():
     poly = geom.box(1, 2, 3, 4, epsg4326)
     ring = poly.exterior
     multi_pt = geom.multipoint([(1, 1), (2, 2)], epsg4326)
+    poly_with_holes = poly - poly.centroid.buffer(0.1)
+    assert len(poly_with_holes.interiors) > 0
 
-    for g in [pt, poly, ring, multi_pt, pt | ring, ring.buffer(1) | ring]:
+    for g in [
+        pt,
+        poly,
+        poly_with_holes,
+        ring,
+        multi_pt,
+        pt | ring,
+        ring.buffer(1) | ring,
+    ]:
         assert g.filter(_drop).is_empty
         assert g.filter(_keep) == g
         assert g.dropna() == g

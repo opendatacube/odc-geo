@@ -712,9 +712,15 @@ class Geometry(SupportsCoords[float]):
         """
 
         if self.type == "Polygon":
-            # TODO: deal with interior rings
             pts = [(x, y) for x, y in self.exterior.points if pred(x, y)]
-            return polygon(pts, self.crs)
+            # prune inner polygon points
+            inners = [
+                [(x, y) for x, y in ring.points if pred(x, y)]
+                for ring in self.interiors
+            ]
+            # prune inner polygons that don't have enough points
+            inners = [ring for ring in inners if len(ring) >= 3]
+            return polygon(pts, self.crs, *inners)
 
         if self.type in ("LinearRing", "LineString"):
             pts = [(x, y) for x, y in self.points if pred(x, y)]
