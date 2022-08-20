@@ -4,16 +4,16 @@
 # SPDX-License-Identifier: Apache-2.0
 import math
 from dataclasses import dataclass
-from typing import Literal, Optional, Protocol, Sequence, Tuple
+from typing import Literal, Optional, Protocol, Sequence, Tuple, Union
 
 import numpy as np
 from affine import Affine
 
 from .crs import SomeCRS, norm_crs
-from .geobox import GeoBox, gbox_boundary
+from .gcp import GCPGeoBox
+from .geobox import GeoBox, GeoBoxBase, gbox_boundary
 from .math import (
     affine_from_pts,
-    clamp,
     decompose_rws,
     is_affine_st,
     is_almost_int,
@@ -88,16 +88,19 @@ class GbxPointTransform:
 
     1. Input is source pixel coordinate
 
-    2. Compute coordinate in CRS units using linear transform of the source image
+    2. Compute coordinate in CRS units using pix2wld transform of the source image
 
     3. Project point to the CRS of the destination image
 
-    4. Compute destination image pixel coordinate by using inverse of the
-       linear transform of the destination image
+    4. Compute destination image pixel coordinate by using wld2pix mapping of the
+       destination image
     """
 
     def __init__(
-        self, src: GeoBox, dst: GeoBox, back: Optional["GbxPointTransform"] = None
+        self,
+        src: GeoBoxBase,
+        dst: GeoBoxBase,
+        back: Optional["GbxPointTransform"] = None,
     ):
         assert src.crs is not None and dst.crs is not None
         self._src = src
@@ -123,23 +126,20 @@ class GbxPointTransform:
     def __call__(self, pts: Sequence[XY[float]]) -> Sequence[XY[float]]:
         # pix_src -> X -> X' -> pix_dst
         # inv(dst.A)*to_crs(src.A*pt)
-        A = self._src.transform
-        B = ~(self._dst.transform)
 
-        pts = [A * pt.xy for pt in pts]
-        xx = [pt[0] for pt in pts]
-        yy = [pt[1] for pt in pts]
+        xx, yy = np.asarray([pt.xy for pt in pts]).T
+        xx, yy = self._src.pix2wld(xx, yy)
 
         if self._clamps is not None:
             # for global datasets in 4326 pixel edges sometimes reach just outside
             # of the valid region due to rounding errors when creating tiff files
             # those coordinates can then not be converted properly to destintation crs
             range_x, range_y = self._clamps
-            xx = [clamp(x, *range_x) for x in xx]
-            yy = [clamp(y, *range_y) for y in yy]
+            xx = np.clip(xx, *range_x)
+            yy = np.clip(yy, *range_y)
 
-        xx, yy = self._tr(xx, yy)
-        return [xy_(B * (x, y)) for x, y in zip(xx, yy)]
+        xx, yy = self._dst.wld2pix(*self._tr(xx, yy))
+        return [xy_(x, y) for x, y in zip(xx, yy)]
 
     def __repr__(self) -> str:
         return f"GbxPointTransform({self._src!r}, {self._dst!r})"
@@ -323,7 +323,7 @@ def box_overlap(
     return (s0, s1), (d0, d1)
 
 
-def native_pix_transform(src: GeoBox, dst: GeoBox) -> PointTransform:
+def native_pix_transform(src: GeoBoxBase, dst: GeoBoxBase) -> PointTransform:
     """
 
     direction: from src to dst
@@ -331,7 +331,7 @@ def native_pix_transform(src: GeoBox, dst: GeoBox) -> PointTransform:
     .linear: None|Affine linear transform src->dst if transform is linear (i.e. same CRS)
     """
     # Special case CRS_in == CRS_out
-    if src.crs == dst.crs:
+    if isinstance(src, GeoBox) and isinstance(dst, GeoBox) and src.crs == dst.crs:
         return _same_crs_pix_transform(src, dst)
 
     return GbxPointTransform(src, dst)
@@ -552,7 +552,7 @@ def compute_reproject_roi(
 
 
 def compute_output_geobox(
-    gbox: GeoBox,
+    gbox: Union[GeoBox, GCPGeoBox],
     crs: SomeCRS,
     *,
     resolution: Literal["auto", "fit", "same"] = "auto",
