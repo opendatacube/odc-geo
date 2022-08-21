@@ -438,3 +438,14 @@ def test_lrtb():
 
     assert gbox.bottom == GeoBox.from_bbox([0, -10, 20, 0], gbox.crs, shape=gbox.shape)
     assert gbox.top == GeoBox.from_bbox([0, 10, 20, 20], gbox.crs, shape=gbox.shape)
+
+
+def test_compat():
+    gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
+    gbox_ = gbox.compat
+    if gbox_ is None:  # no datacube in this environment
+        return
+    assert gbox.width == gbox_.width
+    assert gbox.height == gbox_.height
+    assert gbox.affine == gbox_.affine
+    assert gbox.crs == str(gbox.crs)
