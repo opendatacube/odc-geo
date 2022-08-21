@@ -150,12 +150,19 @@ def spatial_dims(
     return None
 
 
-def _mk_crs_coord(crs: CRS, name: str = _DEFAULT_CRS_COORD_NAME) -> xarray.DataArray:
+def _mk_crs_coord(
+    crs: CRS,
+    name: str = _DEFAULT_CRS_COORD_NAME,
+    gcps=None,
+) -> xarray.DataArray:
     # pylint: disable=protected-access
 
     cf = crs.proj.to_cf()
     epsg = 0 if crs.epsg is None else crs.epsg
     crs_wkt = cf.get("crs_wkt", None) or crs.wkt
+
+    if gcps is not None:
+        cf["gcps"] = _gcps_to_json(gcps)
 
     return xarray.DataArray(
         numpy.asarray(epsg, "int32"),
@@ -163,6 +170,24 @@ def _mk_crs_coord(crs: CRS, name: str = _DEFAULT_CRS_COORD_NAME) -> xarray.DataA
         dims=(),
         attrs={"spatial_ref": crs_wkt, **cf},
     )
+
+
+def _gcps_to_json(gcps):
+    def _to_feature(p):
+        coords = [p.x, p.y] if p.z is None else [p.x, p.y, p.z]
+
+        return {
+            "type": "Feature",
+            "properties": {
+                "id": str(p.id),
+                "info": (p.info or ""),
+                "row": p.row,
+                "col": p.col,
+            },
+            "geometry": {"type": "Point", "coordinates": coords},
+        }
+
+    return {"type": "FeatureCollection", "features": list(map(_to_feature, gcps))}
 
 
 def _coord_to_xr(name: str, c: Coordinate, **attrs) -> xarray.DataArray:
@@ -212,7 +237,7 @@ def assign_crs(
 
 
 def xr_coords(
-    gbox: GeoBox, crs_coord_name: Optional[str] = _DEFAULT_CRS_COORD_NAME
+    gbox: SomeGeoBox, crs_coord_name: Optional[str] = _DEFAULT_CRS_COORD_NAME
 ) -> Dict[Hashable, xarray.DataArray]:
     """
     Dictionary of Coordinates in xarray format.
@@ -231,8 +256,16 @@ def xr_coords(
     if crs is not None:
         attrs["crs"] = str(crs)
 
-    if gbox.axis_aligned:
+    gcps = None
+
+    if isinstance(gbox, GCPGeoBox):
         coords: Dict[Hashable, xarray.DataArray] = {
+            name: _mk_pixel_coord(name, sz, None)
+            for name, sz in zip(gbox.dimensions, gbox.shape)
+        }
+        gcps = gbox.gcps()
+    elif gbox.axis_aligned:
+        coords = {
             name: _coord_to_xr(name, coord, **attrs)
             for name, coord in gbox.coordinates.items()
         }
@@ -243,17 +276,22 @@ def xr_coords(
         }
 
     if crs_coord_name is not None and crs is not None:
-        coords[crs_coord_name] = _mk_crs_coord(crs, crs_coord_name)
+        coords[crs_coord_name] = _mk_crs_coord(crs, crs_coord_name, gcps=gcps)
 
     return coords
 
 
-def _mk_pixel_coord(name: str, sz: int, transform: Affine) -> xarray.DataArray:
+def _mk_pixel_coord(
+    name: str,
+    sz: int,
+    transform: Optional[Affine],
+) -> xarray.DataArray:
     data = numpy.arange(0.5, sz, dtype="float32")
     xx = xarray.DataArray(
         data, coords={name: data}, dims=(name,), attrs={"units": "pixel"}
     )
-    xx.encoding["_transform"] = transform[:6]
+    if transform is not None:
+        xx.encoding["_transform"] = transform[:6]
     return xx
 
 
@@ -305,7 +343,7 @@ def _extract_gcps(crs_coord: xarray.DataArray) -> Optional[GCPMapping]:
             for f in gcps["features"]
         ]
         return GCPMapping(pix, wld)
-    except (IndexError, ValueError):
+    except (IndexError, KeyError, ValueError):
         return None
 
 
@@ -613,7 +651,7 @@ def register_geobox():
 
 def wrap_xr(
     im: Any,
-    gbox: GeoBox,
+    gbox: SomeGeoBox,
     *,
     time=None,
     nodata=None,
@@ -656,7 +694,7 @@ def wrap_xr(
 
 
 def xr_zeros(
-    geobox: GeoBox,
+    geobox: SomeGeoBox,
     dtype="float64",
     *,
     chunks: Optional[Union[Tuple[int, int], Tuple[int, int, int]]] = None,

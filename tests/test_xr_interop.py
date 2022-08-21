@@ -20,7 +20,7 @@ from odc.geo.xr import (
     xr_zeros,
 )
 
-# pylint: disable=redefined-outer-name
+# pylint: disable=redefined-outer-name,import-outside-toplevel,protected-access
 
 
 @pytest.fixture
@@ -89,6 +89,7 @@ def test_xr_zeros(geobox_epsg4326: GeoBox):
     assert "spatial_ref" in xx.coords
     assert xx.encoding["grid_mapping"] == "spatial_ref"
     assert (xx.values == 0).all()
+    assert gbox.crs is not None
     assert xx.spatial_ref.attrs["spatial_ref"] == gbox.crs.wkt
     assert xx.spatial_ref.attrs["grid_mapping_name"] == "latitude_longitude"
     assert xx.odc.ydim == 0
@@ -142,6 +143,7 @@ def test_odc_extension(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox):
     gbox = geobox_epsg4326
     xx = xx_epsg4326
 
+    assert gbox.crs is not None
     assert "spatial_ref" in xx.coords
     assert xx.encoding["grid_mapping"] == "spatial_ref"
     assert xx.odc.geobox == gbox
@@ -192,6 +194,7 @@ def test_odc_extension_ds(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox):
     gbox = geobox_epsg4326
     xx = xx_epsg4326.to_dataset(name="band")
 
+    assert gbox.crs is not None
     assert "spatial_ref" in xx.coords
     assert xx.band.encoding["grid_mapping"] == "spatial_ref"
     assert xx.odc.geobox == gbox
@@ -353,6 +356,8 @@ def test_wrap_xr():
 def test_xr_reproject(xx_epsg4326: xr.DataArray):
     assert isinstance(xx_epsg4326.odc, ODCExtensionDa)
     # smoke-test only
+    assert isinstance(xx_epsg4326.odc.geobox, GeoBox)
+    assert xx_epsg4326.odc.nodata is None
     dst_gbox = xx_epsg4326.odc.geobox.zoom_out(1.3)
     xx = xx_epsg4326.odc.reproject(dst_gbox)
     assert xx.odc.geobox == dst_gbox
@@ -361,6 +366,11 @@ def test_xr_reproject(xx_epsg4326: xr.DataArray):
     xx = xx_epsg4326.odc.reproject("epsg:3857")
     assert xx.odc.geobox.crs == "epsg:3857"
     assert xx.odc.geobox.shape == xx_epsg4326.odc.output_geobox("epsg:3857").shape
+    assert xx.odc.nodata is None
+
+    # check dst_nodata override
+    xx = xx_epsg4326.odc.reproject("epsg:3857", dst_nodata=255)
+    assert xx.odc.nodata == 255
 
     # non-georegistered case
     with pytest.raises(ValueError):
