@@ -5,6 +5,8 @@ import xarray as xr
 from ._interop import have
 from ._rgba import colorize, is_rgb
 from .converters import map_crs
+from .gcp import GCPGeoBox
+from .geobox import GeoBox
 
 
 # pylint: disable=import-outside-toplevel, redefined-builtin, too-many-locals
@@ -103,21 +105,30 @@ def add_to(
     _add_to = _get_add_to_method(map)  # raises on error
     _crs = map_crs(map)
 
-    need_reproject = False
+    gbox0 = xx.odc.geobox
+    assert gbox0 is not None
+    native_crs = gbox0.crs
+    assert native_crs is not None
+    gbox = gbox0
 
-    gbox = xx.odc.geobox
-    assert gbox is not None
-    assert gbox.crs is not None
+    if isinstance(gbox, GCPGeoBox):
+        if _crs is not None:
+            gbox = xx.odc.output_geobox(_crs, tight=True)
+        else:
+            gbox = xx.odc.output_geobox(native_crs, tight=True)
 
     if _crs is not None and gbox.crs != _crs:
-        need_reproject = True
         gbox = gbox.to_crs(_crs, tight=True)
 
+    if not gbox.axis_aligned:
+        gbox = GeoBox.from_bbox(
+            gbox.boundingbox, resolution=gbox.resolution, tight=True
+        )
+
     if max(*gbox.shape) > max_size:
-        need_reproject = True
         gbox = gbox.zoom_to(max_size)
 
-    if need_reproject:
+    if gbox is not gbox0:
         xx = xx.odc.reproject(gbox)
 
     if not is_rgb(xx):
@@ -135,4 +146,4 @@ def add_to(
     if _add_to is None:
         return url, bounds
 
-    return _add_to(url, gbox.map_bounds(), map, name=name, **kw)
+    return _add_to(url, bounds, map, name=name, **kw)
