@@ -1,6 +1,7 @@
 # pylint: disable=wrong-import-position, protected-access, redefined-outer-name
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from odc.geo import geom
@@ -119,6 +120,24 @@ def test_gcp_geobox_xr(au_gcp_geobox: GCPGeoBox):
     yy.spatial_ref.attrs["gcps"]["features"][0].pop("properties")
     # should not throw, just return None
     yy.odc.uncached.geobox is None
+
+
+def test_gcp_reproject(au_gcp_geobox: GCPGeoBox):
+    # smoke-test only
+    gbox = au_gcp_geobox
+    xx = xr_zeros(gbox, time=["2020-02-20", "2021-01-21"], dtype="uint8", nodata=255)
+    assert xx.ndim == 3
+    assert xx.odc.nodata == 255
+    assert (xx.odc.geobox.extent ^ gbox.extent).is_empty
+    assert isinstance(xx.odc.geobox, GCPGeoBox)
+
+    yy_gbox = xx.odc.geobox.approx.zoom_to(320)
+    yy = xx.odc.reproject(yy_gbox)
+    assert yy.odc.nodata == 255
+    assert yy.odc.geobox == yy_gbox
+    assert yy.ndim == 3
+    assert yy.shape[0] == xx.shape[0]
+    assert set(np.unique(yy.values).tolist()) == set([255, 0])
 
 
 def test_gcp_mapping():
