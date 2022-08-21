@@ -395,8 +395,8 @@ def _can_paste(
 
 
 def _relative_rois(
-    src: GeoBox,
-    dst: GeoBox,
+    src: GeoBoxBase,
+    dst: GeoBoxBase,
     tr: PointTransform,
     pts_per_side: int,
     padding: int,
@@ -417,8 +417,8 @@ def _relative_rois(
 
 
 def compute_reproject_roi(
-    src: GeoBox,
-    dst: GeoBox,
+    src: GeoBoxBase,
+    dst: GeoBoxBase,
     ttol: float = 0.05,
     stol: float = 1e-3,
     padding: Optional[int] = None,
@@ -531,6 +531,7 @@ def compute_reproject_roi(
             roi_src, roi_dst = box_overlap(src.shape, dst.shape, A_)
         else:
             # compute overlap in scaled down image, then upscale source overlap
+            assert isinstance(src, GeoBox)
             _src = src.zoom_out(read_shrink)
             A_ = snap_affine(Affine.scale(1 / read_shrink) * A, ttol=ttol, stol=stol)
             roi_src, roi_dst = box_overlap(_src.shape, dst.shape, A_)
