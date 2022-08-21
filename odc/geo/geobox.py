@@ -820,7 +820,7 @@ class GeoBox(GeoBoxBase):
         )
 
 
-def gbox_boundary(gbox: GeoBox, pts_per_side: int = 16) -> numpy.ndarray:
+def gbox_boundary(gbox: GeoBoxBase, pts_per_side: int = 16) -> numpy.ndarray:
     """Alias for :py:meth:`odc.geo.geobox.GeoBox.boundary`."""
     return gbox.boundary(pts_per_side)
 
