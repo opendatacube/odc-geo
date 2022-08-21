@@ -7,7 +7,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 from affine import Affine
 
-from .crs import CRS, MaybeCRS, norm_crs
+from .crs import CRS, MaybeCRS, SomeCRS, norm_crs
 from .geobox import GeoBox, GeoBoxBase
 from .geom import Geometry, multipoint
 from .math import Poly2d, affine_from_pts, align_up, resolution_from_affine, unstack_xy
@@ -197,6 +197,21 @@ class GCPGeoBox(GeoBoxBase):
         else:
             x0, y0, x1, y1 = self.extent.boundingbox.bbox
         return (y0, x0), (y1, x1)
+
+    def to_crs(self, crs: SomeCRS, **_) -> "GCPGeoBox":
+        """
+        Project GCPs to a different CRS.
+
+        extra arguments undesrtood by GeoBox.to_crs are simply ignored, but we do
+        accept them to make generic code easier to write.
+        """
+        assert self._crs is not None
+        pix, wld = self._mapping.points()
+        if not self._affine.is_identity:
+            pix = pix.transform(~self._affine)
+        wld = wld.to_crs(crs)
+        mapping = GCPMapping(pix, wld, crs)
+        return GCPGeoBox(self._shape, mapping)
 
     def pad(self, padx: int, pady: MaybeInt = None) -> "GCPGeoBox":
         """
