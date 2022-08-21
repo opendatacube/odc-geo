@@ -1,4 +1,4 @@
-# pylint: disable=wrong-import-position
+# pylint: disable=wrong-import-position, protected-access, redefined-outer-name
 from pathlib import Path
 
 import pytest
@@ -75,6 +75,27 @@ def test_gcp_geobox_basics(au_gcp_geobox: GCPGeoBox):
 
     assert len(gbox.gcps()) == 24
 
+    gbox_ = gbox.to_crs("epsg:3857")
+    assert gbox_.shape == gbox.shape
+    assert gbox_.crs == "epsg:3857"
+    assert gbox_.wld2pix(*gbox_.pix2wld(0, 0)) == pytest.approx((0, 0), abs=1)
+    assert gbox_.wld2pix(*gbox_.pix2wld(133, 83)) == pytest.approx((133, 83), abs=1)
+
+    assert gbox.pad(2).to_crs("epsg:6933").crs == "epsg:6933"
+
+    p1, p2 = gbox.map_bounds()
+    assert p1 == pytest.approx((-44.50301336231415, 109.39806656168265))
+    assert p2 == pytest.approx((-9.47177497427409, 157.04711254391185))
+
+    # map bounds without CRS, should still work, since data is in epsg:4326
+    _mapping = GCPMapping(gbox._mapping._pix, gbox._mapping._wld, None)
+    assert _mapping.crs is None
+    gbox_ = GCPGeoBox(gbox.shape, _mapping)
+    assert gbox_.crs is None
+    p1, p2 = gbox_.map_bounds()
+    assert p1 == pytest.approx((-44.50301336231415, 109.39806656168265))
+    assert p2 == pytest.approx((-9.47177497427409, 157.04711254391185))
+
 
 def test_gcp_mapping():
     gbox0 = GeoBox.from_bbox([0, 0, 20, 10], crs="epsg:4326", resolution=1)
@@ -82,10 +103,14 @@ def test_gcp_mapping():
     assert gbox0.crs == "epsg:4326"
 
     px, py = gbox0.boundary(4).T
-    pix = geom.multipoint([(x, y) for x, y in zip(px.tolist(), py.tolist())], None)
+    pix = geom.multipoint(
+        [(float(x), float(y)) for x, y in zip(px.tolist(), py.tolist())], None
+    )
 
     wx, wy = gbox0.pix2wld(px, py)
-    wld = geom.multipoint([(x, y) for x, y in zip(wx.tolist(), wy.tolist())], gbox0.crs)
+    wld = geom.multipoint(
+        [(float(x), float(y)) for x, y in zip(wx.tolist(), wy.tolist())], gbox0.crs
+    )
 
     mapping = GCPMapping(pix, wld)
     assert mapping.crs == gbox0.crs
