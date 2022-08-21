@@ -372,6 +372,15 @@ def test_xr_reproject(xx_epsg4326: xr.DataArray):
     xx = xx_epsg4326.odc.reproject("epsg:3857", dst_nodata=255)
     assert xx.odc.nodata == 255
 
+    # multi-time should work just the same
+    xx2 = xx_epsg4326.expand_dims(time=2).odc.reproject("epsg:3857", dst_nodata=255)
+    assert xx2.shape[0] == 2
+    np.testing.assert_array_equal(xx2[0], xx)
+    np.testing.assert_array_equal(xx2[1], xx)
+
+    xx_i8 = xx_epsg4326.astype("int8")
+    assert xx_i8.odc.reproject("epsg:3857").dtype == "int8"
+
     # non-georegistered case
     with pytest.raises(ValueError):
         _ = xx_epsg4326[:0, :0].odc.reproject(dst_gbox)
