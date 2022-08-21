@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from odc.geo.roi import (
+    Tiles,
     _norm_slice_or_error,
     polygon_path,
     roi_boundary,
@@ -67,11 +68,25 @@ def test_roi_tools():
     assert roi_center(s_[0:3]) == 1.5
     assert roi_center(s_[0:2, 0:6]) == (1, 3)
 
-    roi = s_[0:2, 4:13]
+
+def test_roi_from_points():
+    roi = np.s_[0:2, 4:13]
     xy = roi_boundary(roi)
 
     assert xy.shape == (4, 2)
     assert roi_from_points(xy, (2, 13)) == roi
+
+    xy = np.asarray(
+        [
+            [0.2, 1.9],
+            [10.3, 21.2],
+            [float("nan"), 11],
+            [float("inf"), float("-inf")],
+        ]
+    )
+    assert roi_from_points(xy, (100, 100)) == np.s_[1:22, 0:11]
+    assert roi_from_points(xy, (5, 7)) == np.s_[1:5, 0:7]
+    assert roi_from_points(xy[2:, :], (3, 3)) == np.s_[0:0, 0:0]
 
 
 def test_roi_intersect():
@@ -133,3 +148,13 @@ def test_polygon_path():
     pp = polygon_path([0, 1], [2, 3])
     assert set(pp[0].ravel()) == {0, 1}
     assert set(pp[1].ravel()) == {2, 3}
+
+
+def test_tiles():
+    tt = Tiles((10, 20), (3, 7))
+    assert tt.tile_shape((0, 0)) == (3, 7)
+    assert tt.shape.yx == (4, 3)
+    assert tt.base.yx == (10, 20)
+
+    assert tt[0, 0] == np.s_[0:3, 0:7]
+    assert tt[3, 2] == np.s_[9:10, 14:20]
