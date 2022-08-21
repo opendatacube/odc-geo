@@ -422,7 +422,7 @@ def xr_reproject(
     dst = numpy.empty(dst_shape, dtype=src.dtype)
     src_nodata = kw.pop("src_nodata", None)
     if src_nodata is None:
-        src_nodata = src.attrs.get("nodata", None)
+        src_nodata = src.odc.nodata
     if dst_nodata is None:
         dst_nodata = src_nodata
 
@@ -441,6 +441,7 @@ def xr_reproject(
     attrs = src.attrs.copy()
     if dst_nodata is None:
         attrs.pop("nodata", None)
+        attrs.pop("_FillValue", None)
     else:
         attrs.update(nodata=dst_nodata)
 
@@ -538,6 +539,17 @@ class ODCExtensionDa(ODCExtension):
     ) -> xarray.DataArray:
         """See :py:meth:`odc.geo.xr.assign_crs`."""
         return assign_crs(self._xx, crs=crs, crs_coord_name=crs_coord_name)
+
+    @property
+    def nodata(self) -> Optional[float]:
+        """Extract ``nodata/_FillValue`` attribute if set."""
+        attrs = self._xx.attrs
+        for k in ["nodata", "_FillValue"]:
+            nodata = attrs.get(k, None)
+            if nodata is not None:
+                return float(nodata)
+
+        return None
 
     colorize = _wrap_op(colorize)
 
