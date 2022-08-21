@@ -31,6 +31,7 @@ Interfacing with :py:class:`xarray.DataArray` and :py:class:`xarray.Dataset` cla
    ODCExtensionDa.compress
    ODCExtensionDa.ydim
    ODCExtensionDa.xdim
+   ODCExtensionDa.nodata
 
    ODCExtensionDs
    ODCExtensionDs.to_rgba
