@@ -6,6 +6,7 @@ import pytest
 from odc.geo import geom
 from odc.geo.gcp import GCPGeoBox, GCPMapping
 from odc.geo.geobox import GeoBox
+from odc.geo.xr import xr_zeros
 
 rasterio = pytest.importorskip("rasterio")
 
@@ -95,6 +96,29 @@ def test_gcp_geobox_basics(au_gcp_geobox: GCPGeoBox):
     p1, p2 = gbox_.map_bounds()
     assert p1 == pytest.approx((-44.50301336231415, 109.39806656168265))
     assert p2 == pytest.approx((-9.47177497427409, 157.04711254391185))
+
+
+def test_gcp_geobox_xr(au_gcp_geobox: GCPGeoBox):
+    gbox = au_gcp_geobox
+    xx = xr_zeros(gbox)
+    _gbox = xx.odc.geobox
+    assert _gbox.shape == gbox.shape
+    assert _gbox.crs == gbox.crs
+    assert (_gbox.extent ^ gbox.extent).is_empty
+
+    # check the case when x/y coords are not populated
+    yy = xx.drop_vars(xx.odc.spatial_dims)
+    assert len(yy.coords) == 1
+    _gbox = yy.odc.geobox
+
+    assert _gbox.shape == gbox.shape
+    assert _gbox.crs == gbox.crs
+    assert (_gbox.extent ^ gbox.extent).is_empty
+
+    # corrupt some gcps
+    yy.spatial_ref.attrs["gcps"]["features"][0].pop("properties")
+    # should not throw, just return None
+    yy.odc.uncached.geobox is None
 
 
 def test_gcp_mapping():
