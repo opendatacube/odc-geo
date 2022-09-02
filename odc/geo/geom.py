@@ -558,7 +558,7 @@ class Geometry(SupportsCoords[float]):
            geographic projections. Currently only works in few specific cases (source CRS is smooth
            over the dateline).
         """
-        crs = norm_crs_or_error(crs)
+        crs = norm_crs_or_error(crs, self)
         if self.crs == crs:
             return self
 
@@ -785,7 +785,7 @@ def projected_lon(
     :param lat: Optionally limit range of the line
     :param step: Line "resolution" in degrees
     """
-    crs = norm_crs_or_error(crs)
+    crs = norm_crs_or_error(crs, lon)
     yy = numpy.arange(lat[0], lat[1], step, dtype="float32")
     xx = numpy.full_like(yy, lon)
     tr = CRS("EPSG:4326").transformer_to_crs(crs)

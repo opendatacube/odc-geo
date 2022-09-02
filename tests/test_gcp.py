@@ -83,6 +83,13 @@ def test_gcp_geobox_basics(au_gcp_geobox: GCPGeoBox):
     assert gbox_.wld2pix(*gbox_.pix2wld(0, 0)) == pytest.approx((0, 0), abs=1)
     assert gbox_.wld2pix(*gbox_.pix2wld(133, 83)) == pytest.approx((133, 83), abs=1)
 
+    gbox_ = gbox.to_crs("utm")
+    assert gbox_.shape == gbox.shape
+    assert gbox_.crs is not None
+    assert gbox_.crs.proj.utm_zone is not None
+    assert gbox_.wld2pix(*gbox_.pix2wld(0, 0)) == pytest.approx((0, 0), abs=1)
+    assert gbox_.wld2pix(*gbox_.pix2wld(133, 83)) == pytest.approx((133, 83), abs=1)
+
     assert gbox.pad(2).to_crs("epsg:6933").crs == "epsg:6933"
 
     p1, p2 = gbox.map_bounds()
@@ -119,7 +126,7 @@ def test_gcp_geobox_xr(au_gcp_geobox: GCPGeoBox):
     # corrupt some gcps
     yy.spatial_ref.attrs["gcps"]["features"][0].pop("properties")
     # should not throw, just return None
-    yy.odc.uncached.geobox is None
+    assert yy.odc.uncached.geobox is None
 
 
 def test_gcp_reproject(au_gcp_geobox: GCPGeoBox):

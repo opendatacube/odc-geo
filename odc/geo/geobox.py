@@ -363,10 +363,19 @@ class GeoBox(GeoBoxBase):
         elif anchor == AnchorEnum.CENTER:
             _snap = xy_(0.5, 0.5)
 
+        def _norm_bbox(
+            bbox: Tuple[float, float, float, float], crs: MaybeCRS
+        ) -> BoundingBox:
+            if isinstance(crs, str):
+                if crs.lower() == "utm":
+                    return BoundingBox(*bbox, crs="epsg:4326").to_crs("utm")
+
+            return BoundingBox(*bbox, crs=(crs or "epsg:4326"))
+
         if not isinstance(bbox, BoundingBox):
-            bbox = BoundingBox(*bbox, crs=(crs or "epsg:4326"))
+            bbox = _norm_bbox(bbox, crs)
         elif bbox.crs is None:
-            bbox = BoundingBox(*bbox.bbox, crs=(crs or "epsg:4326"))
+            bbox = _norm_bbox(bbox.bbox, crs)
 
         if isinstance(shape, (int, float)):
             if bbox.aspect > 1:

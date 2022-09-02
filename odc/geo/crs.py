@@ -357,25 +357,35 @@ class CRSMismatchError(ValueError):
 @overload
 def norm_crs(crs: SomeCRS) -> CRS: ...
 @overload
+def norm_crs(crs: SomeCRS, ctx: Any) -> CRS: ...
+@overload
 def norm_crs(crs: None) -> None: ...
+@overload
+def norm_crs(crs: None, ctx: Any) -> None: ...
 # fmt: on
 
 
-def norm_crs(crs: MaybeCRS) -> Optional[CRS]:
+def norm_crs(crs: MaybeCRS, ctx=None) -> Optional[CRS]:
     """Normalise CRS representation."""
     if isinstance(crs, CRS):
         return crs
     if crs is None:
         return None
+    if isinstance(crs, str) and crs.lower() == "utm":
+        assert ctx is not None
+        return CRS.utm(ctx)
     return CRS(crs)
 
 
-def norm_crs_or_error(crs: MaybeCRS) -> CRS:
+def norm_crs_or_error(crs: MaybeCRS, ctx=None) -> CRS:
     """Normalise CRS representation, raise error if input is ``None``."""
     if isinstance(crs, CRS):
         return crs
     if crs is None:
         raise ValueError("Expect valid CRS")
+    if isinstance(crs, str) and crs.lower() == "utm":
+        assert ctx is not None
+        return CRS.utm(ctx)
     return CRS(crs)
 
 

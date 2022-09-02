@@ -210,7 +210,7 @@ class GCPGeoBox(GeoBoxBase):
         if not self._affine.is_identity:
             pix = pix.transform(~self._affine)
         wld = wld.to_crs(crs)
-        mapping = GCPMapping(pix, wld, crs)
+        mapping = GCPMapping(pix, wld, wld.crs)
         return GCPGeoBox(self._shape, mapping)
 
     def pad(self, padx: int, pady: MaybeInt = None) -> "GCPGeoBox":

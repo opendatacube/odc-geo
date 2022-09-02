@@ -9,7 +9,7 @@ from typing import Literal, Optional, Protocol, Sequence, Tuple, Union
 import numpy as np
 from affine import Affine
 
-from .crs import SomeCRS, norm_crs
+from .crs import SomeCRS
 from .gcp import GCPGeoBox
 from .geobox import GeoBox, GeoBoxBase, gbox_boundary
 from .math import (
@@ -587,12 +587,12 @@ def compute_output_geobox(
        projection.
     """
     # pylint: disable=too-many-locals
-
-    dst_crs = norm_crs(crs)
     src_crs = gbox.crs
     assert src_crs is not None
 
-    bbox = gbox.footprint(dst_crs, buffer=0.9, npoints=100).boundingbox
+    bbox = gbox.footprint(crs, buffer=0.9, npoints=100).boundingbox
+    dst_crs = bbox.crs
+    assert dst_crs is not None
     same_units = src_crs.units == dst_crs.units
 
     if resolution == "same":

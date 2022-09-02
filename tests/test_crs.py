@@ -11,7 +11,14 @@ import rasterio.crs
 from pytest import approx
 
 from odc.geo import geom
-from odc.geo.crs import CRS, CRSError, CRSMismatchError, crs_units_per_degree
+from odc.geo.crs import (
+    CRS,
+    CRSError,
+    CRSMismatchError,
+    crs_units_per_degree,
+    norm_crs,
+    norm_crs_or_error,
+)
 from odc.geo.geom import common_crs
 from odc.geo.testutils import epsg3577, epsg3857, epsg4326
 from odc.geo.types import xy_
@@ -244,3 +251,7 @@ def test_crs_utm(x, expected_epsg):
 
     assert crs.epsg is not None
     assert crs.epsg == expected_epsg
+    if not isinstance(x, tuple):
+        assert norm_crs_or_error("utm", x).epsg == expected_epsg
+        assert norm_crs_or_error("UTM", x).epsg == expected_epsg
+        assert norm_crs("UTM", x).epsg == expected_epsg
