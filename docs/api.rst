@@ -69,6 +69,7 @@ Contains CRS class and related operations.
    :toctree: _api/
 
    CRS
+   CRS.utm
    CRS.to_epsg
    CRS.to_wkt
    CRS.transformer_to_crs
