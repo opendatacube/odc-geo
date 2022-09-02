@@ -365,7 +365,7 @@ def decompose_rws(A: AffineX) -> Tuple[AffineX, AffineX, AffineX]:
        * ``(R*(-I))*((-I)*S) == R*S``
 
 
-     :return: Rotation, Sheer, Scale ``2x2`` matrices
+     :return: Rotation, Shear, Scale ``2x2`` matrices
     """
     # pylint: disable=too-many-locals
 
