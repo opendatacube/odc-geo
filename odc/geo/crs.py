@@ -12,25 +12,29 @@ from pyproj.enums import WktVersion
 from pyproj.exceptions import CRSError
 from pyproj.transformer import Transformer
 
-SomeCRS = Union[str, "CRS", _CRS, Dict[str, Any]]
+SomeCRS = Union[str, int, "CRS", _CRS, Dict[str, Any]]
 MaybeCRS = Optional[SomeCRS]
 
 _crs_cache: Dict[str, Tuple[_CRS, str, Optional[int]]] = {}
 
 
-def _make_crs_key(crs_spec: Union[str, _CRS]) -> str:
+def _make_crs_key(crs_spec: Union[int, str, _CRS]) -> str:
     if isinstance(crs_spec, str):
         normed_epsg = crs_spec.upper()
         if normed_epsg.startswith("EPSG:"):
             return normed_epsg
         return crs_spec
+    if isinstance(crs_spec, int):
+        return f"EPSG:{crs_spec}"
     return crs_spec.to_wkt()
 
 
 @cachetools.cached(_crs_cache, key=_make_crs_key)
-def _make_crs(crs: Union[str, _CRS]) -> Tuple[_CRS, str, Optional[int]]:
+def _make_crs(crs: Union[str, int, _CRS]) -> Tuple[_CRS, str, Optional[int]]:
     if isinstance(crs, str):
         crs = _CRS.from_user_input(crs)
+    if isinstance(crs, int):
+        crs = _CRS.from_epsg(crs)
     epsg = crs.to_epsg()
     if epsg is not None:
         crs_str = f"EPSG:{epsg}"
@@ -69,14 +73,12 @@ class CRS:
         :raises: :py:class:`pyproj.exceptions.CRSError`
         """
 
-        if isinstance(crs_spec, str):
+        if isinstance(crs_spec, (str, int, _CRS)):
             self._crs, self._str, self._epsg = _make_crs(crs_spec)
         elif isinstance(crs_spec, CRS):
             self._crs = crs_spec._crs
             self._epsg = crs_spec._epsg
             self._str = crs_spec._str
-        elif isinstance(crs_spec, _CRS):
-            self._crs, self._str, self._epsg = _make_crs(crs_spec)
         elif isinstance(crs_spec, dict):
             self._crs, self._str, self._epsg = _make_crs(_CRS.from_dict(crs_spec))
         else:
