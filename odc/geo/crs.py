@@ -50,8 +50,8 @@ def _make_crs_transform_key(from_crs, to_crs, always_xy):
 
 
 @cachetools.cached({}, key=_make_crs_transform_key)
-def _make_crs_transform(from_crs, to_crs, always_xy):
-    return Transformer.from_crs(from_crs, to_crs, always_xy=always_xy).transform
+def _make_crs_transform(from_crs: _CRS, to_crs: _CRS, always_xy: bool) -> Transformer:
+    return Transformer.from_crs(from_crs, to_crs, always_xy=always_xy)
 
 
 class CRS:
@@ -293,10 +293,10 @@ class CRS:
         """
 
         # pylint: disable=protected-access
-        transform = _make_crs_transform(self._crs, other._crs, always_xy=always_xy)
+        tr = _make_crs_transform(self._crs, other._crs, always_xy=always_xy)
 
-        def result(x, y):
-            rx, ry = transform(x, y)  # pylint: disable=unpacking-non-sequence
+        def result(x, y, **kw):
+            rx, ry = tr.transform(x, y, **kw)  # pylint: disable=unpacking-non-sequence
 
             if not isinstance(rx, numpy.ndarray) or not isinstance(ry, numpy.ndarray):
                 return (rx, ry)
