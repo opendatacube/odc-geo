@@ -402,6 +402,28 @@ def test_to_crs():
     assert gbox.to_crs("epsg:4326").extent.contains(gbox.geographic_extent)
 
 
+def test_snap_to():
+    def aligned(a, b):
+        try:
+            _ = a & b
+        except ValueError:
+            return False
+        return True
+
+    gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
+    assert aligned(gbox, gbox[2:, 3:])
+    assert gbox.snap_to(gbox[2:, 3:]) == gbox
+
+    gbox_ = gbox.center_pixel.translate_pix(0.1, 0.2).pad(10)
+    assert not aligned(gbox, gbox_)
+    assert aligned(gbox, gbox_.snap_to(gbox))
+    assert aligned(gbox.snap_to(gbox_), gbox_)
+
+    assert gbox.snap_to(gbox_) != gbox
+    assert gbox.snap_to(gbox_).shape == gbox.shape
+    assert gbox.snap_to(gbox_).crs == gbox.crs
+
+
 def test_svg():
     # smoke test only
     gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
