@@ -363,6 +363,12 @@ def test_to_crs():
         poly.to_crs(epsg3857)
 
 
+def test_to_crs_utm():
+    poly = geom.box(0.1, 43, 1.3, 44, epsg4326)
+    assert poly.to_crs("utm").crs.epsg == 32631
+    assert poly.to_crs("utm") == poly.to_crs(32631)
+
+
 def test_densify():
     s_x10 = [(0, 0), (10, 0)]
     assert densify(s_x10, 20) == s_x10

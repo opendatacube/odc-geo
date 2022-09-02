@@ -324,6 +324,11 @@ def test_from_polygon():
     assert gbox.crs == box.crs
     assert gbox.shape.wh == (29, 100)
 
+    gbox = GeoBox.from_geopolygon(box, crs="utm", tight=True, shape=(100, 29))
+    assert gbox.crs != box.crs
+    assert gbox.shape.wh == (29, 100)
+    assert 32601 <= gbox.crs.epsg <= 32660
+
 
 def test_from_bbox():
     bbox = (1, 13, 17, 37)
@@ -367,6 +372,8 @@ def test_from_bbox():
         bbox, shape=shape, anchor=AnchorEnum.CENTER
     ) == GeoBox.from_bbox(bbox, shape=shape, anchor=xy_(0.5, 0.5))
 
+    assert GeoBox.from_bbox((1, 40, 2, 43), "utm", shape=(12, 12)).crs == "epsg:32631"
+
     # one of resolution= or shape= must be supplied
     with pytest.raises(ValueError):
         _ = GeoBox.from_bbox(bbox)
@@ -379,6 +386,20 @@ def test_outline():
     assert gbox.outline("geo").crs == "epsg:4326"
     assert gbox.outline("pixel").boundingbox == (0, 0, 200, 100)
     assert gbox.outline(notch=0).type == "GeometryCollection"
+
+
+def test_footprint():
+    gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
+    assert gbox.footprint("epsg:4326").crs == "epsg:4326"
+    assert gbox.footprint("utm").crs.proj.utm_zone is not None
+
+
+def test_to_crs():
+    gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
+    assert gbox.to_crs("utm").crs == "epsg:32631"
+    assert gbox.to_crs("utm") == gbox.to_crs("epsg:32631")
+    assert gbox.to_crs("utm").extent.contains(gbox.extent.to_crs("epsg:32631"))
+    assert gbox.to_crs("epsg:4326").extent.contains(gbox.geographic_extent)
 
 
 def test_svg():
