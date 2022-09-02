@@ -176,6 +176,18 @@ def test_crs_compat():
     assert CRS("ESRI:54019").authority == ("ESRI", 54019)
 
 
+@pytest.mark.parametrize("epsg", [4326, 3577, 3587])
+def test_crs_int(epsg):
+    assert CRS(epsg) == CRS(f"EPSG:{epsg}")
+    assert CRS(epsg).epsg == epsg
+
+    crs1 = CRS(epsg)
+    crs2 = CRS(str(crs1))
+    crs3 = CRS(f"epsg:{epsg}")
+    assert crs1.proj is crs2.proj
+    assert crs1.proj is crs3.proj
+
+
 def test_crs_hash():
     crs = CRS("epsg:3577")
     crs2 = CRS(crs)
