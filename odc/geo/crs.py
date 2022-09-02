@@ -12,6 +12,8 @@ from pyproj.enums import WktVersion
 from pyproj.exceptions import CRSError
 from pyproj.transformer import Transformer
 
+from .types import XY
+
 SomeCRS = Union[str, int, "CRS", _CRS, Dict[str, Any]]
 MaybeCRS = Optional[SomeCRS]
 
@@ -308,6 +310,38 @@ class CRS:
 
     def __dask_tokenize__(self):
         return ("odc.geo.crs.CRS", str(self))
+
+    @staticmethod
+    def utm(
+        x: Union[float, int, XY[float], "geom.Geometry"], y: Optional[float] = None, /
+    ) -> "CRS":
+        """
+        Construct appropriate UTM CRS for a given point.
+
+        When given some geometry, centroid projected to epsg:4326 is used to
+        pick an appropriate UTM zone.
+        """
+        # pylint: disable=import-outside-toplevel
+        from . import geom
+        from .math import clamp
+
+        if isinstance(x, geom.Geometry):
+            if x.crs is not None:
+                x, y = x.centroid.to_crs("EPSG:4326").points[0]
+            else:
+                # assume already in lon/lat
+                x, y = x.centroid.points[0]
+        elif isinstance(x, (float, int)):
+            if y is None:
+                y = 0.0
+        else:
+            x, y = x.xy
+
+        base = 32700 if y < 0 else 32600
+        zone = 1 + (x + 180) // 6
+        zone = clamp(zone, 1, 60)
+        epsg = int(base + zone)
+        return CRS(f"EPSG:{epsg}")
 
 
 class CRSMismatchError(ValueError):

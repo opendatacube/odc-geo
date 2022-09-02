@@ -14,6 +14,7 @@ from odc.geo import geom
 from odc.geo.crs import CRS, CRSError, CRSMismatchError, crs_units_per_degree
 from odc.geo.geom import common_crs
 from odc.geo.testutils import epsg3577, epsg3857, epsg4326
+from odc.geo.types import xy_
 
 # pylint: disable=missing-class-docstring,use-implicit-booleaness-not-comparison
 # pylint: disable=comparison-with-itself
@@ -220,3 +221,26 @@ def test_rio_crs__no_epsg():
         'UNIT["Meter",1],AXIS["Easting",EAST],AXIS["Northing",NORTH]]'
     )
     assert CRS(rio_crs).epsg is None
+
+
+@pytest.mark.parametrize(
+    "x, expected_epsg",
+    [
+        (-180, 32601),
+        ((-180, -30), 32701),
+        (xy_(0.33, 10), 32631),
+        (xy_(180, 10), 32660),
+        (geom.point(6.89, 50.3, "epsg:4326"), 32632),
+        (geom.point(6.89, 50.3, None), 32632),
+        (geom.point(6.89, 50.3, "epsg:4326").to_crs("epsg:3857"), 32632),
+        (geom.point(6.89, 50.3, "epsg:4326").to_crs("epsg:3857").buffer(1000), 32632),
+    ],
+)
+def test_crs_utm(x, expected_epsg):
+    if isinstance(x, tuple):
+        crs = CRS.utm(*x)
+    else:
+        crs = CRS.utm(x)
+
+    assert crs.epsg is not None
+    assert crs.epsg == expected_epsg
