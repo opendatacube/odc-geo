@@ -15,7 +15,15 @@ from affine import Affine
 from . import geom
 from .crs import CRS, CRSMismatchError, MaybeCRS, SomeCRS, norm_crs
 from .geom import BoundingBox, Geometry, bbox_intersection, bbox_union
-from .math import clamp, is_affine_st, is_almost_int, resolution_from_affine, snap_grid
+from .math import (
+    clamp,
+    is_affine_st,
+    is_almost_int,
+    maybe_zero,
+    resolution_from_affine,
+    snap_grid,
+    split_translation,
+)
 from .roi import Tiles as RoiTiles
 from .roi import align_up, polygon_path, roi_normalise, roi_shape
 from .types import (
@@ -667,6 +675,23 @@ class GeoBox(GeoBoxBase):
         """
         return GeoBox(self._shape, self._affine * transform, self._crs)
 
+    def snap_to(self, other: "GeoBox") -> "GeoBox":
+        """
+        Snap pixel grid to ``other``.
+
+        Find smallest sub-pixel translation to apply to this geobox such that
+        pixel edges align with ``other``.
+
+        :param other: GeoBox to snap to, must be related by translation only, no
+            change in scale or rotation.
+
+        :raises: ``ValueError`` when ``other`` is in a different projection or
+            has different resolution or orientation.
+        """
+        _, subpix = split_translation(pixel_translation(other, self))
+        tx, ty = subpix.map(lambda x: maybe_zero(x, 1e-8)).xy
+        return self.translate_pix(tx, ty)
+
     def pad(self, padx: int, pady: MaybeInt = None) -> "GeoBox":
         """
         Pad geobox.
@@ -834,6 +859,34 @@ def gbox_boundary(gbox: GeoBoxBase, pts_per_side: int = 16) -> numpy.ndarray:
     return gbox.boundary(pts_per_side)
 
 
+def pixel_translation(a: GeoBox, b: GeoBox) -> XY[float]:
+    """
+    Compute pixel translation ``a -> b``.
+
+    Both geoboxes should have the same CRS and resolution.
+    """
+    if a.crs != b.crs:
+        raise ValueError("Geobox CRSs must match")
+
+    # compute pixel-to-pixel transform
+    # expect it to be a pure, pixel aligned translation
+    #    1  0  tx
+    #    0  1  ty
+    #    0  0   1
+    # Such that tx,ty are almost integer.
+    sx, z1, tx, z2, sy, ty, *_ = ~b.affine * a.affine
+
+    if not (
+        numpy.isclose(sx, 1)
+        and numpy.isclose(z1, 0)
+        and numpy.isclose(z2, 0)
+        and numpy.isclose(sy, 1)
+    ):
+        raise ValueError("Incompatible grids")
+
+    return xy_(tx, ty)
+
+
 def bounding_box_in_pixel_domain(
     geobox: GeoBox, reference: GeoBox, tol: float = 1e-8
 ) -> BoundingBox:
@@ -848,25 +901,11 @@ def bounding_box_in_pixel_domain(
     :raises:
       :py:class:`ValueError` when two geoboxes are not pixel-aligned.
     """
-    if reference.crs != geobox.crs:
-        raise ValueError("Cannot combine geoboxes in different CRSs")
 
-    # compute pixel-to-pixel transform
-    # expect it to be a pure, pixel aligned translation
-    #    1  0  tx
-    #    0  1  ty
-    #    0  0   1
-    # Such that tx,ty are almost integer.
-    sx, z1, tx, z2, sy, ty, *_ = ~reference.affine * geobox.affine
+    # offset of ``geobox`` in ``reference`` pixels
+    tx, ty = pixel_translation(geobox, reference).xy
 
-    if not (
-        numpy.isclose(sx, 1)
-        and numpy.isclose(z1, 0)
-        and is_almost_int(tx, tol)
-        and numpy.isclose(z2, 0)
-        and numpy.isclose(sy, 1)
-        and is_almost_int(ty, tol)
-    ):
+    if not (is_almost_int(tx, tol) and is_almost_int(ty, tol)):
         raise ValueError("Incompatible grids")
 
     tx, ty = round(tx), round(ty)
