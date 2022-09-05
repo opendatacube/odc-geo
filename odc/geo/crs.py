@@ -396,9 +396,24 @@ def norm_crs(crs: MaybeCRS, ctx=None) -> Optional[CRS]:
         return crs
     if crs is None:
         return None
-    if isinstance(crs, str) and crs.lower() == "utm":
-        assert ctx is not None
-        return CRS.utm(ctx)
+    if isinstance(crs, str):
+        _txt = crs.lower()
+        if _txt.startswith("utm"):
+            assert ctx is not None
+
+            utm_crs = CRS.utm(ctx)
+            if _txt == "utm":
+                return utm_crs
+
+            utm_zone = utm_crs.proj.utm_zone
+            epsg = utm_crs.epsg
+            assert utm_zone is not None
+            assert epsg is not None
+            if _txt == "utm-n" and utm_zone.endswith("S"):
+                utm_crs = CRS(epsg - 100)
+            elif _txt == "utm-s" and utm_zone.endswith("N"):
+                utm_crs = CRS(epsg + 100)
+            return utm_crs
     return CRS(crs)
 
 
@@ -408,9 +423,10 @@ def norm_crs_or_error(crs: MaybeCRS, ctx=None) -> CRS:
         return crs
     if crs is None:
         raise ValueError("Expect valid CRS")
-    if isinstance(crs, str) and crs.lower() == "utm":
-        assert ctx is not None
-        return CRS.utm(ctx)
+    if isinstance(crs, str):
+        crs = norm_crs(crs, ctx)
+        assert crs is not None
+        return crs
     return CRS(crs)
 
 
