@@ -103,3 +103,22 @@ def test_map_bounds():
 def test_bbox_to_crs():
     bbox = BoundingBox(-10, -20, 100, 0, "epsg:4326")
     assert bbox.to_crs("epsg:3857") == bbox.polygon.to_crs("epsg:3857").boundingbox
+
+
+@pytest.mark.parametrize(
+    "bb,expect",
+    [
+        ((-10, -20, 100, 0), (-10, -20, 100, 0)),
+        ((-10.1, 2.3, 10.9, 2.4), (-11, 2, 11, 3)),
+        ((-10.9, 2.6, 10.9, 2.9), (-11, 2, 11, 3)),
+        ((0.9, 1.9, 1.01, 5.02), (0, 1, 2, 6)),
+    ],
+)
+@pytest.mark.parametrize("crs", ["epsg:4326", None, "epsg:3857"])
+def test_round(bb, expect, crs):
+    expect = BoundingBox(*expect, crs)
+    bbox = BoundingBox(*bb, crs)
+
+    assert bbox.round().round() == bbox.round()
+    assert bbox.round().polygon.contains(bbox.polygon)
+    assert expect == bbox.round()
