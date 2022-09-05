@@ -500,3 +500,19 @@ def test_compat():
     assert gbox.height == gbox_.height
     assert gbox.affine == gbox_.affine
     assert gbox.crs == str(gbox.crs)
+
+
+def test_project():
+    gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
+
+    pix = gbox.outline("pixel", notch=0)
+    assert pix.crs is None
+    wld = gbox.project(pix)
+    assert wld.crs == gbox.crs
+    assert wld == gbox.outline("native", notch=0)
+
+    assert gbox.project(wld).crs is None
+    assert gbox.project(wld.to_crs("epsg:4326")).crs is None
+
+    assert gbox.project(wld).buffer(0.001).contains(pix)
+    assert gbox.project(wld.to_crs("epsg:4326")).buffer(0.001).contains(pix)
