@@ -1,5 +1,6 @@
 import pytest
 from affine import Affine
+from pyproj.aoi import AreaOfInterest
 
 from odc.geo import BoundingBox, wh_
 from odc.geo.geom import bbox_intersection, bbox_union
@@ -17,6 +18,7 @@ def test_boundingbox():
     assert bb.bbox == (0, 3, 2, 4)
     assert "crs=" not in str(bb)
     assert "crs=" not in repr(bb)
+    assert bb.aoi == AreaOfInterest(0, 3, 2, 4)
 
     bb = BoundingBox(0, 3, 2.1, 4, "epsg:4326")
     assert bb.width == 2
@@ -27,6 +29,7 @@ def test_boundingbox():
     assert bb.crs.epsg == 4326
     assert "crs=" in str(bb)
     assert "crs=" in repr(bb)
+    assert bb.aoi == AreaOfInterest(0, 3, 2.1, 4)
 
     assert BoundingBox.from_xy(bb.range_x, bb.range_y, bb.crs) == bb
 
@@ -49,6 +52,10 @@ def test_boundingbox():
     )
 
     assert bb.polygon.boundingbox == bb
+
+    bb = BoundingBox(0, 3, 2, 4, "epsg:3857")
+    assert bb.aoi == bb.to_crs("epsg:4326").aoi
+    assert bb.aoi != AreaOfInterest(0, 3, 2, 4)
 
 
 @pytest.mark.parametrize("crs", [None, "epsg:4326", epsg3857])
