@@ -525,6 +525,28 @@ class GeoBox(GeoBoxBase):
             crs=self._crs,
         )
 
+    def enclosing(self, region: Union[Geometry, BoundingBox]) -> "GeoBox":
+        """
+        Construct compatible geobox covering given ``region``.
+
+        Output GeoBox shares exactly the same pixel grid as source, but has
+        different shape and location in the world.
+
+        :param region: Region to be covered by the new GeoBox.
+        """
+        if isinstance(region, BoundingBox):
+            region = region.polygon
+
+        if region.crs is None:
+            raise ValueError("Must supply geo-resgistered region")
+
+        pix_bbox = self.project(region).boundingbox.round()
+        nx, ny = (max(1, int(span)) for span in (pix_bbox.span_x, pix_bbox.span_y))
+        tx, ty, *_ = pix_bbox.bbox
+        A = self.translate_pix(tx, ty).affine
+
+        return GeoBox(shape_((ny, nx)), A, self._crs)
+
     def __getitem__(self, roi) -> "GeoBox":
         _shape, _affine = self.compute_crop(roi)
         return GeoBox(shape=_shape, affine=_affine, crs=self._crs)

@@ -38,6 +38,7 @@ GeoBox
    GeoBox.transform
    GeoBox.translate_pix
    GeoBox.snap_to
+   GeoBox.enclosing
    GeoBox.to_crs
    GeoBox.width
    GeoBox.zoom_out
