@@ -23,6 +23,7 @@ from typing import (
 
 import numpy
 from affine import Affine
+from pyproj.aoi import AreaOfInterest
 from shapely import geometry, ops
 from shapely.geometry import base
 
@@ -239,6 +240,15 @@ class BoundingBox(Sequence[float]):
         p1 = transform * (0, 0)
         p2 = transform * shape_(shape).xy
         return BoundingBox.from_points(p1, p2, crs=crs)
+
+    @property
+    def aoi(self) -> AreaOfInterest:
+        """
+        Interop with pyproj.
+        """
+        if self._crs is None or self._crs == "epsg:4326":
+            return AreaOfInterest(*self._box)
+        return AreaOfInterest(*self.to_crs("epsg:4326").bbox)
 
 
 def wrap_shapely(method):
