@@ -385,6 +385,7 @@ def test_outline():
     assert gbox.outline().crs == gbox.crs
     assert gbox.outline("geo").crs == "epsg:4326"
     assert gbox.outline("pixel").boundingbox == (0, 0, 200, 100)
+    assert gbox.outline("pixel").crs is None
     assert gbox.outline(notch=0).type == "GeometryCollection"
 
 

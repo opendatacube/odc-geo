@@ -288,7 +288,7 @@ class PixelGridDisplay:
                 ]
             )
         if mode == "pixel":
-            return pix
+            return geom.Geometry(pix.geom, crs=None)
 
         native = pix.transform(self._pix2world)
         if mode == "native":
