@@ -310,6 +310,26 @@ class GeoBoxBase:
         A = self._affine * Affine.scale(sx, sy)
         return (shape, A)
 
+    def project(self, g: Geometry) -> Geometry:
+        """
+        Map Geometry between world and pixel coords.
+
+        When input geometry has no CRS, map from pixels to the world.
+
+        When input geometry has CRS (can be different from GeoBox), project
+        geometry into pixel coordinates, note that result is not clipped to the
+        image bounds.
+        """
+        if g.crs is None:  # assume pixel plane
+            g = g.transform(self.pix2wld)
+            return Geometry(g.geom, self._crs)
+
+        assert self._crs is not None
+        if g.crs != self._crs:
+            g = g.to_crs(self._crs)
+        g = g.transform(self.wld2pix)
+        return Geometry(g.geom, crs=None)
+
 
 class GeoBox(GeoBoxBase):
     """
