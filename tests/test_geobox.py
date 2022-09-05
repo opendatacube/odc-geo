@@ -207,6 +207,14 @@ def test_geobox():
     assert gbox[0, 0:1] == gbox[:1, :1]
     assert gbox[0:1, 1] == gbox[:1, 1:2]
 
+    assert gbox[gbox.extent] == gbox
+    assert gbox[gbox.geographic_extent] == gbox
+    assert gbox[gbox] == gbox
+    assert gbox[gbox[3:6, :4].extent.boundingbox] == gbox[3:6, :4]
+    assert gbox[gbox.extent.centroid].shape.wh == (1, 1)
+    assert gbox[geom.point(0.5, 0.5, None)] == gbox[:1, :1]
+    assert gbox[geom.point(0, 0.9, None)] == gbox[:1, :1]
+
     with pytest.raises(NotImplementedError):
         gbox[::2, :]
 

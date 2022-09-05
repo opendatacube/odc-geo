@@ -265,6 +265,21 @@ class GeoBoxBase:
         return self._ui._repr_html_()
 
     def compute_crop(self, roi) -> Tuple[Shape2d, Affine]:
+        if isinstance(roi, BoundingBox):
+            roi = roi.polygon
+        if isinstance(roi, GeoBoxBase):
+            roi = roi.extent
+
+        if isinstance(roi, Geometry):
+            if roi.crs is not None:
+                roi = self.project(roi)
+            pix_bbox = roi.boundingbox.round() & BoundingBox(
+                0, 0, self.width, self.height
+            )
+            nx, ny = (max(1, int(span)) for span in (pix_bbox.span_x, pix_bbox.span_y))
+            tx, ty = map(int, pix_bbox.bbox[:2])
+            roi = numpy.s_[ty : ty + ny, tx : tx + nx]
+
         if isinstance(roi, int):
             roi = (slice(roi, roi + 1), slice(None, None))
 
