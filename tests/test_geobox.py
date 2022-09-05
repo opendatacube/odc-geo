@@ -516,3 +516,25 @@ def test_project():
 
     assert gbox.project(wld).buffer(0.001).contains(pix)
     assert gbox.project(wld.to_crs("epsg:4326")).buffer(0.001).contains(pix)
+
+
+def test_enclosing():
+    gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
+
+    assert (gbox.enclosing(gbox.center_pixel.geographic_extent)) | gbox == gbox
+    assert (
+        gbox.enclosing(gbox.center_pixel.geographic_extent.boundingbox)
+    ) | gbox == gbox
+
+    gbox2 = gbox.bottom.left
+    region = gbox2.extent.buffer(-0.01)
+    assert gbox.enclosing(region) == gbox2
+    assert gbox.enclosing(region.boundingbox) == gbox2
+    assert gbox.enclosing(region.to_crs("utm")) == gbox2
+    assert (gbox.enclosing(region) & gbox).is_empty
+    assert (gbox.enclosing(region) | gbox) == gbox | gbox2
+
+    assert gbox.enclosing(gbox.extent.centroid).shape.wh == (1, 1)
+
+    with pytest.raises(ValueError):
+        _ = gbox.enclosing(geom.point(0, 0, None))
