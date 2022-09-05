@@ -250,6 +250,15 @@ class BoundingBox(Sequence[float]):
             return AreaOfInterest(*self._box)
         return AreaOfInterest(*self.to_crs("epsg:4326").bbox)
 
+    def round(self) -> "BoundingBox":
+        """
+        Expand bounding box to nearest integer on all sides.
+        """
+        x0, y0, x1, y1 = self._box
+        return BoundingBox(
+            math.floor(x0), math.floor(y0), math.ceil(x1), math.ceil(y1), crs=self._crs
+        )
+
 
 def wrap_shapely(method):
     """
