@@ -72,6 +72,22 @@ def test_bbox_union(crs):
     bb = bbox_union(iter([b2, b1] * 10))
     assert bb == BoundingBox(0, 1, 11, 22, crs)
 
+    assert b2 | b1 == bbox_union([b2, b1])
+    assert b1 | b2 == bbox_union([b2, b1])
+
+
+@pytest.mark.parametrize("crs", [None, "epsg:4326", epsg3857])
+def test_bbox_intersection(crs):
+    b1 = BoundingBox(0, 1, 10, 20, crs)
+    b2 = BoundingBox(3, -10, 12, 8, crs)
+
+    assert b1 & b2 == bbox_intersection([b1, b2])
+    assert b2 & b1 == bbox_intersection([b1, b2])
+    assert b1 & b1 == b1
+    assert b2 & b2 == b2
+    assert bbox_intersection([b1, b2]) == BoundingBox(3, 1, 10, 8, crs)
+    assert b1 & b2 == BoundingBox(3, 1, 10, 8, crs)
+
 
 @pytest.mark.parametrize(
     "crss",

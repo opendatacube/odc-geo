@@ -98,6 +98,12 @@ class BoundingBox(Sequence[float]):
     def __str__(self) -> str:
         return self.__repr__()
 
+    def __and__(self, other: "BoundingBox") -> "BoundingBox":
+        return bbox_intersection([self, other])
+
+    def __or__(self, other: "BoundingBox") -> "BoundingBox":
+        return bbox_union([self, other])
+
     def buffered(self, xbuff: float, ybuff: Optional[float] = None) -> "BoundingBox":
         """
         Return a new BoundingBox, buffered in the x and y dimensions.
