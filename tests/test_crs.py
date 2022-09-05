@@ -241,6 +241,9 @@ def test_rio_crs__no_epsg():
         (geom.point(6.89, 50.3, None), 32632),
         (geom.point(6.89, 50.3, "epsg:4326").to_crs("epsg:3857"), 32632),
         (geom.point(6.89, 50.3, "epsg:4326").to_crs("epsg:3857").buffer(1000), 32632),
+        (geom.BoundingBox(0, 10, 7, 20), 32631),
+        (geom.BoundingBox(0, 10, 7, 20, "epsg:4326"), 32631),
+        (geom.BoundingBox(5, 10, 8, 20), 32632),
     ],
 )
 def test_crs_utm(x, expected_epsg):
@@ -255,3 +258,6 @@ def test_crs_utm(x, expected_epsg):
         assert norm_crs_or_error("utm", x).epsg == expected_epsg
         assert norm_crs_or_error("UTM", x).epsg == expected_epsg
         assert norm_crs("UTM", x).epsg == expected_epsg
+
+        with pytest.raises(ValueError):
+            _ = CRS.utm(x, datum_name="no such datum")
