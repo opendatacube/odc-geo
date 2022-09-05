@@ -392,6 +392,7 @@ def test_footprint():
     gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
     assert gbox.footprint("epsg:4326").crs == "epsg:4326"
     assert gbox.footprint("utm").crs.proj.utm_zone is not None
+    assert gbox.footprint("utm-s").crs.proj.utm_zone.endswith("S")
 
 
 def test_to_crs():
@@ -400,6 +401,12 @@ def test_to_crs():
     assert gbox.to_crs("utm") == gbox.to_crs("epsg:32631")
     assert gbox.to_crs("utm").extent.contains(gbox.extent.to_crs("epsg:32631"))
     assert gbox.to_crs("epsg:4326").extent.contains(gbox.geographic_extent)
+    assert gbox.to_crs("utm-n") == gbox.to_crs("utm")
+    assert gbox.to_crs("utm-s").crs.proj.utm_zone == "31S"
+
+    gbox = GeoBox.from_bbox([0, -50, 20, -10], "epsg:3857", shape=wh_(200, 100))
+    assert gbox.to_crs("utm").crs.proj.utm_zone == "31S"
+    assert gbox.to_crs("utm-n").crs.proj.utm_zone == "31N"
 
 
 def test_snap_to():

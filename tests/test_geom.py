@@ -367,6 +367,11 @@ def test_to_crs_utm():
     poly = geom.box(0.1, 43, 1.3, 44, epsg4326)
     assert poly.to_crs("utm").crs.epsg == 32631
     assert poly.to_crs("utm") == poly.to_crs(32631)
+    assert poly.to_crs("utm-s").crs.epsg == 32731
+
+    poly = geom.box(0.1, -44, 1.3, -43, epsg4326)
+    assert poly.to_crs("utm-n").crs.epsg == 32631
+    assert poly.to_crs("utm") == poly.to_crs(32731)
 
 
 def test_densify():

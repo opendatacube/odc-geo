@@ -375,8 +375,8 @@ class GeoBox(GeoBoxBase):
             bbox: Tuple[float, float, float, float], crs: MaybeCRS
         ) -> BoundingBox:
             if isinstance(crs, str):
-                if crs.lower() == "utm":
-                    return BoundingBox(*bbox, crs="epsg:4326").to_crs("utm")
+                if crs.lower().startswith("utm"):
+                    return BoundingBox(*bbox, crs="epsg:4326").to_crs(crs)
 
             return BoundingBox(*bbox, crs=(crs or "epsg:4326"))
 

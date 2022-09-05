@@ -238,6 +238,7 @@ def test_rio_crs__no_epsg():
         (xy_(0.33, 10), 32631),
         (xy_(180, 10), 32660),
         (geom.point(6.89, 50.3, "epsg:4326"), 32632),
+        (geom.point(6.89, -50.3, "epsg:4326"), 32732),
         (geom.point(6.89, 50.3, None), 32632),
         (geom.point(6.89, 50.3, "epsg:4326").to_crs("epsg:3857"), 32632),
         (geom.point(6.89, 50.3, "epsg:4326").to_crs("epsg:3857").buffer(1000), 32632),
@@ -254,10 +255,19 @@ def test_crs_utm(x, expected_epsg):
 
     assert crs.epsg is not None
     assert crs.epsg == expected_epsg
-    if not isinstance(x, tuple):
-        assert norm_crs_or_error("utm", x).epsg == expected_epsg
-        assert norm_crs_or_error("UTM", x).epsg == expected_epsg
-        assert norm_crs("UTM", x).epsg == expected_epsg
+    if isinstance(x, tuple):
+        return
 
-        with pytest.raises(ValueError):
-            _ = CRS.utm(x, datum_name="no such datum")
+    assert norm_crs_or_error("utm", x).epsg == expected_epsg
+    assert norm_crs_or_error("UTM", x).epsg == expected_epsg
+    assert norm_crs("UTM", x).epsg == expected_epsg
+
+    if crs.proj.utm_zone.endswith("S"):
+        assert norm_crs("utm-s", x) == norm_crs("utm", x)
+        assert norm_crs("utm-n", x).epsg == expected_epsg - 100
+    elif crs.proj.utm_zone.endswith("N"):
+        assert norm_crs("utM-n", x) == norm_crs("utm", x)
+        assert norm_crs("uTm-s", x).epsg == expected_epsg + 100
+
+    with pytest.raises(ValueError):
+        _ = CRS.utm(x, datum_name="no such datum")
