@@ -3,7 +3,17 @@
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Union,
+    overload,
+)
 
 import cachetools
 import numpy
@@ -211,7 +221,7 @@ class CRS:
             name, code = r
             try:
                 return (name, int(code))
-            except ValueError:
+            except ValueError:  # pragma: nocover
                 return (name, code)
 
         return ("", "")
@@ -313,35 +323,50 @@ class CRS:
 
     @staticmethod
     def utm(
-        x: Union[float, int, XY[float], "geom.Geometry"], y: Optional[float] = None, /
+        x: Union[float, int, XY[float], "geom.Geometry", "geom.BoundingBox"],
+        y: Optional[float] = None,
+        /,
+        datum_name: str = "WGS 84",
     ) -> "CRS":
         """
         Construct appropriate UTM CRS for a given point.
 
-        When given some geometry, centroid projected to epsg:4326 is used to
-        pick an appropriate UTM zone.
-        """
-        # pylint: disable=import-outside-toplevel
-        from . import geom
-        from .math import clamp
+        Uses CRS database query methods from :py:mod:`pyproj` to locate
+        appropriate UTM CRS.
 
-        if isinstance(x, geom.Geometry):
+        :params datum_name: The name of the datum in the CRS name ('NAD27', 'NAD83', 'WGS 84', ...)
+        """
+        # pylint: disable=import-outside-toplevel,no-name-in-module
+        from pyproj.database import query_utm_crs_info
+
+        from . import geom
+
+        if isinstance(x, geom.BoundingBox):
+            _bbox = x
+        elif isinstance(x, geom.Geometry):
             if x.crs is not None:
-                x, y = x.centroid.to_crs("EPSG:4326").points[0]
+                _bbox = x.to_crs("epsg:4326").boundingbox
             else:
                 # assume already in lon/lat
-                x, y = x.centroid.points[0]
+                _bbox = x.boundingbox
         elif isinstance(x, (float, int)):
             if y is None:
                 y = 0.0
+            _bbox = geom.BoundingBox(x, y, x, y)
         else:
             x, y = x.xy
+            _bbox = geom.BoundingBox(x, y, x, y)
 
-        base = 32700 if y < 0 else 32600
-        zone = 1 + (x + 180) // 6
-        zone = clamp(zone, 1, 60)
-        epsg = int(base + zone)
-        return CRS(f"EPSG:{epsg}")
+        return _pick_best_crs(
+            _bbox.polygon,
+            [
+                CRS(f"{info.auth_name}:{info.code}")
+                for info in query_utm_crs_info(
+                    datum_name=datum_name,
+                    area_of_interest=_bbox.aoi,
+                )
+            ],
+        )
 
 
 class CRSMismatchError(ValueError):
@@ -424,6 +449,28 @@ def crs_units_per_degree(
     xy = ll.to_crs(crs)
 
     return xy.length / step
+
+
+def _pick_best_crs(poly: "geom.Geometry", crs_candidates: List[CRS]) -> CRS:
+    # pylint: disable=import-outside-toplevel
+    from . import geom
+
+    def overlap_pct(crs: CRS) -> float:
+        crs_region = crs.valid_region
+        if crs_region is None:
+            return 1  # pragma: nocover
+        return (crs_region & poly).area / poly.area
+
+    if len(crs_candidates) < 1:
+        raise ValueError("No candidate CRSs found")
+
+    if len(crs_candidates) > 1 and poly.area > 1e-9:
+        if poly.crs is None:
+            poly = geom.Geometry(poly.geom, "epsg:4326")
+
+        crs_candidates = sorted(crs_candidates, key=overlap_pct, reverse=True)
+
+    return crs_candidates[0]
 
 
 if TYPE_CHECKING:
