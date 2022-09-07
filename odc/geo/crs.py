@@ -22,10 +22,10 @@ from pyproj.enums import WktVersion
 from pyproj.exceptions import CRSError
 from pyproj.transformer import Transformer
 
-from .types import XY
+from .types import XY, Unset
 
 SomeCRS = Union[str, int, "CRS", _CRS, Dict[str, Any]]
-MaybeCRS = Optional[SomeCRS]
+MaybeCRS = Union[SomeCRS, Unset, None]
 
 _crs_cache: Dict[str, Tuple[_CRS, str, Optional[int]]] = {}
 
@@ -384,9 +384,9 @@ def norm_crs(crs: SomeCRS) -> CRS: ...
 @overload
 def norm_crs(crs: SomeCRS, ctx: Any) -> CRS: ...
 @overload
-def norm_crs(crs: None) -> None: ...
+def norm_crs(crs: Union[None, Unset]) -> None: ...
 @overload
-def norm_crs(crs: None, ctx: Any) -> None: ...
+def norm_crs(crs: Union[None, Unset], ctx: Any) -> None: ...
 # fmt: on
 
 
@@ -394,7 +394,7 @@ def norm_crs(crs: MaybeCRS, ctx=None) -> Optional[CRS]:
     """Normalise CRS representation."""
     if isinstance(crs, CRS):
         return crs
-    if crs is None:
+    if crs is None or isinstance(crs, Unset):
         return None
     if isinstance(crs, str):
         _txt = crs.lower()
@@ -419,15 +419,10 @@ def norm_crs(crs: MaybeCRS, ctx=None) -> Optional[CRS]:
 
 def norm_crs_or_error(crs: MaybeCRS, ctx=None) -> CRS:
     """Normalise CRS representation, raise error if input is ``None``."""
-    if isinstance(crs, CRS):
-        return crs
-    if crs is None:
+    _crs = norm_crs(crs, ctx=ctx)
+    if _crs is None:
         raise ValueError("Expect valid CRS")
-    if isinstance(crs, str):
-        crs = norm_crs(crs, ctx)
-        assert crs is not None
-        return crs
-    return CRS(crs)
+    return _crs
 
 
 def crs_units_per_degree(

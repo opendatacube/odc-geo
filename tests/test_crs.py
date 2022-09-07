@@ -21,7 +21,7 @@ from odc.geo.crs import (
 )
 from odc.geo.geom import common_crs
 from odc.geo.testutils import epsg3577, epsg3857, epsg4326
-from odc.geo.types import xy_
+from odc.geo.types import Unset, xy_
 
 # pylint: disable=missing-class-docstring,use-implicit-booleaness-not-comparison
 # pylint: disable=comparison-with-itself
@@ -228,6 +228,15 @@ def test_rio_crs__no_epsg():
         'UNIT["Meter",1],AXIS["Easting",EAST],AXIS["Northing",NORTH]]'
     )
     assert CRS(rio_crs).epsg is None
+
+
+def test_norm_crs():
+    assert norm_crs(None) is None
+    assert norm_crs(Unset()) is None
+
+    for v in [None, Unset()]:
+        with pytest.raises(ValueError):
+            _ = norm_crs_or_error(v)
 
 
 @pytest.mark.parametrize(

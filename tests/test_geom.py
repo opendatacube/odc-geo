@@ -12,7 +12,6 @@ from pytest import approx
 from shapely.errors import ShapelyDeprecationWarning
 
 from odc.geo import CRS, CRSMismatchError, geom, wh_
-from odc.geo.crs import norm_crs, norm_crs_or_error
 from odc.geo.geobox import GeoBox, _round_to_res
 from odc.geo.geom import (
     chop_along_antimeridian,
@@ -742,11 +741,6 @@ def test_base_internals():
     assert _round_to_res(0.2, 1.0) == 1
     assert _round_to_res(0.0, 1.0) == 0
     assert _round_to_res(0.05, 1.0) == 0
-
-    assert norm_crs(None) is None
-
-    with pytest.raises(ValueError):
-        norm_crs_or_error(None)
 
 
 def test_geom_clone():
