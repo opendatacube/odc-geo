@@ -525,7 +525,7 @@ class Geometry(SupportsCoords[float]):
             self.geom.simplify(tolerance, preserve_topology=preserve_topology), self.crs
         )
 
-    def transform(self, func) -> "Geometry":
+    def transform(self, func, *, crs: MaybeCRS = Unset()) -> "Geometry":
         """
         Map through arbitrary transform.
 
@@ -535,6 +535,9 @@ class Geometry(SupportsCoords[float]):
         ``func`` maps ``x, y``, and optionally ``z`` to output ``xp, yp, zp``. The input parameters
         may be iterable types like lists or arrays or single values. The output shall be of the same
         type: scalars in, scalars out; lists in, lists out.
+
+        :param crs: If supplied override output CRS with that value, ``crs=None`` will remove CRS
+        for the output, default is to keep the original projection.
         """
         if isinstance(func, Affine):
 
@@ -546,7 +549,10 @@ class Geometry(SupportsCoords[float]):
         else:
             _geom = ops.transform(func, self.geom)
 
-        return Geometry(_geom, self.crs)
+        if isinstance(crs, Unset):
+            crs = self.crs
+
+        return Geometry(_geom, crs)
 
     def _to_crs(self, crs: CRS) -> "Geometry":
         assert self.crs is not None
@@ -604,6 +610,12 @@ class Geometry(SupportsCoords[float]):
             return clip_lon180(chopped_lonlat, eps)
 
         return geom._to_crs(crs)
+
+    def assign_crs(self, crs: MaybeCRS) -> "Geometry":
+        """
+        Same geometry but with crs changed.
+        """
+        return Geometry(self.geom, crs=crs)
 
     def geojson(
         self,
