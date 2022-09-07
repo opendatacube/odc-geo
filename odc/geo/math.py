@@ -618,7 +618,7 @@ class Poly2d:
     """
 
     def __init__(self, cc: np.ndarray, A: Affine) -> None:
-        assert cc.shape == (3, 3, 2)
+        assert cc.shape in [(3, 3, 2), (2, 2, 2)]
         tol = 1e-6
         self._cc = cc
         self._A = A
@@ -631,10 +631,14 @@ class Poly2d:
         else:
             self._norm = lambda x, y: A * (x, y)
 
-    def __call__(self, x: Any, y: Any) -> Any:
+    def __call__(self, x: Any, y: Any = None) -> Any:
         """
         Evaluate at points (x, y).
+
+        When y is None, x is assumed to be Nx2 array.
         """
+        if y is None:
+            return self.__call__(x[..., 0], x[..., 1]).T
         x, y = self._norm(x, y)
         return polyval2d(x, y, self._cc)
 
@@ -665,13 +669,25 @@ class Poly2d:
         assert aa.shape[1] == 2
         assert aa.shape == bb.shape
         N = aa.shape[0]
-        if N < 9:
-            raise ValueError(f"Need at least 9 points, got {N}")
+        if N < 3:
+            raise ValueError(f"Need at least 3 points, got {N}")
 
         aa_, Ain = norm_xy(aa)
         bb_, Ab = norm_xy(bb)
 
-        x, y = aa_.T
+        if N >= 9:
+            return Poly2d._fit9(aa_, Ain, bb_, Ab)
+
+        if N >= 4:
+            return Poly2d._fit4(aa_, Ain, bb_, Ab)
+
+        return Poly2d._fit3(aa_, Ain, bb_, Ab)
+
+    @staticmethod
+    def _fit9(aa: np.ndarray, Ain: Affine, bb: np.ndarray, Ab: Affine) -> "Poly2d":
+        N = aa.shape[0]
+        assert N >= 9
+        x, y = aa.T
         AA = np.empty((N, 9), dtype="float64")
 
         #   1,     y,     y^2
@@ -690,7 +706,7 @@ class Poly2d:
         AA[:, 7] = AA[:, 6] * y
         AA[:, 8] = AA[:, 7] * y
 
-        cc, *_ = np.linalg.lstsq(AA, bb_, rcond=-1)
+        cc, *_ = np.linalg.lstsq(AA, bb, rcond=-1)
 
         # denorm output side, assumes `sx==sy`
         s, _, tx, _, _, ty, *_ = ~Ab
@@ -698,5 +714,59 @@ class Poly2d:
         cc[0, :2] += (tx, ty)
 
         cc = cc.reshape(3, 3, 2)
+
+        return Poly2d(cc, Ain)
+
+    @staticmethod
+    def _fit4(aa: np.ndarray, Ain: Affine, bb: np.ndarray, Ab: Affine) -> "Poly2d":
+        N = aa.shape[0]
+        assert N >= 4
+        x, y = aa.T
+        AA = np.empty((N, 4), dtype="float64")
+
+        #   1,     y
+        #   x,   x*y
+
+        AA[:, 0] = 1
+        AA[:, 1] = y
+
+        AA[:, 2] = x
+        AA[:, 3] = x * y
+
+        cc, *_ = np.linalg.lstsq(AA, bb, rcond=-1)
+        assert cc.shape == (4, 2)
+
+        # denorm output side, assumes `sx==sy`
+        s, _, tx, _, _, ty, *_ = ~Ab
+        cc = cc * s
+        cc[0, :2] += (tx, ty)
+
+        cc = cc.reshape(2, 2, 2)
+
+        return Poly2d(cc, Ain)
+
+    @staticmethod
+    def _fit3(aa: np.ndarray, Ain: Affine, bb: np.ndarray, Ab: Affine) -> "Poly2d":
+        N = aa.shape[0]
+        assert N >= 3
+        x, y = aa.T
+        AA = np.empty((N, 3), dtype="float64")
+
+        #   1,   y
+        #   x,   _
+
+        # 1, y, x
+        AA[:, 0] = 1
+        AA[:, 1] = y
+        AA[:, 2] = x
+
+        cc, *_ = np.linalg.lstsq(AA, bb, rcond=-1)
+        assert cc.shape == (3, 2)
+
+        # denorm output side, assumes `sx==sy`
+        s, _, tx, _, _, ty, *_ = ~Ab
+        cc = cc * s
+        cc[0, :2] += (tx, ty)
+        cc = np.vstack([cc, np.asarray([0, 0])]).reshape(2, 2, 2)
 
         return Poly2d(cc, Ain)
