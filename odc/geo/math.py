@@ -470,6 +470,35 @@ def resolution_from_affine(A: Affine) -> Resolution:
     return resxy_(rx, ry)
 
 
+def edge_index(shape: SomeShape, closed: bool = False) -> Iterator[Tuple[int, int]]:
+    """
+    Like ``ndindex`` in numpy but for edge locations and limited to 2d.
+
+    Returns a sequence of indexes along the edge of a 2d array of a given shape.
+    Order is fixed, starting from ``(0, 0), (0, 1)...``. See example below
+
+    .. code-block::
+
+       # for shape=(10, 8)
+       (0, 0), (0, 1) ... (0, 7),
+       (1, 7), (2, 7) ... (9, 7),
+       (9, 6), (9, 5) ... (9, 0),
+       (8, 0), (7, 0) ... (1, 0),
+       (0, 0) # Back to (0, 0) if closed=True
+
+    """
+    nx, ny = shape_(shape).xy
+    ix, iy = 0, 0
+    for ix in range(nx):
+        yield (0, ix)
+    for iy in range(1, ny):
+        yield (iy, ix)
+    for ix in range(ix - 1, -1, -1):
+        yield (iy, ix)
+    for iy in range(iy - 1, 0, -1):
+        yield (iy, ix)
+    if closed:
+        yield (0, 0)
 class Bin1D:
     """
     Class for translating continous coordinates to bin index.
