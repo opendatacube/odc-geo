@@ -104,6 +104,7 @@ Shapely geometry classes with CRS information attached.
    BoundingBox.transform
    BoundingBox.buffered
    BoundingBox.boundary
+   BoundingBox.qr2sample
 
    box
    line
@@ -224,6 +225,8 @@ odc.geo.math
    snap_affine
    split_float
    split_translation
+
+   quasi_random_r2
 
 odc.geo.gridspec
 ****************

@@ -7,6 +7,7 @@ from affine import Affine
 from odc.geo import XY, resxy_, xy_
 from odc.geo.math import (
     Bin1D,
+    Poly2d,
     affine_from_axis,
     align_down,
     align_up,
@@ -15,6 +16,7 @@ from odc.geo.math import (
     is_almost_int,
     maybe_int,
     maybe_zero,
+    quasi_random_r2,
     resolution_from_affine,
     snap_affine,
     snap_grid,
@@ -279,3 +281,34 @@ def test_split_float(ab, expect_a, expect_b):
 
     assert a == pytest.approx(expect_a)
     assert (a + b) == pytest.approx(ab)
+
+
+@pytest.mark.parametrize(
+    "n",
+    [3, 1, 10, 100],
+)
+@pytest.mark.parametrize("ny", [30, 101])
+@pytest.mark.parametrize("nx", [20, 104])
+@pytest.mark.parametrize("offset", [0, 1, 103])
+def test_quasi_random_r2(n, ny, nx, offset):
+    xx = quasi_random_r2(n)
+    assert xx.shape == (n, 2)
+    assert xx.min() >= 0
+    assert xx.max() < 1
+
+    np.testing.assert_array_equal(xx, quasi_random_r2(n))
+
+    yy = quasi_random_r2(n, offset=offset)
+    assert yy.shape == (n, 2)
+    assert yy.min() >= 0
+    assert yy.max() < 1
+    np.testing.assert_array_equal(yy, quasi_random_r2(n, offset=offset))
+    if offset == 0:
+        np.testing.assert_array_equal(xx, yy)
+    else:
+        assert not (xx == yy).all()
+
+    xx = quasi_random_r2(n, shape=(ny, nx))
+    assert xx.min() >= 0
+    assert xx[:, 0].max() < nx
+    assert xx[:, 1].max() < ny

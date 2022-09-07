@@ -8,13 +8,23 @@ Various mathy helpers.
 Minimal dependencies in this module.
 """
 from math import ceil, floor, fmod, isfinite
-from typing import Any, List, Literal, Optional, Sequence, Tuple, TypeVar, Union
+from typing import (
+    Any,
+    Iterator,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 import numpy as np
 from affine import Affine
 from numpy.polynomial.polynomial import polygrid2d, polyval2d
 
-from .types import XY, Resolution, SomeResolution, res_, resxy_, xy_
+from .types import XY, Resolution, SomeResolution, SomeShape, res_, resxy_, shape_, xy_
 
 AffineX = TypeVar("AffineX", np.ndarray, Affine)
 
@@ -499,6 +509,37 @@ def edge_index(shape: SomeShape, closed: bool = False) -> Iterator[Tuple[int, in
         yield (iy, ix)
     if closed:
         yield (0, 0)
+
+
+def quasi_random_r2(
+    n: int,
+    shape: Optional[SomeShape] = None,
+    offset: int = 0,
+) -> np.ndarray:
+    """
+    Generate quasi-random set of points.
+
+    Returns quasi-random points in ``[0, 1)`` range. If ``shape=(ny, nx)`` is
+    supplied, points are scaled to ``[0, nx), [0, ny)`` range.
+
+    :param n: Number of points to generate
+    :param offset: Generate from that offset in the sequence
+    :returns: ``nx2`` numpy array
+
+    References: http://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences/
+    """
+    idx = np.arange(offset, offset + n, dtype="float32")
+    aa = (0.7548776662466927, 0.5698402909980532)
+    xy = np.fmod(np.outer(idx, aa), 1)
+
+    if shape is not None:
+        nx, ny = shape_(shape).wh
+        xy[:, 0] *= nx
+        xy[:, 1] *= ny
+
+    return xy
+
+
 class Bin1D:
     """
     Class for translating continous coordinates to bin index.
