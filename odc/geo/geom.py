@@ -713,7 +713,28 @@ class Geometry(SupportsCoords[float]):
 
         :return: GeoJSON Feature dictionary
         """
-        gg = self.to_crs("epsg:4326", resolution=resolution, wrapdateline=wrapdateline)
+        if self.type == "GeometryCollection":
+            return {
+                "type": "FeatureCollection",
+                "features": [
+                    g.geojson(
+                        properties=properties,
+                        simplify=simplify,
+                        resolution=resolution,
+                        wrapdateline=wrapdateline,
+                        **props,
+                    )
+                    for g in self.geoms
+                ],
+            }
+
+        if self.crs is not None:
+            gg = self.to_crs(
+                "epsg:4326", resolution=resolution, wrapdateline=wrapdateline
+            )
+        else:
+            gg = self
+
         if simplify > 0:
             gg = gg.simplify(simplify)
         if properties is None:

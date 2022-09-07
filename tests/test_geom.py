@@ -815,6 +815,14 @@ def test_geojson():
     _b = geom.Geometry(gjson["geometry"], crs=epsg4326)
     assert (b - _b).area < 1e-6
 
+    # crs=None case should work too
+    gjson = b.assign_crs(None).geojson()
+    assert set(list(gjson)) == set(["type", "geometry", "properties"])
+    assert gjson["type"] == "Feature"
+    assert gjson["properties"] == {}
+    _b = geom.Geometry(gjson["geometry"], crs=epsg4326)
+    assert (b - _b).area < 1e-6
+
     gjson = b.to_crs(epsg3857).geojson(region_code="33")
     assert set(list(gjson)) == set(["type", "geometry", "properties"])
     assert gjson["type"] == "Feature"
@@ -836,6 +844,19 @@ def test_geojson():
 
     with pytest.raises(ValueError):
         _ = geom.Geometry({})
+
+    # check FeatureCollection output
+    gg = b.buffer(0.1).exterior | b.centroid
+    assert gg.type == "GeometryCollection"
+    gjson = gg.geojson(k=3)
+    assert gjson["type"] == "FeatureCollection"
+    assert set(gjson) == set(["type", "features"])
+    assert gjson["features"][0]["properties"]["k"] == 3
+    assert gjson["features"][1]["properties"]["k"] == 3
+    gg_ = geom.Geometry(gjson)
+    assert gg_.type == "GeometryCollection"
+    assert gg_.crs == "epsg:4326"
+    assert len(list(gg_.geoms)) == len(list(gg.geoms))
 
     gg = geom.Geometry(
         {
