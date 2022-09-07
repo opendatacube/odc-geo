@@ -156,11 +156,7 @@ def test_gcp_mapping():
     pix = geom.multipoint(
         [(float(x), float(y)) for x, y in zip(px.tolist(), py.tolist())], None
     )
-
-    wx, wy = gbox0.pix2wld(px, py)
-    wld = geom.multipoint(
-        [(float(x), float(y)) for x, y in zip(wx.tolist(), wy.tolist())], gbox0.crs
-    )
+    wld = gbox0.project(pix)
 
     mapping = GCPMapping(pix, wld)
     assert mapping.crs == gbox0.crs
@@ -186,3 +182,23 @@ def test_gcp_mapping():
     _m2 = GCPMapping(mapping._pix, wld)
     assert _m2.crs == mapping.crs
     assert _m2._pix is mapping._pix
+
+
+@pytest.mark.parametrize("n", [3, 4, 8])
+def test_gcp_few_points(n):
+    gbox0 = GeoBox.from_bbox([0, 0, 20, 10], crs="epsg:4326", resolution=1)
+    if n <= 4:
+        corners = gbox0.boundary(2)[:n]
+    else:
+        corners = gbox0.boundary(n * 3 // 4)[:n:3]
+
+    pix = geom.multipoint([(float(x), float(y)) for x, y in corners], None)
+    wld = gbox0.project(pix)
+
+    mapping = GCPMapping(pix, wld)
+    gbox = GCPGeoBox(gbox0.shape, mapping)
+
+    wld_ = gbox.project(pix)
+    p1 = np.vstack([pt.coords for pt in wld.geoms])
+    p2 = np.vstack([pt.coords for pt in wld_.geoms])
+    np.testing.assert_array_almost_equal(p1, p2)

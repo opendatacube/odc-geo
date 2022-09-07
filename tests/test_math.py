@@ -312,3 +312,49 @@ def test_quasi_random_r2(n, ny, nx, offset):
     assert xx.min() >= 0
     assert xx[:, 0].max() < nx
     assert xx[:, 1].max() < ny
+
+
+@pytest.mark.parametrize(
+    "pts",
+    [
+        quasi_random_r2(20),
+        quasi_random_r2(4, offset=10),
+        quasi_random_r2(8, offset=10),
+        quasi_random_r2(3, offset=20),
+    ],
+)
+def test_poly2d(pts):
+    N = pts.shape[0]
+    x, y = pts.T
+
+    p = Poly2d.fit(pts, pts)
+
+    assert p(pts).shape == pts.shape
+    assert p(x, y).shape == (2, N)
+
+    np.testing.assert_array_almost_equal(pts, p(pts))
+
+    assert p.grid2d(np.arange(3), np.arange(4)).shape == (2, 3, 4)
+
+    # With input transform check
+    A = Affine.scale(0.93) * Affine.translation(10, -13.2)
+    p_ = p.with_input_transform(A)
+    x_, y_ = apply_affine(~A, x, y)
+    xx, yy = p_(x_, y_)
+    np.testing.assert_array_almost_equal(x, xx)
+    np.testing.assert_array_almost_equal(y, yy)
+
+    # With input transform check, rotation
+    A = Affine.rotation(-133)
+    p_ = p.with_input_transform(A)
+    x_, y_ = apply_affine(~A, x, y)
+    xx, yy = p_(x_, y_)
+    np.testing.assert_array_almost_equal(x, xx)
+    np.testing.assert_array_almost_equal(y, yy)
+
+
+def test_poly2d_not_enough_points():
+    pts = quasi_random_r2(2)
+
+    with pytest.raises(ValueError):
+        _ = Poly2d.fit(pts[:2], pts[:2])
