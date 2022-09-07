@@ -930,6 +930,33 @@ def test_filter():
 
 
 @pytest.mark.parametrize("crs", [None, "epsg:4326"])
+@pytest.mark.parametrize("n", [10, 100, 23])
+@pytest.mark.parametrize("with_edges", [False, True])
+def test_qr2sample(crs, n, with_edges):
+    bbox = geom.BoundingBox(10, 33, 21, 55, crs)
+
+    def run_checks(g: geom.Geometry):
+        assert g.crs == bbox.crs
+        assert (g - bbox.polygon).is_empty
+        assert g.is_multi
+        assert g.type == "MultiPoint"
+        if with_edges is False:
+            assert len(list(g.geoms)) == n
+        else:
+            assert len(list(g.geoms)) > n
+            assert (bbox.polygon - triangulate(g)).is_empty
+
+    xx1 = bbox.qr2sample(n, with_edges=with_edges)
+    xx2 = bbox.qr2sample(n, offset=100, with_edges=with_edges)
+    assert not (xx1 ^ xx2).is_empty
+    run_checks(xx1)
+    run_checks(xx2)
+
+    xx1_ = bbox.qr2sample(n, with_edges=with_edges)
+    assert (xx1 ^ xx1_).is_empty
+
+
+@pytest.mark.parametrize("crs", [None, "epsg:4326"])
 def test_triangulate(crs):
     bbox = geom.BoundingBox(0, 0, 1, 1, crs)
 

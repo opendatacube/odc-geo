@@ -546,3 +546,18 @@ def test_enclosing():
 
     with pytest.raises(ValueError):
         _ = gbox.enclosing(geom.point(0, 0, None))
+
+
+@pytest.mark.parametrize("n", [10, 100, 23])
+@pytest.mark.parametrize("with_edges", [False, True])
+def test_qr2sample(n, with_edges):
+    gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
+    xx1 = gbox.qr2sample(n, with_edges=with_edges)
+    xx1_ = gbox.qr2sample(n, with_edges=with_edges)
+    xx2 = gbox.qr2sample(n, with_edges=with_edges, offset=1000)
+    assert xx1.crs is None
+    assert (xx1 ^ xx1_).is_empty
+    assert not (xx1 ^ xx2).is_empty
+    assert (gbox.project(xx1) - gbox.extent).is_empty
+    assert (xx1 - gbox.project(gbox.extent)).is_empty
+    assert (xx2 - gbox.project(gbox.extent)).is_empty
