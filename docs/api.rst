@@ -130,6 +130,7 @@ Shapely geometry classes with CRS information attached.
    bbox_union
    unary_intersection
    unary_union
+   triangulate
 
 odc.geo
 *******
