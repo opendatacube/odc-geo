@@ -103,7 +103,7 @@ Shapely geometry classes with CRS information attached.
    BoundingBox.from_transform
    BoundingBox.transform
    BoundingBox.buffered
-
+   BoundingBox.boundary
 
    box
    line
@@ -203,16 +203,23 @@ odc.geo.math
    Bin1D.bin
    Bin1D.from_sample_bin
 
+   Poly2d
+   Poly2d.fit
+   Poly2d.grid2d
+   Poly2d.with_input_transform
+
    affine_from_axis
    align_down
    align_up
    apply_affine
    clamp
    data_resolution_and_offset
+   edge_index
    is_affine_st
    is_almost_int
    maybe_int
    maybe_zero
+   norm_xy
    snap_scale
    snap_affine
    split_float

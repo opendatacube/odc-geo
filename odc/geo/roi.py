@@ -14,7 +14,7 @@ from typing import Optional, Tuple, Union, overload
 
 import numpy as np
 
-from .math import align_down, align_up
+from .math import align_down, align_up, edge_index
 from .types import (
     NdROI,
     NormalizedROI,
@@ -121,7 +121,11 @@ class Tiles:
         return self._base_shape
 
 
-def polygon_path(x: np.ndarray, y: Optional[np.ndarray] = None) -> np.ndarray:
+def polygon_path(
+    x: np.ndarray,
+    y: Optional[np.ndarray] = None,
+    closed: bool = True,
+) -> np.ndarray:
     """
     Points along axis aligned polygon.
 
@@ -140,19 +144,23 @@ def polygon_path(x: np.ndarray, y: Optional[np.ndarray] = None) -> np.ndarray:
        [0,1,2], [7,9] => [[0, 1, 2, 2, 1, 0, 0],
                           [7, 7, 7, 9, 9, 9, 7]]
 
+    :returns:
+      A ``2xN`` array, ``x, y = polygon_path(...)``
+
     """
+
+    if not isinstance(x, np.ndarray):
+        x = np.asarray(x)
 
     if y is None:
         y = x
 
-    return np.vstack(
-        [
-            np.vstack([x, np.full_like(x, y[0])]).T,
-            np.vstack([np.full_like(y, x[-1]), y]).T[1:],
-            np.vstack([x, np.full_like(x, y[-1])]).T[::-1][1:],
-            np.vstack([np.full_like(y, x[0]), y]).T[::-1][1:],
-        ]
-    ).T
+    if not isinstance(y, np.ndarray):
+        y = np.asarray(y)
+
+    shape = (len(y), len(x))
+    iy, ix = np.asarray(list(edge_index(shape, closed=closed)), dtype="uint32").T
+    return np.vstack([x[np.newaxis, ix], y[np.newaxis, iy]])
 
 
 def roi_boundary(roi: NormalizedROI, pts_per_side: int = 2) -> np.ndarray:
@@ -170,7 +178,7 @@ def roi_boundary(roi: NormalizedROI, pts_per_side: int = 2) -> np.ndarray:
     xx = np.linspace(xx.start, xx.stop, pts_per_side, dtype="float32")
     yy = np.linspace(yy.start, yy.stop, pts_per_side, dtype="float32")
 
-    return polygon_path(xx, yy).T[:-1]
+    return polygon_path(xx, yy, closed=False).T
 
 
 def scaled_down_roi(roi: NormalizedROI, scale: int) -> NormalizedROI:

@@ -265,6 +265,21 @@ class BoundingBox(Sequence[float]):
             math.floor(x0), math.floor(y0), math.ceil(x1), math.ceil(y1), crs=self._crs
         )
 
+    def boundary(self, pts_per_side: int = 2) -> "Geometry":
+        """
+        Points along the perimeter as a linear ring.
+        """
+        x0, y0, x1, y1 = self._box
+        xx = numpy.linspace(x0, x1, pts_per_side, dtype="float32")
+        yy = numpy.linspace(y0, y1, pts_per_side, dtype="float32")
+        return line(
+            [
+                (float(xx[ix]), float(yy[iy]))
+                for iy, ix in edge_index((pts_per_side, pts_per_side), closed=True)
+            ],
+            self.crs,
+        )
+
 
 def wrap_shapely(method):
     """

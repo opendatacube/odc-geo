@@ -752,6 +752,25 @@ def test_geom_clone():
     assert b.geom is not geom.Geometry(b).geom
 
 
+@pytest.mark.parametrize("crs", [None, epsg4326])
+@pytest.mark.parametrize("nside", [3, 7, 10])
+def test_bbox_boundary(crs, nside):
+    n_pts_expect = (nside - 1) * 4
+    bbox = geom.BoundingBox(0, 20, 11, 29, crs)
+    poly = bbox.polygon
+    bb = bbox.boundary()
+    assert bb.crs == bbox.crs
+    assert bb.is_ring
+    assert bb.type == "LineString"
+    assert len(bb.coords[:-1]) == 4
+    assert (poly.exterior ^ bbox.boundary()).is_empty
+    assert (bbox.boundary() - poly).is_empty
+
+    bb = bbox.boundary(nside)
+    assert n_pts_expect == len(bb.coords[:-1])
+    assert (bbox.boundary() - poly).is_empty
+
+
 def test_lonlat_bounds():
     # example from landsat scene: spans lon=180
     poly = geom.box(618300, -1876800, 849000, -1642500, "EPSG:32660")

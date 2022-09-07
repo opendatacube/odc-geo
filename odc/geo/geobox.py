@@ -25,7 +25,7 @@ from .math import (
     split_translation,
 )
 from .roi import Tiles as RoiTiles
-from .roi import align_up, polygon_path, roi_normalise, roi_shape
+from .roi import align_up, roi_boundary, roi_normalise, roi_shape
 from .types import (
     XY,
     Index2d,
@@ -37,6 +37,7 @@ from .types import (
     SomeIndex2d,
     SomeResolution,
     SomeShape,
+    Unset,
     iyx_,
     res_,
     shape_,
@@ -141,10 +142,7 @@ class GeoBoxBase:
           in pixel coordinates.
         """
         ny, nx = self._shape.yx
-        xx = numpy.linspace(0, nx, pts_per_side, dtype="float32")
-        yy = numpy.linspace(0, ny, pts_per_side, dtype="float32")
-
-        return polygon_path(xx, yy).T[:-1]
+        return roi_boundary(numpy.s_[0:ny, 0:nx], pts_per_side)
 
     @property
     def alignment(self) -> XY[float]:
