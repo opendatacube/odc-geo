@@ -4,7 +4,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
-from ..geom import Geometry, MaybeCRS, box, multigeom
+from ..crs import MaybeCRS, norm_crs
+from ..geom import Geometry, box, multigeom
 
 
 def data_path(fname: Optional[str] = None) -> Path:
@@ -29,6 +30,7 @@ def ocean_geom(
     gg = multigeom([Geometry(f["geometry"], "epsg:4326") for f in gjson["features"]])
     if bbox is not None:
         gg = gg & box(*bbox, "epsg:4326")
+    crs = norm_crs(crs)
     if crs is not None:
         gg = gg.to_crs(crs)
 
@@ -52,6 +54,7 @@ def country_geom(iso3: str, crs: MaybeCRS = None) -> Geometry:
 
     df = gpd.read_file(gpd.datasets.get_path("naturalearth_lowres"))
     (gg,) = from_geopandas(df[df.iso_a3 == iso3])
+    crs = norm_crs(crs)
     if crs is not None:
         gg = gg.to_crs(crs)
     return gg

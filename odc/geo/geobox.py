@@ -504,7 +504,7 @@ class GeoBox(GeoBoxBase):
                 resolution = res_(resolution)
                 anchor = xy_(ax / abs(resolution.x), ay / abs(resolution.y))
 
-        if crs is None:
+        if crs is None or isinstance(crs, Unset):
             crs = geopolygon.crs
         else:
             geopolygon = geopolygon.to_crs(crs)

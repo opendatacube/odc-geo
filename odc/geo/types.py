@@ -23,6 +23,18 @@ T1 = TypeVar("T1")
 T2 = TypeVar("T2")
 
 
+class Unset:
+    """
+    Marker for unset values.
+
+    Used where ``None`` can be a valid value.
+    """
+
+    # pylint: disable=too-few-public-methods
+
+    __slots__ = ()
+
+
 class XY(Generic[T]):
     """
     Immutable container for anything X/Y.
