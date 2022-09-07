@@ -28,7 +28,8 @@ from shapely import geometry, ops
 from shapely.geometry import base
 
 from .crs import CRS, CRSMismatchError, MaybeCRS, SomeCRS, norm_crs, norm_crs_or_error
-from .types import SomeShape, SupportsCoords, shape_
+from .math import edge_index, quasi_random_r2
+from .types import SomeShape, SupportsCoords, Unset, shape_
 
 CoordList = List[Tuple[float, float]]
 
@@ -279,6 +280,56 @@ class BoundingBox(Sequence[float]):
             ],
             self.crs,
         )
+
+    def qr2sample(
+        self,
+        n: int,
+        padding: Optional[float] = None,
+        with_edges: bool = False,
+        offset: int = 0,
+    ) -> "Geometry":
+        """
+        Generate quasi-random sample of points within this boundingbox.
+
+        :param n:
+           Number of points
+
+        :param padding:
+           Minimal distance to the edge
+
+        :param offset:
+           Offset into quasi-random sequence from where to start
+
+        :param edges:
+           Also include samples along the edge and corners
+
+        References: http://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences/
+        """
+        # pylint: disable=too-many-locals
+        x0, y0, x1, y1 = self._box
+        nx = x1 - x0
+        ny = y1 - y0
+        pts = quasi_random_r2(n, offset=offset)
+        s = numpy.asarray([nx, ny], dtype="float32")
+        edge_pts = []
+
+        if with_edges:
+            sample_density = numpy.sqrt(n / (nx * ny))
+            n_side = int(numpy.round(sample_density * min(nx, ny))) + 1
+            n_side = max(2, n_side)
+            edge_pts = self.boundary(n_side).coords[:-1]
+            if padding is None:
+                padding = 0.3 * min(nx, ny) / (n_side - 1)
+
+        if padding is None:
+            pts = pts * s
+        else:
+            pts = pts * (s - 2 * padding) + padding
+
+        pts[:, 0] += x0
+        pts[:, 1] += y0
+
+        return multipoint(pts.tolist() + edge_pts, self.crs)
 
 
 def wrap_shapely(method):

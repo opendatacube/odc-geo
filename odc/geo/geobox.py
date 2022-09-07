@@ -343,6 +343,35 @@ class GeoBoxBase:
         g = g.transform(self.wld2pix)
         return Geometry(g.geom, crs=None)
 
+    def qr2sample(
+        self,
+        n: int,
+        padding: Optional[float] = None,
+        with_edges: bool = False,
+        offset: int = 0,
+    ) -> Geometry:
+        """
+        Generate quasi-random sample of image locations.
+
+        :param n:
+           Number of points
+
+        :param padding:
+           In pixels, minimal distance from the edge
+
+        :param offset:
+           Offset into quasi-random sequence from where to start
+
+        :param edges:
+           Also include samples along the edge and corners
+
+        References: http://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences/
+        """
+        nx, ny = self._shape.xy
+        return BoundingBox(0, 0, nx, ny, None).qr2sample(
+            n, padding=padding, with_edges=with_edges, offset=offset
+        )
+
 
 class GeoBox(GeoBoxBase):
     """

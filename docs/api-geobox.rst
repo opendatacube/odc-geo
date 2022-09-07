@@ -43,6 +43,7 @@ GeoBox
    GeoBox.width
    GeoBox.zoom_out
    GeoBox.zoom_to
+   GeoBox.qr2sample
    GeoBox.__mul__
    GeoBox.__rmul__
 
