@@ -139,6 +139,10 @@ def test_ops():
     union1 = box1.union(box2)
     assert union1.area == 600.0
 
+    assert box1.crs == epsg4326
+    assert box1.assign_crs(None).crs is None
+    assert box1.assign_crs(None).geom is box1.geom
+
     with pytest.raises(geom.CRSMismatchError):
         box1.union(box2.to_crs(epsg3857))
 
@@ -865,6 +869,9 @@ def test_mul_affine():
     mg = geom.multigeom([g, g, g])
     assert mg.is_multi
     assert mg.transform(x10).is_multi
+    assert mg.transform(x10).crs == mg.crs
+    assert mg.transform(x10, crs=None).crs is None
+
     with pytest.warns(DeprecationWarning):
         assert x10 * mg == mg.transform(x10)
 
