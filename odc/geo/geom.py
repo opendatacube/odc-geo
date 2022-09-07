@@ -1132,6 +1132,27 @@ def unary_intersection(geoms: Iterable[Geometry]) -> Geometry:
     return functools.reduce(Geometry.intersection, geoms)
 
 
+def triangulate(pts: Geometry, **kw) -> Geometry:
+    """
+     Creates the Delaunay triangulation and returns a geometry collection.
+
+     The source may be any geometry type. All vertices of the geometry will be
+     used as the points of the triangulation.
+
+    :param tolerance:
+        From the GEOS documentation:
+        tolerance is the snapping tolerance used to improve the robustness of
+        the triangulation computation. A tolerance of 0.0 specifies that no
+        snapping will take place.
+
+     :param edges:
+        If edges is False, a geometry collection of Polygons (triangles) will be returned (default).
+        Otherwise LineString edges are returned.
+    """
+    geom = geometry.GeometryCollection(ops.triangulate(pts.geom, **kw))
+    return Geometry(geom, pts.crs)
+
+
 def intersects(a: Geometry, b: Geometry) -> bool:
     """
     Check for intersection.

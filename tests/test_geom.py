@@ -20,6 +20,7 @@ from odc.geo.geom import (
     force_2d,
     multigeom,
     projected_lon,
+    triangulate,
 )
 from odc.geo.testutils import (
     SAMPLE_WKT_WITHOUT_AUTHORITY,
@@ -926,3 +927,25 @@ def test_filter():
     multi_pt_nan = multi_pt | geom.point(float("nan"), 7, epsg4326)
     assert len(list(multi_pt_nan.geoms)) == len(list(multi_pt.geoms)) + 1
     assert multi_pt_nan.dropna() == multi_pt
+
+
+@pytest.mark.parametrize("crs", [None, "epsg:4326"])
+def test_triangulate(crs):
+    bbox = geom.BoundingBox(0, 0, 1, 1, crs)
+
+    gg = triangulate(bbox.boundary())
+    geoms = list(gg.geoms)
+    assert gg.crs == bbox.crs
+    assert gg.is_multi
+    assert gg.is_valid
+    assert len(geoms) == 2
+    assert geoms[0].type == "Polygon"
+    assert (gg - bbox.polygon).is_empty
+
+    gg = triangulate(bbox.boundary(4), edges=True)
+    geoms = list(gg.geoms)
+    assert gg.crs == bbox.crs
+    assert gg.is_multi
+    assert gg.is_valid
+    assert geoms[0].type == "LineString"
+    assert (gg - bbox.polygon).is_empty
