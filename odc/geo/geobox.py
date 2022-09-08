@@ -546,6 +546,17 @@ class GeoBox(GeoBoxBase):
             tight=tight,
         )
 
+    @staticmethod
+    def from_rio(rdr) -> "GeoBox":
+        """
+        Construct GeoBox from rasterio.
+
+        :param rdr: Openned :py:class:`rasterio.DatasetReader`
+        :returns:
+           :py:class:`~odc.geo.geobox.GeoBox`
+        """
+        return GeoBox(rdr.shape, rdr.transform, rdr.crs)
+
     def buffered(self, xbuff: float, ybuff: Optional[float] = None) -> "GeoBox":
         """
         Produce a tile buffered by ``xbuff, ybuff`` (in CRS units).

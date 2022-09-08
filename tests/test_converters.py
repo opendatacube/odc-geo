@@ -9,7 +9,9 @@ gpd = pytest.importorskip("geopandas")
 gpd_datasets = pytest.importorskip("geopandas.datasets")
 
 from odc.geo._interop import have
-from odc.geo.converters import extract_gcps, from_geopandas, map_crs
+from odc.geo.converters import extract_gcps, from_geopandas, map_crs, rio_geobox
+from odc.geo.gcp import GCPGeoBox
+from odc.geo.geobox import GeoBox, GeoBoxBase
 
 
 def test_from_geopandas():
@@ -54,6 +56,21 @@ def test_extract_gcps(data_dir: Path):
         assert src.gcps == ([], None)
         with pytest.raises(ValueError):
             _ = extract_gcps(src)
+
+
+@pytest.mark.parametrize("fname", ["au-gcp.tif", "au-3577.tif"])
+def test_rio_geobox(data_dir: Path, fname: str):
+    with rasterio.open(data_dir / fname) as rdr:
+        pts, _ = rdr.gcps
+        gbox = rio_geobox(rdr)
+        assert isinstance(gbox, GeoBoxBase)
+        assert gbox.width == rdr.width
+        assert gbox.height == rdr.height
+
+        if len(pts) > 0:
+            assert isinstance(gbox, GCPGeoBox)
+        else:
+            assert isinstance(gbox, GeoBox)
 
 
 def test_map_crs():
