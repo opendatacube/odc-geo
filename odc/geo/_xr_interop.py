@@ -419,6 +419,64 @@ def _wrap_op(method: F) -> F:
 
 
 def xr_reproject(
+    src: XrT,
+    how: Union[SomeCRS, GeoBox],
+    *,
+    resampling: Union[str, int] = "nearest",
+    dst_nodata: Optional[float] = None,
+    **kw,
+) -> XrT:
+    """
+    Reproject raster to different projection/resolution.
+
+    This method uses :py:mod:`rasterio`.
+    """
+    if isinstance(src, xarray.DataArray):
+        return _xr_reproject_da(
+            src, how, resampling=resampling, dst_nodata=dst_nodata, **kw
+        )
+    return _xr_reproject_ds(
+        src, how, resampling=resampling, dst_nodata=dst_nodata, **kw
+    )
+
+
+def _xr_reproject_ds(
+    src: Any,
+    how: Union[SomeCRS, GeoBox],
+    *,
+    resampling: Union[str, int] = "nearest",
+    dst_nodata: Optional[float] = None,
+    **kw,
+) -> xarray.Dataset:
+    assert isinstance(src, xarray.Dataset)
+
+    if have.rasterio is False:  # pragma: nocover
+        raise RuntimeError("Please install `rasterio` to use this method")
+
+    assert isinstance(src.odc, ODCExtensionDs)
+    if src.odc.geobox is None:
+        raise ValueError("Can not reproject non-georegistered array.")
+
+    if isinstance(how, GeoBox):
+        dst_geobox = how
+    else:
+        dst_geobox = src.odc.output_geobox(how)
+
+    def _maybe_reproject(dv: xarray.DataArray):
+        if dv.odc.geobox is None:
+            # pass-through data variables without a geobox
+            strip_coords = [str(c.name) for c in _locate_crs_coords(dv)]
+            if len(strip_coords) > 0:
+                dv = dv.drop_vars(strip_coords)
+            return dv
+        return _xr_reproject_da(
+            dv, how=dst_geobox, resampling=resampling, dst_nodata=dst_nodata, **kw
+        )
+
+    return src.map(_maybe_reproject)
+
+
+def _xr_reproject_da(
     src: Any,
     how: Union[SomeCRS, GeoBox],
     *,
@@ -433,10 +491,8 @@ def xr_reproject(
     """
     assert isinstance(src, xarray.DataArray)
 
-    if have.rasterio is False:
-        raise RuntimeError(
-            "Please install `rasterio` to use this method"
-        )  # pragma: nocover
+    if have.rasterio is False:  # pragma: nocover
+        raise RuntimeError("Please install `rasterio` to use this method")
 
     assert isinstance(src.odc, ODCExtensionDa)  # for mypy sake
     src_gbox = src.odc.geobox
@@ -595,7 +651,7 @@ class ODCExtensionDa(ODCExtension):
         write_cog = _wrap_op(write_cog)
         to_cog = _wrap_op(to_cog)
         compress = _wrap_op(compress)
-        reproject = _wrap_op(xr_reproject)
+        reproject = _wrap_op(_xr_reproject_da)
         add_to = _wrap_op(add_to)
 
 
@@ -607,16 +663,16 @@ class ODCExtensionDs(ODCExtension):
 
     def __init__(self, ds: xarray.Dataset):
         ODCExtension.__init__(self, _locate_geo_info(ds))
-        self._ds = ds
+        self._xx = ds
 
     @property
     def uncached(self) -> "ODCExtensionDs":
-        return ODCExtensionDs(self._ds)
+        return ODCExtensionDs(self._xx)
 
     def assign_crs(
         self, crs: SomeCRS, crs_coord_name: str = _DEFAULT_CRS_COORD_NAME
     ) -> xarray.Dataset:
-        return assign_crs(self._ds, crs=crs, crs_coord_name=crs_coord_name)
+        return assign_crs(self._xx, crs=crs, crs_coord_name=crs_coord_name)
 
     def to_rgba(
         self,
@@ -625,7 +681,10 @@ class ODCExtensionDs(ODCExtension):
         vmin: Optional[float] = None,
         vmax: Optional[float] = None,
     ) -> xarray.DataArray:
-        return to_rgba(self._ds, bands=bands, vmin=vmin, vmax=vmax)
+        return to_rgba(self._xx, bands=bands, vmin=vmin, vmax=vmax)
+
+    if have.rasterio:
+        reproject = _wrap_op(_xr_reproject_ds)
 
 
 ODCExtensionDs.to_rgba.__doc__ = to_rgba.__doc__
@@ -770,10 +829,8 @@ def rasterize(
     """
     # pylint: disable=import-outside-toplevel
 
-    if have.rasterio is False:
-        raise RuntimeError(
-            "Please install `rasterio` to use this method"
-        )  # pragma: nocover
+    if have.rasterio is False:  # pragma: nocover
+        raise RuntimeError("Please install `rasterio` to use this method")
 
     from rasterio.features import geometry_mask
 

@@ -13,10 +13,12 @@ from odc.geo.geobox import GeoBox
 from odc.geo.testutils import epsg3577, mkA, purge_crs_info
 from odc.geo.xr import (
     ODCExtensionDa,
+    ODCExtensionDs,
     rasterize,
     register_geobox,
     wrap_xr,
     xr_coords,
+    xr_reproject,
     xr_zeros,
 )
 
@@ -356,12 +358,36 @@ def test_wrap_xr():
 
 def test_xr_reproject(xx_epsg4326: xr.DataArray):
     assert isinstance(xx_epsg4326.odc, ODCExtensionDa)
+    xx0 = xx_epsg4326
     # smoke-test only
     assert isinstance(xx_epsg4326.odc.geobox, GeoBox)
     assert xx_epsg4326.odc.nodata is None
     dst_gbox = xx_epsg4326.odc.geobox.zoom_out(1.3)
     xx = xx_epsg4326.odc.reproject(dst_gbox)
     assert xx.odc.geobox == dst_gbox
+
+    yy = xr.Dataset({"a": xx0, "b": xx0 + 1, "c": xr.DataArray([2, 3, 4])})
+    assert isinstance(yy.odc, ODCExtensionDs)
+    assert yy.odc.geobox == xx0.odc.geobox
+    yy_ = yy.odc.reproject(dst_gbox)
+    assert isinstance(yy_.odc, ODCExtensionDs)
+    assert yy_.odc.geobox == dst_gbox
+    assert yy_.a.odc.geobox == dst_gbox
+    assert yy_.b.odc.geobox == dst_gbox
+    assert (yy_.c == yy.c).all()
+
+    yy_ = yy.odc.reproject("utm")
+    assert yy_.odc.geobox.crs.proj.utm_zone is not None
+
+    yy_ = xr_reproject(yy, "utm-n")
+    assert isinstance(yy_, xr.Dataset)
+    assert yy_.odc.geobox.crs.proj.utm_zone is not None
+    assert yy_.odc.geobox.crs.proj.utm_zone.endswith("N")
+
+    xx = xr_reproject(xx0, "utm-s")
+    assert isinstance(xx, xr.DataArray)
+    assert xx.odc.geobox.crs.proj.utm_zone is not None
+    assert xx.odc.geobox.crs.proj.utm_zone.endswith("S")
 
     # check crs input
     xx = xx_epsg4326.odc.reproject("epsg:3857")
@@ -385,6 +411,9 @@ def test_xr_reproject(xx_epsg4326: xr.DataArray):
     # non-georegistered case
     with pytest.raises(ValueError):
         _ = xx_epsg4326[:0, :0].odc.reproject(dst_gbox)
+
+    with pytest.raises(ValueError):
+        _ = xr.Dataset().odc.reproject("utm")
 
 
 def test_xr_rasterize():
