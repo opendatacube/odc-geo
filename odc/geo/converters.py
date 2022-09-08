@@ -3,9 +3,11 @@ Interop with other geometry libraries.
 """
 
 import re
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Union
 
 from .crs import CRS, MaybeCRS, Optional, norm_crs
+from .gcp import GCPGeoBox
+from .geobox import GeoBox
 from .geom import Geometry, point
 from .types import XY, xy_
 
@@ -46,7 +48,7 @@ def extract_gcps(
     """
     Extract Ground Control points from :py:class:`rasterio.DatasetReader`.
 
-    :returns: ``[pixel coors], [world coords]``
+    :returns: ``[pixel coords], [world coords]``
     """
     pix, wld, gcp_crs = extract_gcps_raw(src)
     output_crs = norm_crs(output_crs)
@@ -78,3 +80,18 @@ def map_crs(m: Any, /) -> Optional[CRS]:
             return CRS(proj4def)
 
     return None
+
+
+def rio_geobox(rdr: Any) -> Union[GeoBox, GCPGeoBox]:
+    """
+    Construct GeoBox from rasterio.
+
+    :param rdr: Opened :py:class:`rasterio.DatasetReader`
+    :returns:
+       :py:class:`~odc.geo.geobox.GeoBox` or :py:class:`~odc.geo.gcp.GCPGeoBox`.
+    """
+    pts, _ = rdr.gcps
+    if len(pts) > 0:
+        return GCPGeoBox.from_rio(rdr)
+
+    return GeoBox.from_rio(rdr)
