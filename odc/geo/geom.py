@@ -500,8 +500,6 @@ class Geometry(SupportsCoords[float]):
     @wrap_shapely
     def __sub__(self, other: "Geometry") -> "Geometry": return self.__sub__(other)
 
-    def svg(self, *args, **kw) -> str: return self.geom.svg(*args, *kw)
-
     def _repr_svg_(self) -> str: return self.geom._repr_svg_()
 
     @property
@@ -802,6 +800,23 @@ class Geometry(SupportsCoords[float]):
         Map geometry points through linear transform ``A*g``.
         """
         return self.transform(A)
+
+    def svg(self, *args, **kw) -> str:
+        """
+        Returns SVG path element (wraps shapely).
+
+        This method will drop parameters not supported by the underlying shapely geometry.
+
+        :param scale_factor: Multiplication factor for the SVG stroke-width.  Default is 1
+        :param stroke_color: Color for lines and rings
+        :param fill_color: Color for poinits and polygons
+        :param opacity: Float number between 0 and 1 for color opacity. Default value is 0.6
+        """
+        from inspect import signature  # pylint: disable=import-outside-toplevel
+
+        valid_params = signature(self.geom.svg).parameters
+        opts = {k: v for k, v in kw.items() if k in valid_params}
+        return self.geom.svg(*args, **opts)
 
     def svg_path(self, ndecimal: int = 6) -> str:
         """
