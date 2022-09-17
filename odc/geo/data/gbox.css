@@ -1,6 +1,6 @@
 .gbox-info {
     max-width: 600px;
-    margin-left: 1em;
+    margin-left: 0.5em;
 }
 
 .gbox-info .column {
@@ -24,7 +24,6 @@
 
 .gbox-info .info-box {
     max-width: 200px;
-    margin-left: 1em;
 }
 
 .gbox-info .wkt {
