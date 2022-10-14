@@ -161,7 +161,7 @@ def test_crs_compat():
     assert crs == CRS(f"epsg:{crs.to_epsg()}")
     assert crs == CRS(crs.to_wkt())
 
-    assert str(CRS(crs.to_wkt())) == "EPSG:3577"
+    assert str(CRS(crs.to_wkt())).upper() == "EPSG:3577"
 
     crs_rio = rasterio.crs.CRS(init="epsg:3577")
     assert CRS(crs_rio).epsg == 3577
