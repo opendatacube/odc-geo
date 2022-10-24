@@ -2,14 +2,17 @@
 #
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
+import collections
 import warnings
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     Dict,
+    Hashable,
     List,
     Optional,
+    Protocol,
     Tuple,
     Union,
     overload,
@@ -26,11 +29,20 @@ from .types import XY, Unset
 
 SomeCRS = Union[str, int, "CRS", _CRS, Dict[str, Any]]
 MaybeCRS = Union[SomeCRS, Unset, None]
+EPSG_UNSET = 0
 
-_crs_cache: Dict[str, Tuple[_CRS, str, Optional[int]]] = {}
+
+class CRSLike(Protocol):
+    """CRS Like object."""
+
+    def to_wkt(self, *args, **kw) -> str:
+        ...
 
 
-def _make_crs_key(crs_spec: Union[int, str, _CRS]) -> str:
+_crs_cache: Dict[Hashable, Tuple[_CRS, str, Optional[int]]] = {}
+
+
+def _make_crs_key(crs_spec: Union[int, str, Hashable, CRSLike]) -> Hashable:
     if isinstance(crs_spec, str):
         normed_epsg = crs_spec.upper()
         if normed_epsg.startswith("EPSG:"):
@@ -38,20 +50,33 @@ def _make_crs_key(crs_spec: Union[int, str, _CRS]) -> str:
         return crs_spec
     if isinstance(crs_spec, int):
         return f"EPSG:{crs_spec}"
+    if isinstance(crs_spec, collections.Hashable):
+        return crs_spec
+
     return crs_spec.to_wkt()
 
 
 @cachetools.cached(_crs_cache, key=_make_crs_key)
-def _make_crs(crs: Union[str, int, _CRS]) -> Tuple[_CRS, str, Optional[int]]:
-    if isinstance(crs, str):
-        crs = _CRS.from_user_input(crs)
-    if isinstance(crs, int):
-        crs = _CRS.from_epsg(crs)
-    epsg = crs.to_epsg()
-    if epsg is not None:
-        crs_str = f"EPSG:{epsg}"
+def _make_crs(
+    crs_spec: Union[str, int, _CRS, CRSLike]
+) -> Tuple[_CRS, str, Optional[int]]:
+    epsg = EPSG_UNSET
+    if isinstance(crs_spec, str):
+        crs = _CRS.from_user_input(crs_spec)
+    elif isinstance(crs_spec, int):
+        epsg = crs_spec
+        crs = _CRS.from_epsg(crs_spec)
+    elif isinstance(crs_spec, _CRS):
+        crs = crs_spec
     else:
-        crs_str = crs.to_wkt()
+        crs = _CRS.from_wkt(crs_spec.to_wkt())
+
+    crs_str = str(crs)
+    crs_str_u = crs_str.upper()
+    if crs_str_u.startswith("EPSG:"):
+        crs_str = crs_str_u
+        epsg = int(crs_str.split(":", 1)[1])
+
     return (crs, crs_str, epsg)
 
 
@@ -93,22 +118,9 @@ class CRS:
             self._str = crs_spec._str
         elif isinstance(crs_spec, dict):
             self._crs, self._str, self._epsg = _make_crs(_CRS.from_dict(crs_spec))
+        elif hasattr(crs_spec, "to_wkt"):
+            self._crs, self._str, self._epsg = _make_crs(crs_spec)
         else:
-            try:
-                epsg = crs_spec.to_epsg()
-            except AttributeError:
-                epsg = None
-            if epsg is not None:
-                self._crs, self._str, self._epsg = _make_crs(f"EPSG:{epsg}")
-                return
-            try:
-                wkt = crs_spec.to_wkt()
-            except AttributeError:
-                wkt = None
-            if wkt is not None:
-                self._crs, self._str, self._epsg = _make_crs(wkt)
-                return
-
             raise CRSError(
                 "Expect string or any object with `.to_epsg()` or `.to_wkt()` methods"
             )
@@ -140,6 +152,8 @@ class CRS:
         """
         EPSG Code of the CRS or ``None``.
         """
+        if self._epsg == 0:
+            self._epsg = self._crs.to_epsg()
         return self._epsg
 
     @property
@@ -147,7 +161,7 @@ class CRS:
         """
         EPSG Code of the CRS or ``None``.
         """
-        return self._epsg
+        return self.to_epsg()
 
     @property
     def semi_major_axis(self):
@@ -214,7 +228,7 @@ class CRS:
 
         :returns: ``("", "")`` when not available
         """
-        if self._epsg is not None:
+        if self._epsg is not None and self._epsg > 0:
             return ("EPSG", self._epsg)
 
         if (r := self._crs.to_authority()) is not None:
