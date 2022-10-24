@@ -505,7 +505,7 @@ class GeoBox(GeoBoxBase):
            Span that many pixels, if it's a single number then span that many pixels along the
            longest dimension, other dimension will be computed to maintain roughly square pixels.
 
-         :param crs:
+        :param crs:
            CRS to use, if different from the geopolygon
 
         :param align:
