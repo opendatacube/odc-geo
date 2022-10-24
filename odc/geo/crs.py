@@ -121,9 +121,7 @@ class CRS:
         elif hasattr(crs_spec, "to_wkt"):
             self._crs, self._str, self._epsg = _make_crs(crs_spec)
         else:
-            raise CRSError(
-                "Expect string or any object with `.to_epsg()` or `.to_wkt()` methods"
-            )
+            raise CRSError(f"Unexpected input encountered: {crs_spec}")
 
     def __getstate__(self):
         return {"crs_str": self._str}
@@ -152,7 +150,7 @@ class CRS:
         """
         EPSG Code of the CRS or ``None``.
         """
-        if self._epsg == 0:
+        if self._epsg == EPSG_UNSET:
             self._epsg = self._crs.to_epsg()
         return self._epsg
 
@@ -228,7 +226,7 @@ class CRS:
 
         :returns: ``("", "")`` when not available
         """
-        if self._epsg is not None and self._epsg > 0:
+        if self._epsg:
             return ("EPSG", self._epsg)
 
         if (r := self._crs.to_authority()) is not None:
@@ -259,8 +257,11 @@ class CRS:
         if self._crs is other._crs:
             return True
 
-        if self.epsg is not None and other.epsg is not None:
-            return self.epsg == other.epsg
+        if self._epsg and other._epsg:
+            return self._epsg == other._epsg
+
+        if self._str == other._str:
+            return True
 
         return self._crs == other._crs
 
