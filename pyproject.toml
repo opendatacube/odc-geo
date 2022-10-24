@@ -29,4 +29,5 @@ disable = [
   "cyclic-import",
   "ungrouped-imports",
   "wrong-import-position",
+  "too-few-public-methods",
 ]
