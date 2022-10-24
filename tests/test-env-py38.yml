@@ -22,7 +22,7 @@ dependencies:
   - mock
   - mypy
   - pycodestyle
-  - pylint
+  - pylint =2.14
   - types-cachetools
   - types-certifi
 
