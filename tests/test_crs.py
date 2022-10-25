@@ -12,6 +12,7 @@ from pytest import approx
 
 from odc.geo import geom
 from odc.geo.crs import (
+    _CRS,
     CRS,
     CRSError,
     CRSMismatchError,
@@ -167,6 +168,9 @@ def test_crs_compat():
     assert CRS(crs_rio).epsg == 3577
 
     assert (CRS(crs_rio) == crs_rio) is True
+    assert CRS(_CRS(crs_rio)) == CRS(crs_rio)
+    assert CRS(str(crs_rio)) == crs_rio
+    assert CRS(crs_rio) == 3577
 
     with pytest.raises(CRSError):
         CRS(("random", "tuple"))
