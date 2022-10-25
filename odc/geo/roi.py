@@ -36,8 +36,6 @@ from .types import (
 class WindowFromSlice:
     """Translate numpy slices to rasterio window tuples."""
 
-    # pylint: disable=too-few-public-methods
-
     def __getitem__(self, roi):
         if roi is None:
             return None
