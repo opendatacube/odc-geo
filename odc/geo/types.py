@@ -30,8 +30,6 @@ class Unset:
     Used where ``None`` can be a valid value.
     """
 
-    # pylint: disable=too-few-public-methods
-
     __slots__ = ()
 
 
@@ -231,7 +229,6 @@ class SupportsCoords(Protocol[T]):
     Needed for Point geometry -> XY conversion.
     """
 
-    # pylint: disable=too-few-public-methods
     @property
     def coords(self) -> List[Tuple[T, T]]:
         ...

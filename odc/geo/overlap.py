@@ -40,15 +40,15 @@ class PointTransform(Protocol):
     """
 
     def __call__(self, pts: Sequence[XY[float]]) -> Sequence[XY[float]]:
-        ...  # pragma: nocover
+        ...
 
     @property
     def back(self) -> "PointTransform":
-        ...  # pragma: nocover
+        ...
 
     @property
     def linear(self) -> Optional[Affine]:
-        ...  # pragma: nocover
+        ...
 
 
 class LinearPointTransform:
