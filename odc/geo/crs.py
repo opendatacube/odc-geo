@@ -2,7 +2,6 @@
 #
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
-import collections
 import warnings
 from typing import (
     TYPE_CHECKING,
@@ -50,7 +49,7 @@ def _make_crs_key(crs_spec: Union[int, str, Hashable, CRSLike]) -> Hashable:
         return crs_spec
     if isinstance(crs_spec, int):
         return f"EPSG:{crs_spec}"
-    if isinstance(crs_spec, collections.Hashable):
+    if isinstance(crs_spec, Hashable):
         return crs_spec
 
     return crs_spec.to_wkt()
