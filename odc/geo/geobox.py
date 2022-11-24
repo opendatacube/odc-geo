@@ -51,8 +51,13 @@ class AnchorEnum(Enum):
     """
 
     EDGE = 0
+    """Snap pixel edges to multiples of pixel size."""
+
     CENTER = 1
+    """Snap pixel centers to multiples of pixel size."""
+
     FLOATING = 2
+    """Turn off pixel snapping."""
 
 
 GeoboxAnchor = Union[AnchorEnum, XY[float]]
