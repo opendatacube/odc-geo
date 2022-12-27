@@ -423,7 +423,7 @@ def densify(coords: CoordList, resolution: float) -> CoordList:
 
 
 def _clone_shapely_geom(geom: base.BaseGeometry) -> base.BaseGeometry:
-    return type(geom)(geom)
+    return geometry.shape(geom)
 
 
 class Geometry(SupportsCoords[float]):
