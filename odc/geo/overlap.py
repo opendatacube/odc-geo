@@ -387,7 +387,7 @@ def _can_paste(
     if any(abs(abs(s) - 1) > stol for s in (sx, sy)):  # not equal scaling across axis?
         return False, "sx!=sy, probably"
 
-    # Check is sub-pixel translation is within bounds
+    # Check if sub-pixel translation within bounds
     if not all(is_almost_int(t, ttol) for t in (tx, ty)):
         return False, "sub-pixel translation"
 
@@ -610,7 +610,7 @@ def compute_output_geobox(
         #  Y = tr(X) => Y ~= s*X + t
         # where X is in `dst_` and Y is in `gbox`
         # .. so a better fit resolution is `_dst.res / s`
-        # .. but we want square pixels so pick average between x/y
+        # .. but we want square pixels, so pick average between x and y
         sx, sy = get_scale_at_point(xy_(0.5, 0.5), native_pix_transform(dst_, cp)).xy
 
         # always produces square pixels on output with inverted Y axis
