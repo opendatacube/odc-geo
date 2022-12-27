@@ -503,6 +503,8 @@ class Geometry(SupportsCoords[float]):
     def _repr_svg_(self) -> str: return self.geom._repr_svg_()
 
     @property
+    def geom_type(self) -> str: return self.geom.geom_type
+    @property
     def type(self) -> str: return self.geom.type
     @property
     def is_empty(self) -> bool: return self.geom.is_empty
@@ -554,22 +556,28 @@ class Geometry(SupportsCoords[float]):
         """
 
         def segmentize_shapely(geom: base.BaseGeometry) -> base.BaseGeometry:
-            if geom.type in ["Point", "MultiPoint"]:
-                return type(geom)(geom)  # clone without changes
+            if geom.geom_type in ["Point", "MultiPoint"]:
+                return _clone_shapely_geom(geom)  # clone without changes
 
-            if geom.type in ["GeometryCollection", "MultiPolygon", "MultiLineString"]:
+            if geom.geom_type in [
+                "GeometryCollection",
+                "MultiPolygon",
+                "MultiLineString",
+            ]:
                 return type(geom)([segmentize_shapely(g) for g in geom.geoms])
 
-            if geom.type in ["LineString", "LinearRing"]:
+            if geom.geom_type in ["LineString", "LinearRing"]:
                 return type(geom)(densify(list(geom.coords), resolution))
 
-            if geom.type == "Polygon":
+            if geom.geom_type == "Polygon":
                 return geometry.Polygon(
                     densify(list(geom.exterior.coords), resolution),
                     [densify(list(i.coords), resolution) for i in geom.interiors],
                 )
 
-            raise ValueError(f"unknown geometry type {geom.type}")  # pragma: no cover
+            raise ValueError(
+                f"unknown geometry type {geom.geom_type}"
+            )  # pragma: no cover
 
         return Geometry(segmentize_shapely(self.geom), self.crs)
 
@@ -711,7 +719,7 @@ class Geometry(SupportsCoords[float]):
 
         :return: GeoJSON Feature dictionary
         """
-        if self.type == "GeometryCollection":
+        if self.geom_type == "GeometryCollection":
             return {
                 "type": "FeatureCollection",
                 "features": [
@@ -792,7 +800,7 @@ class Geometry(SupportsCoords[float]):
     @property
     def is_multi(self) -> bool:
         """True for multi-geometry types."""
-        t = self.type
+        t = self.geom_type
         return t.startswith("Multi") or t == "GeometryCollection"
 
     def __rmul__(self, A: Affine) -> "Geometry":
@@ -838,7 +846,7 @@ class Geometry(SupportsCoords[float]):
         if self.is_multi:
             return "".join([g.svg_path(ndecimal) for g in self.geoms])
 
-        if self.type == "Polygon":
+        if self.geom_type == "Polygon":
             return "".join(
                 [render_ring(g, close=True) for g in [self.exterior, *self.interiors]]
             )
@@ -850,7 +858,7 @@ class Geometry(SupportsCoords[float]):
         Keep only those points for which `pred(x,y) is True`.
         """
 
-        if self.type == "Polygon":
+        if self.geom_type == "Polygon":
             pts = [(x, y) for x, y in self.exterior.points if pred(x, y)]
             # prune inner polygon points
             inners = [
@@ -861,18 +869,18 @@ class Geometry(SupportsCoords[float]):
             inners = [ring for ring in inners if len(ring) >= 3]
             return polygon(pts, self.crs, *inners)
 
-        if self.type in ("LinearRing", "LineString"):
+        if self.geom_type in ("LinearRing", "LineString"):
             pts = [(x, y) for x, y in self.points if pred(x, y)]
             _geom = type(self.geom)(pts)
             return Geometry(_geom, self.crs)
 
-        if self.type == "Point":
+        if self.geom_type == "Point":
             x, y = self.coords[0]
             if pred(x, y):
                 return self
             return Geometry(geometry.Point(), self.crs)
 
-        if self.type == "MultiPoint":
+        if self.geom_type == "MultiPoint":
             pts = [(x, y) for x, y in [pt.points[0] for pt in self.geoms] if pred(x, y)]
             return multipoint(pts, self.crs)
 
@@ -968,7 +976,7 @@ def clip_lon180(geom: Geometry, tol=1e-6) -> Geometry:
         clip = _pick_clip(xx)
         return _clip_180(xx, clip), yy
 
-    if geom.type.startswith("Multi"):
+    if geom.geom_type.startswith("Multi"):
         return multigeom(g.transform(transformer) for g in geom.geoms)
 
     return geom.transform(transformer)
@@ -1118,7 +1126,7 @@ def sides(poly: Geometry) -> Iterable[Geometry]:
 
 
 def _multigeom(geoms: List[base.BaseGeometry]) -> base.BaseGeometry:
-    src_type = {g.type for g in geoms}
+    src_type = {g.geom_type for g in geoms}
     if len(src_type) > 1:
         return geometry.GeometryCollection(geoms)
 
