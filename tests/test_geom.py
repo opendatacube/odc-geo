@@ -270,7 +270,7 @@ def test_multigeom():
     b1 = geom.box(*p1, *p2, epsg4326)
     b2 = geom.box(*p3, *p4, epsg4326)
     bb = multigeom([b1, b2])
-    assert bb.type == "MultiPolygon"
+    assert bb.geom_type == "MultiPolygon"
     assert bb.crs is b1.crs
     assert len(list(bb.geoms)) == 2
 
@@ -279,7 +279,7 @@ def test_multigeom():
     g1 = geom.line([p1, p2], None)
     g2 = geom.line([p3, p4], None)
     gg = multigeom(iter([g1, g2, g1]))
-    assert gg.type == "MultiLineString"
+    assert gg.geom_type == "MultiLineString"
     assert gg.crs is g1.crs
     assert len(list(gg.geoms)) == 3
     assert geom.multiline([[p1, p2], [p3, p4], [p1, p2]], None) == gg
@@ -288,7 +288,7 @@ def test_multigeom():
     g2 = geom.point(*p2, epsg3857)
     g3 = geom.point(*p3, epsg3857)
     gg = multigeom(iter([g1, g2, g3]))
-    assert gg.type == "MultiPoint"
+    assert gg.geom_type == "MultiPoint"
     assert gg.crs is g1.crs
     assert len(list(gg.geoms)) == 3
     assert list(gg.geoms)[0] == g1
@@ -299,7 +299,7 @@ def test_multigeom():
 
     # check mixed types
     assert (
-        multigeom([geom.line([p1, p2], None), geom.point(*p1, None)]).type
+        multigeom([geom.line([p1, p2], None), geom.point(*p1, None)]).geom_type
         == "GeometryCollection"
     )
 
@@ -307,7 +307,7 @@ def test_multigeom():
     with pytest.raises(CRSMismatchError):
         multigeom([geom.line([p1, p2], epsg4326), geom.line([p3, p4], epsg3857)])
 
-    assert multigeom([gg]).type == "GeometryCollection"
+    assert multigeom([gg]).geom_type == "GeometryCollection"
 
 
 def test_shapely_wrappers():
@@ -357,9 +357,9 @@ def test_to_crs():
     # test the segmentation works on multi-polygons
     mpoly = geom.box(0, 0, 1, 3, "EPSG:4326") | geom.box(2, 4, 3, 6, "EPSG:4326")
 
-    assert mpoly.type == "MultiPolygon"
-    assert mpoly.to_crs(epsg3857).type == "MultiPolygon"
-    assert mpoly.to_crs(epsg3857, 1).type == "MultiPolygon"
+    assert mpoly.geom_type == "MultiPolygon"
+    assert mpoly.to_crs(epsg3857).geom_type == "MultiPolygon"
+    assert mpoly.to_crs(epsg3857, 1).geom_type == "MultiPolygon"
 
     poly = geom.polygon([(0, 0), (0, 5), (10, 5)], None)
     assert poly.crs is None
@@ -396,19 +396,19 @@ def test_unary_union():
     assert union0 == box1
 
     union1 = geom.unary_union([box1, box4])
-    assert union1.type == "MultiPolygon"
+    assert union1.geom_type == "MultiPolygon"
     assert union1.area == 2.0 * box1.area
 
     union2 = geom.unary_union([box1, box2])
-    assert union2.type == "Polygon"
+    assert union2.geom_type == "Polygon"
     assert union2.area == 1.5 * box1.area
 
     union3 = geom.unary_union([box1, box2, box3, box4])
-    assert union3.type == "Polygon"
+    assert union3.geom_type == "Polygon"
     assert union3.area == 2.5 * box1.area
 
     union4 = geom.unary_union([union1, box2, box3])
-    assert union4.type == "Polygon"
+    assert union4.geom_type == "Polygon"
     assert union4.area == 2.5 * box1.area
 
     assert geom.unary_union([]) is None
@@ -443,7 +443,7 @@ def test_unary_intersection():
 
     inter5 = geom.unary_intersection([box1, box2, box3, box4, box5])
     assert bool(inter5)
-    assert inter5.type == "LineString"
+    assert inter5.geom_type == "LineString"
     assert inter5.length == 20.0
 
     inter6 = geom.unary_intersection([box1, box2, box3, box4, box5, box6])
@@ -543,7 +543,7 @@ def test_chop():
 
     chopped = chop_along_antimeridian(poly)
     assert chopped.crs is poly.crs
-    assert chopped.type == "MultiPolygon"
+    assert chopped.geom_type == "MultiPolygon"
     assert len(list(chopped.geoms)) == 2
 
     poly = geom.box(0, 0, 10, 20, "EPSG:4326")._to_crs(epsg3857)
@@ -590,10 +590,10 @@ def test_wrap_dateline():
         crs=albers_crs,
     )
     wrapped = wrap.to_crs(geog_crs)
-    assert wrapped.type == "Polygon"
+    assert wrapped.geom_type == "Polygon"
     assert wrapped.intersects(geom.line([(0, -90), (0, 90)], crs=geog_crs))
     wrapped = wrap.to_crs(geog_crs, wrapdateline=True)
-    assert wrapped.type == "MultiPolygon"
+    assert wrapped.geom_type == "MultiPolygon"
     assert not wrapped.intersects(geom.line([(0, -90), (0, 90)], crs=geog_crs))
 
 
@@ -638,9 +638,9 @@ def test_wrap_dateline_sinusoidal(pts):
 
     wrap = geom.polygon(pts, crs=sinus_crs)
     wrapped = wrap.to_crs(epsg4326)
-    assert wrapped.type == "Polygon"
+    assert wrapped.geom_type == "Polygon"
     wrapped = wrap.to_crs(epsg4326, wrapdateline=True)
-    assert wrapped.type == "MultiPolygon"
+    assert wrapped.geom_type == "MultiPolygon"
     assert not wrapped.intersects(geom.line([(0, -90), (0, 90)], crs=epsg4326))
 
 
@@ -648,10 +648,10 @@ def test_wrap_dateline_utm():
     poly = geom.box(618300, -1876800, 849000, -1642500, "EPSG:32660")
 
     wrapped = poly.to_crs(epsg4326)
-    assert wrapped.type == "Polygon"
+    assert wrapped.geom_type == "Polygon"
     assert wrapped.intersects(geom.line([(0, -90), (0, 90)], crs=epsg4326))
     wrapped = poly.to_crs(epsg4326, wrapdateline=True)
-    assert wrapped.type == "MultiPolygon"
+    assert wrapped.geom_type == "MultiPolygon"
     assert not wrapped.intersects(geom.line([(0, -90), (0, 90)], crs=epsg4326))
 
 
@@ -762,7 +762,7 @@ def test_bbox_boundary(crs, nside):
     bb = bbox.boundary()
     assert bb.crs == bbox.crs
     assert bb.is_ring
-    assert bb.type == "LineString"
+    assert bb.geom_type == "LineString"
     assert len(bb.coords[:-1]) == 4
     assert (poly.exterior ^ bbox.boundary()).is_empty
     assert (bbox.boundary() - poly).is_empty
@@ -847,14 +847,14 @@ def test_geojson():
 
     # check FeatureCollection output
     gg = b.buffer(0.1).exterior | b.centroid
-    assert gg.type == "GeometryCollection"
+    assert gg.geom_type == "GeometryCollection"
     gjson = gg.geojson(k=3)
     assert gjson["type"] == "FeatureCollection"
     assert set(gjson) == set(["type", "features"])
     assert gjson["features"][0]["properties"]["k"] == 3
     assert gjson["features"][1]["properties"]["k"] == 3
     gg_ = geom.Geometry(gjson)
-    assert gg_.type == "GeometryCollection"
+    assert gg_.geom_type == "GeometryCollection"
     assert gg_.crs == "epsg:4326"
     assert len(list(gg_.geoms)) == len(list(gg.geoms))
 
@@ -873,7 +873,7 @@ def test_geojson():
             ],
         }
     )
-    assert gg.type == "MultiPoint"
+    assert gg.geom_type == "MultiPoint"
     assert len(list(gg.geoms)) == 2
 
 
@@ -960,7 +960,7 @@ def test_qr2sample(crs, n, with_edges):
         assert g.crs == bbox.crs
         assert (g - bbox.polygon).is_empty
         assert g.is_multi
-        assert g.type == "MultiPoint"
+        assert g.geom_type == "MultiPoint"
         if with_edges is False:
             assert len(list(g.geoms)) == n
         else:
@@ -987,7 +987,7 @@ def test_triangulate(crs):
     assert gg.is_multi
     assert gg.is_valid
     assert len(geoms) == 2
-    assert geoms[0].type == "Polygon"
+    assert geoms[0].geom_type == "Polygon"
     assert (gg - bbox.polygon).is_empty
 
     gg = triangulate(bbox.boundary(4), edges=True)
@@ -995,5 +995,5 @@ def test_triangulate(crs):
     assert gg.crs == bbox.crs
     assert gg.is_multi
     assert gg.is_valid
-    assert geoms[0].type == "LineString"
+    assert geoms[0].geom_type == "LineString"
     assert (gg - bbox.polygon).is_empty
