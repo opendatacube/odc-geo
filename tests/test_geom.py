@@ -190,9 +190,8 @@ def test_ops():
     assert pt.coords[0] == (0, 1)
     assert isinstance(pt.coords, list)
 
-    with pytest.warns(ShapelyDeprecationWarning):
-        with pytest.raises(TypeError):
-            pt.interpolate(3)
+    with pytest.raises(TypeError):
+        pt.interpolate(3)
 
     # test simplify
     poly = geom.polygon([(0, 0), (0, 5), (10, 5)], epsg4326)
