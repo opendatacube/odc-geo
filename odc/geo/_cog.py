@@ -63,7 +63,6 @@ def _adjust_blocksize(block: int, dim: int = 0) -> int:
 def _default_cog_opts(
     *, blocksize: int = 512, shape: SomeShape = (0, 0), is_float: bool = False, **other
 ) -> Dict[str, Any]:
-
     nx, ny = shape_(shape).xy
     return dict(
         tiled=True,
@@ -81,7 +80,6 @@ def _norm_compression_opts(
     default_compress: str = "deflate",
     default_zlevel: int = 2,
 ) -> Dict[str, Any]:
-
     if isinstance(compression, bool):
         if compression:
             return {"compress": default_compress, "zlevel": default_zlevel}

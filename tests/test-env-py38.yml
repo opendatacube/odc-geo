@@ -17,7 +17,7 @@ dependencies:
   ## linting tools
   - autopep8
   - autoflake
-  - black >=22.1.0
+  - black >=23.1.0
   - isort
   - mock
   - mypy
@@ -35,6 +35,7 @@ dependencies:
   - folium
   - ipyleaflet
   - matplotlib
+  - ipykernel
 
   # for docs
   - sphinx

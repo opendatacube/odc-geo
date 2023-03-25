@@ -274,7 +274,6 @@ def test_gbox_boundary():
 
 
 def test_geobox_scale_down():
-
     crs = CRS("EPSG:3857")
 
     A = mkA(0, (111.2, 111.2), translation=(125671, 251465))

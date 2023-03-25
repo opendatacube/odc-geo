@@ -89,7 +89,6 @@ def test_shape2d():
 
 
 def test_bad_inputs():
-
     # shape is valid of ints only
     with pytest.raises(ValueError):
         _ = xy_(3.1, 2).shape
