@@ -44,23 +44,23 @@ Plotting on a map
    from numpy.random import uniform
    from odc.geo.data import country_geom
    from odc.geo.xr import rasterize
-   
+
    # Make some sample images
    def gen_sample(iso3, crs="epsg:3857", res=60_000, vmin=0, vmax=1000):
        xx = rasterize(country_geom(iso3, crs), res)
        return xr.where(xx, uniform(vmin, vmax, size=xx.shape), float("nan")).astype("float32")
-   
+
    aus, png, nzl = [gen_sample(iso3) for iso3 in ["AUS", "PNG", "NZL"]]
-   
+
    # Create folium Map (ipyleaflet is also supported)
    m = folium.Map()
-   
+
    # Plot each sample image with different colormap
    aus.odc.add_to(m, opacity=0.5)
    png.odc.add_to(m, opacity=0.5, cmap="spring", robust=True)   # vmin=2%,vmax=98%
    nzl.odc.add_to(m, opacity=0.5, cmap="jet", vmin=0, vmax=800) # force vmin/vmax
-   
-   # Zoom map to Australia 
+
+   # Zoom map to Australia
    m.fit_bounds(aus.odc.map_bounds())
    display(m)
 
