@@ -149,7 +149,6 @@ def test_crs():
 
 
 def test_crs_compat():
-
     crs = CRS("epsg:3577")
     assert crs.epsg == 3577
     assert crs.authority == ("EPSG", 3577)

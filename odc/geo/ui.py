@@ -306,7 +306,6 @@ class PixelGridDisplay:
         return bbox.buffered(pad_deg)
 
     def _render_svg(self, sz=360):
-
         if self._crs is None:
             bbox = self._src.extent.boundingbox
             margin = 0.1 * max(bbox.span_x, bbox.span_y)

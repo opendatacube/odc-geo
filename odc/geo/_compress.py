@@ -20,7 +20,6 @@ _fmt_info = {
 
 
 def _compress_image(im: np.ndarray, driver="PNG", **opts) -> bytes:
-
     if im.ndim > 2:
         im = np.squeeze(im)
 
