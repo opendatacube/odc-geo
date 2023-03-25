@@ -95,7 +95,7 @@ we provide as well.
 
 .. code-block:: diff
 
-   - for g in multi_geom: 
+   - for g in multi_geom:
    + for g in multi_geom.geoms:
 
 Removing iterable interface from :py:class:`~odc.geo.geom.Geometry` helps a lot with type
