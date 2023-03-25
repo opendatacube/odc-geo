@@ -32,9 +32,9 @@ from .crs import CRS, CRSError, SomeCRS, norm_crs_or_error
 from .gcp import GCPGeoBox, GCPMapping
 from .geobox import Coordinate, GeoBox
 from .geom import Geometry
-from .math import affine_from_axis
+from .math import affine_from_axis, resolution_from_affine
 from .overlap import compute_output_geobox
-from .types import Resolution, resxy_, xy_
+from .types import Resolution, xy_
 
 # pylint: disable=import-outside-toplevel
 if have.rasterio:
@@ -58,6 +58,7 @@ class GeoState:
     """
 
     spatial_dims: Optional[Tuple[str, str]] = None
+    crs_coord: Optional[xarray.DataArray] = None
     transform: Optional[Affine] = None
     crs: Optional[CRS] = None
     geobox: Optional[SomeGeoBox] = None
@@ -154,6 +155,7 @@ def _mk_crs_coord(
     crs: CRS,
     name: str = _DEFAULT_CRS_COORD_NAME,
     gcps=None,
+    transform: Optional[Affine] = None,
 ) -> xarray.DataArray:
     # pylint: disable=protected-access
 
@@ -163,6 +165,9 @@ def _mk_crs_coord(
 
     if gcps is not None:
         cf["gcps"] = _gcps_to_json(gcps)
+
+    if transform is not None:
+        cf["GeoTransform"] = " ".join(map(str, transform.to_gdal()))
 
     return xarray.DataArray(
         numpy.asarray(epsg, "int32"),
@@ -257,6 +262,7 @@ def xr_coords(
         attrs["crs"] = str(crs)
 
     gcps = None
+    transform: Optional[Affine] = None
 
     if isinstance(gbox, GCPGeoBox):
         coords: Dict[Hashable, xarray.DataArray] = {
@@ -264,19 +270,23 @@ def xr_coords(
             for name, sz in zip(gbox.dimensions, gbox.shape)
         }
         gcps = gbox.gcps()
-    elif gbox.axis_aligned:
-        coords = {
-            name: _coord_to_xr(name, coord, **attrs)
-            for name, coord in gbox.coordinates.items()
-        }
     else:
-        coords = {
-            name: _mk_pixel_coord(name, sz, gbox.transform)
-            for name, sz in zip(gbox.dimensions, gbox.shape)
-        }
+        transform = gbox.transform
+        if gbox.axis_aligned:
+            coords = {
+                name: _coord_to_xr(name, coord, **attrs)
+                for name, coord in gbox.coordinates.items()
+            }
+        else:
+            coords = {
+                name: _mk_pixel_coord(name, sz, transform)
+                for name, sz in zip(gbox.dimensions, gbox.shape)
+            }
 
     if crs_coord_name is not None and crs is not None:
-        coords[crs_coord_name] = _mk_crs_coord(crs, crs_coord_name, gcps=gcps)
+        coords[crs_coord_name] = _mk_crs_coord(
+            crs, crs_coord_name, gcps=gcps, transform=transform
+        )
 
     return coords
 
@@ -347,26 +357,53 @@ def _extract_gcps(crs_coord: xarray.DataArray) -> Optional[GCPMapping]:
         return None
 
 
-def _extract_transform(src: XarrayObject, sdims: Tuple[str, str]) -> Optional[Affine]:
+def _extract_geo_transform(crs_coord: xarray.DataArray) -> Optional[Affine]:
+    geo_transfrom_parts = crs_coord.attrs.get("GeoTransform", "").split(" ")
+    if len(geo_transfrom_parts) != 6:
+        return None
+    try:
+        c, a, b, f, d, e = map(float, geo_transfrom_parts)
+    except ValueError:
+        return None
+
+    return Affine.from_gdal(c, a, b, f, d, e)
+
+
+def _extract_transform(
+    src: XarrayObject,
+    sdims: Tuple[str, str],
+    crs_coord: Optional[xarray.DataArray],
+    gcp: bool,
+) -> Optional[Affine]:
     if any(dim not in src.coords for dim in sdims):
         # special case of no spatial dims at all
-        # happens for GCP sources loaded by rioxarray
-        return None
+        # happens for GCP/rotated sources loaded by rioxarray
+        if gcp or crs_coord is None:
+            return None
+        return _extract_geo_transform(crs_coord)
 
     _yy, _xx = (src[dim] for dim in sdims)
-    rx, ry = (coord.attrs.get("resolution", None) for coord in (_xx, _yy))
-    fallback_res = None
-    if rx is not None and ry is not None:
-        fallback_res = resxy_(float(rx), float(ry))
 
+    # First try to compute from 1-D X/Y coords
     try:
-        transform = affine_from_axis(_xx.values, _yy.values, fallback_res)
+        transform = affine_from_axis(_xx.values, _yy.values)
     except ValueError:
-        # this can fail when any dimension is shorter than 2 elements
-        return None
+        # This can fail when any dimension is shorter than 2 elements
+        # Figure out fallback resolution if possible and try again
+        if crs_coord is None:
+            return None
+        if (original_transform := _extract_geo_transform(crs_coord)) is None:
+            return None
+        try:
+            transform = affine_from_axis(
+                _xx.values,
+                _yy.values,
+                resolution_from_affine(original_transform),
+            )
+        except ValueError:
+            return None
 
-    _pix2world = _xx.encoding.get("_transform", None)
-    if _pix2world is not None:
+    if not gcp and (_pix2world := _xx.encoding.get("_transform", None)) is not None:
         # non-axis aligned geobox detected
         # adjust transform
         #  world <- pix' <- pix
@@ -380,7 +417,7 @@ def _locate_geo_info(src: XarrayObject) -> GeoState:
     if sdims is None:
         return GeoState()
 
-    transform = _extract_transform(src, sdims)
+    crs_coord: Optional[xarray.DataArray] = None
     crs: Optional[CRS] = None
     geobox: Optional[SomeGeoBox] = None
     gcp: Optional[GCPMapping] = None
@@ -392,11 +429,14 @@ def _locate_geo_info(src: XarrayObject) -> GeoState:
     if num_candidates > 0:
         if num_candidates > 1:
             warnings.warn("Multiple CRS coordinates are present")
-        crs = _extract_crs(_crs_coords[0])
-        gcp = _extract_gcps(_crs_coords[0])
+        crs_coord = _crs_coords[0]
+        crs = _extract_crs(crs_coord)
+        gcp = _extract_gcps(crs_coord)
     else:
         # try looking in attributes
         crs = _get_crs_from_attrs(src, sdims)
+
+    transform = _extract_transform(src, sdims, crs_coord, gcp is not None)
 
     if gcp is not None:
         geobox = GCPGeoBox((ny, nx), gcp, transform)
@@ -404,7 +444,12 @@ def _locate_geo_info(src: XarrayObject) -> GeoState:
         geobox = GeoBox((ny, nx), transform, crs)
 
     return GeoState(
-        spatial_dims=sdims, transform=transform, crs=crs, geobox=geobox, gcp=gcp
+        spatial_dims=sdims,
+        crs_coord=crs_coord,
+        transform=transform,
+        crs=crs,
+        geobox=geobox,
+        gcp=gcp,
     )
 
 

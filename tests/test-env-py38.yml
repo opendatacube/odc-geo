@@ -36,6 +36,7 @@ dependencies:
   - ipyleaflet
   - matplotlib
   - ipykernel
+  - rioxarray
 
   # for docs
   - sphinx

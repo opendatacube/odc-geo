@@ -8,9 +8,11 @@ import xarray as xr
 
 from odc.geo import geom
 from odc.geo._interop import is_dask_collection
+from odc.geo._xr_interop import _extract_geo_transform
 from odc.geo.data import ocean_geom
 from odc.geo.geobox import GeoBox
-from odc.geo.testutils import epsg3577, mkA, purge_crs_info
+from odc.geo.testutils import approx_equal_geobox, epsg3577, mkA, purge_crs_info
+from odc.geo.types import ROI, resxy_
 from odc.geo.xr import (
     ODCExtensionDa,
     ODCExtensionDs,
@@ -55,6 +57,7 @@ def test_geobox_xr_coords():
     assert cc["spatial_ref"].shape == ()
     assert cc["spatial_ref"].attrs["spatial_ref"] == gbox.crs.wkt
     assert isinstance(cc["spatial_ref"].attrs["grid_mapping_name"], str)
+    assert isinstance(cc["spatial_ref"].attrs["GeoTransform"], str)
 
     # crs_coord_name should be default "spatial_ref"
     assert list(xr_coords(gbox)) == list(xr_coords(gbox, crs_coord_name="spatial_ref"))
@@ -70,6 +73,7 @@ def test_geobox_xr_coords():
     assert cc["spatial_ref"].shape == ()
     assert cc["spatial_ref"].attrs["spatial_ref"] == gbox.crs.wkt
     assert isinstance(cc["spatial_ref"].attrs["grid_mapping_name"], str)
+    assert isinstance(cc["spatial_ref"].attrs["GeoTransform"], str)
     assert cc["x"].encoding["_transform"] == _gbox.affine[:6]
     assert cc["y"].encoding["_transform"] == _gbox.affine[:6]
 
@@ -410,7 +414,7 @@ def test_xr_reproject(xx_epsg4326: xr.DataArray):
 
     # non-georegistered case
     with pytest.raises(ValueError):
-        _ = xx_epsg4326[:0, :0].odc.reproject(dst_gbox)
+        _ = purge_crs_info(xx_epsg4326).odc.reproject(dst_gbox)
 
     with pytest.raises(ValueError):
         _ = xr.Dataset().odc.reproject("utm")
@@ -450,3 +454,78 @@ def test_is_dask_collection():
 
     assert "is_dask_collection" in dir(odc.geo._interop)
     assert is_dask_collection is dask.is_dask_collection
+
+
+TEST_GEOBOXES_SMALL_AXIS_ALIGNED = [
+    GeoBox.from_bbox((-10, -2, 5, 4), "epsg:4326", tight=True, resolution=0.2),
+    GeoBox.from_bbox((-10, -2, 5, 4), "epsg:3857", tight=True, resolution=1),
+    GeoBox.from_bbox((-10, -2, 5, 4), "epsg:3857", tight=True, resolution=resxy_(1, 2)),
+]
+
+
+@pytest.mark.parametrize("geobox", TEST_GEOBOXES_SMALL_AXIS_ALIGNED)
+@pytest.mark.parametrize(
+    "bad_geo_transform",
+    [
+        "some random string",
+        "1 2 3 4 5 not-a-float",
+    ],
+)
+def test_extract_transform(geobox, bad_geo_transform: str):
+    xx = xr_zeros(geobox, dtype="int16")
+    assert xx.odc.geobox == geobox
+    assert _extract_geo_transform(xx.spatial_ref) == geobox.affine
+
+    bad_attr_coord = xx.spatial_ref.copy()
+    bad_attr_coord.attrs["GeoTransform"] = bad_geo_transform
+    assert _extract_geo_transform(bad_attr_coord) is None
+
+
+@pytest.mark.parametrize("geobox", TEST_GEOBOXES_SMALL_AXIS_ALIGNED)
+@pytest.mark.parametrize(
+    "roi",
+    [
+        np.s_[:1, :1],
+        np.s_[-1:, -1:],
+        np.s_[1:2, 3:4],
+        np.s_[1:2, :5],
+        np.s_[1:, 3:4],
+    ],
+)
+def test_geobox_1px(geobox: GeoBox, roi: ROI):
+    assert geobox.axis_aligned
+    assert min(geobox.shape) > 1
+    assert max(geobox.shape) < 1000
+
+    xx = xr_zeros(geobox, "uint8")
+    assert isinstance(xx.odc, ODCExtensionDa)
+    assert xx.odc.geobox == geobox
+
+    assert approx_equal_geobox(xx[roi].odc.geobox, geobox[roi])
+
+    # Verify that missing GeoTransform is handled without exceptions
+    yy = xx.copy()
+    yy.spatial_ref.attrs.pop("GeoTransform")
+    assert min(yy[roi].shape[-2:]) == 1
+    assert yy[roi].odc.geobox is None
+
+
+@pytest.mark.parametrize("geobox", TEST_GEOBOXES_SMALL_AXIS_ALIGNED)
+@pytest.mark.parametrize(
+    "roi",
+    [
+        np.s_[1:1, :1],
+        np.s_[-1:, -1:1],
+        np.s_[1:1, 1:1],
+    ],
+)
+def test_geobox_0px(geobox: GeoBox, roi: ROI):
+    assert geobox.axis_aligned
+    assert min(geobox.shape) > 1
+    assert max(geobox.shape) < 1000
+
+    xx = xr_zeros(geobox, "uint8")
+    assert isinstance(xx.odc, ODCExtensionDa)
+    assert xx.odc.geobox == geobox
+
+    assert xx[roi].odc.geobox is None

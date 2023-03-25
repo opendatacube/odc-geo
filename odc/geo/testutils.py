@@ -11,7 +11,7 @@ from affine import Affine
 from . import CRS
 from .geobox import GeoBox
 from .gridspec import GridSpec
-from .math import apply_affine
+from .math import apply_affine, maybe_int
 
 # pylint: disable=invalid-name,
 
@@ -201,6 +201,7 @@ def purge_crs_info(xx: xr.DataArray) -> xr.DataArray:
         for attr in attributes_to_clear:
             _x.attrs.pop(attr, None)
         _x.encoding.pop("grid_mapping", None)
+        _x.encoding.pop("_transform", None)
         return _x
 
     # remove non-dimensional coordinate, which is CRS in our case
@@ -225,3 +226,15 @@ def daskify(xx, **kw):
         coords=xx.coords,
         attrs=xx.attrs,
     )
+
+
+def approx_equal_affine(a: Affine, b: Affine, tol: float = 1e-6) -> bool:
+    sx, z1, tx, z2, sy, ty = map(lambda v: maybe_int(v, tol), (~a * b)[:6])
+    return (sx, z1, tx, z2, sy, ty) == (1, 0, 0, 0, 1, 0)
+
+
+def approx_equal_geobox(a: GeoBox, b: GeoBox, tol: float = 1e-6) -> bool:
+    if a.shape != b.shape or a.crs != b.crs:
+        return False
+
+    return approx_equal_affine(a.transform, b.transform, tol)
