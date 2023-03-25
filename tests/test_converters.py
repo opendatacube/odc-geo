@@ -58,7 +58,7 @@ def test_extract_gcps(data_dir: Path):
             _ = extract_gcps(src)
 
 
-@pytest.mark.parametrize("fname", ["au-gcp.tif", "au-3577.tif"])
+@pytest.mark.parametrize("fname", ["au-gcp.tif", "au-3577.tif", "au-3577-rotated.tif"])
 def test_rio_geobox(data_dir: Path, fname: str):
     with rasterio.open(data_dir / fname) as rdr:
         pts, _ = rdr.gcps
