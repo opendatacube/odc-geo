@@ -309,7 +309,10 @@ class GeoBoxBase:
         return (shape_((ny, nx)), A)
 
     def compute_zoom_to(
-        self, shape: Union[SomeShape, int, float]
+        self,
+        shape: Union[SomeShape, int, float, None] = None,
+        *,
+        resolution: Optional[SomeResolution] = None,
     ) -> Tuple[Shape2d, Affine]:
         """
         Change GeoBox shape.
@@ -319,6 +322,14 @@ class GeoBoxBase:
         :returns:
           GeoBox covering the same region but with different number of pixels and therefore resolution.
         """
+        if shape is None:
+            if resolution is None:
+                raise ValueError("Have to supply shape or resolution")
+            new_geobox = GeoBox.from_bbox(
+                self.boundingbox, resolution=resolution, tight=True
+            )
+            return new_geobox.shape, new_geobox.affine
+
         if isinstance(shape, (int, float)):
             nmax = max(*self._shape)
             return self.compute_zoom_out(nmax / shape)
@@ -834,7 +845,12 @@ class GeoBox(GeoBoxBase):
         _shape, _affine = self.compute_zoom_out(factor)
         return GeoBox(_shape, _affine, self._crs)
 
-    def zoom_to(self, shape: Union[SomeShape, int, float]) -> "GeoBox":
+    def zoom_to(
+        self,
+        shape: Union[SomeShape, int, float, None] = None,
+        *,
+        resolution: Optional[SomeResolution] = None,
+    ) -> "GeoBox":
         """
         Change GeoBox shape.
 
@@ -843,7 +859,7 @@ class GeoBox(GeoBoxBase):
         :returns:
           GeoBox covering the same region but with different number of pixels and therefore resolution.
         """
-        _shape, _affine = self.compute_zoom_to(shape)
+        _shape, _affine = self.compute_zoom_to(shape, resolution=resolution)
         return GeoBox(_shape, _affine, self._crs)
 
     def flipy(self) -> "GeoBox":
@@ -1130,9 +1146,14 @@ def zoom_out(gbox: GeoBox, factor: float) -> GeoBox:
     return gbox.zoom_out(factor)
 
 
-def zoom_to(gbox: GeoBox, shape: SomeShape) -> GeoBox:
+def zoom_to(
+    gbox: GeoBox,
+    shape: Union[SomeShape, int, float, None] = None,
+    *,
+    resolution: Optional[SomeResolution] = None,
+) -> GeoBox:
     """Alias for :py:meth:`odc.geo.geobox.GeoBox.zoom_to`."""
-    return gbox.zoom_to(shape)
+    return gbox.zoom_to(shape, resolution=resolution)
 
 
 def rotate(gbox: GeoBox, deg: float) -> GeoBox:
