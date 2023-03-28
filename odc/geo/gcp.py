@@ -11,7 +11,7 @@ from .crs import CRS, MaybeCRS, SomeCRS, norm_crs
 from .geobox import GeoBox, GeoBoxBase
 from .geom import Geometry, multipoint
 from .math import Poly2d, affine_from_pts, align_up, resolution_from_affine, unstack_xy
-from .types import XY, MaybeInt, Resolution, SomeShape, wh_
+from .types import XY, MaybeInt, Resolution, SomeResolution, SomeShape, wh_
 
 SomePointSet = Union[np.ndarray, Geometry, List[Geometry], List[XY[float]]]
 
@@ -255,7 +255,12 @@ class GCPGeoBox(GeoBoxBase):
         _shape, _affine = self.compute_zoom_out(factor)
         return GCPGeoBox(_shape, self._mapping, _affine)
 
-    def zoom_to(self, shape: Union[SomeShape, int, float]) -> "GCPGeoBox":
+    def zoom_to(
+        self,
+        shape: Union[SomeShape, int, float, None] = None,
+        *,
+        resolution: Optional[SomeResolution] = None,
+    ) -> "GCPGeoBox":
         """
         Compute :py:class:`~odc.geo.geobox.GCPGeoBox` with changed resolution.
 
@@ -264,7 +269,7 @@ class GCPGeoBox(GeoBoxBase):
         :returns:
           GCPGeoBox covering the same region but with different number of pixels and therefore resolution.
         """
-        _shape, _affine = self.compute_zoom_to(shape)
+        _shape, _affine = self.compute_zoom_to(shape, resolution=resolution)
         return GCPGeoBox(_shape, self._mapping, _affine)
 
     def __str__(self):

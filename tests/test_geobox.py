@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from affine import Affine
 
-from odc.geo import CRS, geom, ixy_, resyx_, wh_, xy_
+from odc.geo import CRS, geom, ixy_, resxy_, resyx_, wh_, xy_
 from odc.geo.geobox import (
     AnchorEnum,
     GeoBox,
@@ -296,6 +296,36 @@ def test_geobox_scale_down():
         assert gbox_.extent.contains(gbox.extent)
 
 
+@pytest.mark.parametrize(
+    "geobox",
+    [
+        GeoBox.from_bbox((-10, -2, 5, 4), "epsg:4326", tight=True, resolution=0.2),
+        GeoBox.from_bbox((-10, -2, 5, 4), "epsg:3857", tight=True, resolution=1),
+        GeoBox.from_bbox(
+            (-10, -2, 5, 4), "epsg:3857", tight=True, resolution=resxy_(1, 2)
+        ),
+    ],
+)
+@pytest.mark.parametrize("shape", [256, (128, 128), (33, 11)])
+def test_zoom_to_shape(geobox: GeoBox, shape):
+    assert geobox.zoom_to(shape).crs == geobox.crs
+
+    if isinstance(shape, int):
+        assert max(geobox.zoom_to(shape).shape) == shape
+    else:
+        assert geobox.zoom_to(shape).shape == shape
+
+
+def test_zoom_to_resolution():
+    geobox = GeoBox.from_bbox((-3, -4, 3, 4), epsg4326, resolution=1)
+    assert geobox.shape == (8, 6) and geobox.resolution.xy == (1, -1)
+    assert geobox.zoom_to(resolution=2).resolution.xy == (2, -2)
+    assert geobox.zoom_to(resolution=2).zoom_to(resolution=1) == geobox
+
+    with pytest.raises(ValueError):
+        geobox.zoom_to()
+
+
 def test_non_st():
     A = mkA(rot=10, translation=(-10, 20), shear=0.3)
     assert is_affine_st(A) is False
@@ -335,6 +365,13 @@ def test_from_polygon():
     assert gbox.crs != box.crs
     assert gbox.shape.wh == (29, 100)
     assert 32601 <= gbox.crs.epsg <= 32660
+
+
+def test_from_polygon_compat_align():
+    box = geom.box(1, 13, 17, 37, "epsg:4326")
+    assert GeoBox.from_geopolygon(box, 2, align=xy_(1, 1)) == GeoBox.from_geopolygon(
+        box, 2, anchor=xy_(0.5, 0.5)
+    )
 
 
 def test_from_bbox():
