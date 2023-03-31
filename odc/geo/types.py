@@ -397,7 +397,7 @@ def wh_(w: int, h: int, /) -> Shape2d:
     return Shape2d(x=w, y=h)
 
 
-def shape_(x: SomeShape) -> Shape2d:
+def shape_(x: Union[SomeShape, Tuple[int, ...]]) -> Shape2d:
     """Normalise shape representation."""
     if isinstance(x, Shape2d):
         return x
