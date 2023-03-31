@@ -222,6 +222,7 @@ class Shape2d(XY[int], Sequence[int]):
 SomeShape = Union[Tuple[int, int], XY[int], Shape2d, Index2d]
 SomeIndex2d = Union[Tuple[int, int], XY[int], Index2d]
 SomeResolution = Union[float, int, Resolution]
+Chunks2d = Tuple[Tuple[int, ...], Tuple[int, ...]]
 
 
 class SupportsCoords(Protocol[T]):

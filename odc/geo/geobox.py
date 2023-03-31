@@ -24,10 +24,10 @@ from .math import (
     snap_grid,
     split_translation,
 )
-from .roi import Tiles as RoiTiles
-from .roi import align_up, roi_boundary, roi_normalise, roi_shape
+from .roi import RoiTiles, align_up, roi_boundary, roi_normalise, roi_shape, roi_tiles
 from .types import (
     XY,
+    Chunks2d,
     Index2d,
     MaybeInt,
     NormalizedROI,
@@ -1169,7 +1169,7 @@ def affine_transform_pix(gbox: GeoBox, transform: Affine) -> GeoBox:
 class GeoboxTiles:
     """Partition GeoBox into sub geoboxes."""
 
-    def __init__(self, box: GeoBox, tile_shape: SomeShape):
+    def __init__(self, box: GeoBox, tile_shape: Union[SomeShape, Chunks2d]):
         """
         Construct from a :py:class:`~odc.geo.GeoBox`.
 
@@ -1177,7 +1177,7 @@ class GeoboxTiles:
         :param tile_shape: Shape of sub-tiles in pixels ``(rows, cols)``
         """
         self._gbox = box
-        self._tiles = RoiTiles(box.shape, tile_shape)
+        self._tiles = roi_tiles(box.shape, tile_shape)
         self._cache: Dict[Index2d, GeoBox] = {}
 
     @property

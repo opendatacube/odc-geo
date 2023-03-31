@@ -3,6 +3,7 @@ import pytest
 
 from odc.geo.roi import (
     Tiles,
+    VariableSizedTiles,
     _norm_slice_or_error,
     polygon_path,
     roi_boundary,
@@ -14,6 +15,7 @@ from odc.geo.roi import (
     roi_normalise,
     roi_pad,
     roi_shape,
+    roi_tiles,
     scaled_down_roi,
     scaled_down_shape,
     scaled_up_roi,
@@ -153,8 +155,48 @@ def test_polygon_path():
 def test_tiles():
     tt = Tiles((10, 20), (3, 7))
     assert tt.tile_shape((0, 0)) == (3, 7)
+    assert tt.tile_shape((3, 2)) == (1, 6)
     assert tt.shape.yx == (4, 3)
     assert tt.base.yx == (10, 20)
+    assert tt.chunks == ((3, 3, 3, 1), (7, 7, 6))
 
     assert tt[0, 0] == np.s_[0:3, 0:7]
     assert tt[3, 2] == np.s_[9:10, 14:20]
+
+    tt_ = VariableSizedTiles(tt.chunks)
+    assert tt_.shape == tt.shape
+    assert tt_.tile_shape((0, 0)) == (3, 7)
+    assert tt_.tile_shape((3, 2)) == (1, 6)
+    assert tt_.shape.yx == (4, 3)
+    assert tt_.base.yx == (10, 20)
+    assert tt_.chunks == ((3, 3, 3, 1), (7, 7, 6))
+
+    assert isinstance(roi_tiles(tt.shape, (1, 2)), Tiles)
+    assert isinstance(roi_tiles(tt.shape, tt.shape), Tiles)
+    assert isinstance(roi_tiles(tt.shape, tt.chunks), VariableSizedTiles)
+
+
+@pytest.mark.parametrize(
+    "chunks",
+    [
+        ((1,), (2,)),
+        ((1, 10, 3), (2, 5, 7, 11, 2)),
+    ],
+)
+def test_varsz_tiles(chunks):
+    iy, ix = chunks
+    tt = VariableSizedTiles(chunks)
+
+    assert tt.shape == (len(iy), len(ix))
+    assert tt.base == (sum(iy), sum(ix))
+
+    for idx in np.ndindex(tt.shape.yx):
+        y, x = idx
+        assert tt.tile_shape(idx) == (iy[y], ix[x])
+        assert (
+            tt[idx]
+            == np.s_[
+                sum(iy[:y]) : sum(iy[: y + 1]),
+                sum(ix[:x]) : sum(ix[: x + 1]),
+            ]
+        )
