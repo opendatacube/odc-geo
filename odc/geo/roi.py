@@ -10,12 +10,13 @@ will have an ROI that can be constructed with :py:func:`numpy.s_` like this: ``s
 """
 import math
 from collections import abc
-from typing import Optional, Tuple, Union, overload
+from typing import Optional, Protocol, Tuple, Union, overload
 
 import numpy as np
 
 from .math import align_down, align_up, edge_index
 from .types import (
+    Chunks2d,
     NdROI,
     NormalizedROI,
     NormalizedSlice,
@@ -51,6 +52,30 @@ class WindowFromSlice:
 
 
 w_ = WindowFromSlice()
+
+
+class RoiTiles(Protocol):
+    """
+    Abstraction for 2d slice/shape/chunks lookup.
+    """
+
+    def __getitem__(self, idx: SomeIndex2d) -> NormalizedROI:
+        ...
+
+    def tile_shape(self, idx: SomeIndex2d) -> Shape2d:
+        ...
+
+    @property
+    def shape(self) -> Shape2d:
+        ...
+
+    @property
+    def base(self) -> Shape2d:
+        ...
+
+    @property
+    def chunks(self) -> Chunks2d:
+        ...
 
 
 class Tiles:
@@ -117,6 +142,75 @@ class Tiles:
     def base(self) -> Shape2d:
         """Base shape."""
         return self._base_shape
+
+    @property
+    def chunks(self) -> Chunks2d:
+        """Dask compatible chunk rerpesentation."""
+        NY, NX = self.shape.yx
+        ny, nx = self.tile_shape((0, 0)).yx
+        ny_, nx_ = self.tile_shape((NY - 1, NX - 1))
+
+        return (
+            (ny,) * (NY - 1) + (ny_,),
+            (nx,) * (NX - 1) + (nx_,),
+        )
+
+
+class VariableSizedTiles:
+    """
+    Partition box into tiles of varying sizes.
+
+    Turns ``row, col`` index into a 2d ROI of the original box.
+    """
+
+    __slots__ = ("_offsets",)
+
+    def __init__(self, chunks: Chunks2d) -> None:
+        self._offsets = tuple(
+            np.asarray([0, *idx], dtype="int32").cumsum(dtype="int32") for idx in chunks
+        )
+
+    def __getitem__(self, idx: SomeIndex2d) -> NormalizedROI:
+        idx = iyx_(idx)
+        y, x = (slice(int(a[i]), int(a[i + 1])) for a, i in zip(self._offsets, idx.yx))
+        return (y, x)
+
+    def tile_shape(self, idx: SomeIndex2d) -> Shape2d:
+        """
+        Query shape for a given tile.
+
+        :param idx: ``(row, col)`` chunk index
+        :returns: shape of a tile
+        :raises: :py:class:`IndexError` when index is outside of ``[(0,0) -> .shape)``.
+        """
+        idx = iyx_(idx)
+        ny, nx = (int(a[i + 1]) - int(a[i]) for a, i in zip(self._offsets, idx.yx))
+        return Shape2d(x=nx, y=ny)
+
+    @property
+    def shape(self) -> Shape2d:
+        """Number of tiles along each dimension."""
+        ny, nx = (len(idx) - 1 for idx in self._offsets)
+        return Shape2d(x=nx, y=ny)
+
+    @property
+    def base(self) -> Shape2d:
+        """Base shape."""
+        ny, nx = (int(idx[-1]) for idx in self._offsets)
+        return Shape2d(x=nx, y=ny)
+
+    @property
+    def chunks(self) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
+        """Dask compatible chunk rerpesentation."""
+        y, x = (tuple(np.diff(idx).tolist()) for idx in self._offsets)
+        return (y, x)
+
+
+def roi_tiles(shape: SomeShape, how: Union[SomeShape, Chunks2d]) -> RoiTiles:
+    if isinstance(how, (tuple, list)) and isinstance(how[0], (tuple, list)):
+        y, x = (tuple(i) for i in how)
+        return VariableSizedTiles((y, x))
+    return Tiles(shape, how)
 
 
 def polygon_path(

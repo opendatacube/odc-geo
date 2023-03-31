@@ -145,7 +145,8 @@ def test_gbox_ops():
     ), "Check that center pixel hasn't moved"
 
 
-def test_gbox_tiles():
+@pytest.mark.parametrize("use_chunks", [False, True])
+def test_gbox_tiles(use_chunks):
     A = Affine.identity()
     H, W = (300, 200)
     h, w = (10, 20)
@@ -153,6 +154,9 @@ def test_gbox_tiles():
     tt = gbx.GeoboxTiles(gbox, (h, w))
     assert tt.shape == (300 / 10, 200 / 20)
     assert tt.base is gbox
+
+    if use_chunks:
+        tt = gbx.GeoboxTiles(gbox, tt.roi.chunks)
 
     assert tt[0, 0] == gbox[0:h, 0:w]
     assert tt[0, 1] == gbox[0:h, w : w + w]
