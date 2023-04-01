@@ -77,6 +77,9 @@ class RoiTiles(Protocol):
     def chunks(self) -> Chunks2d:
         ...
 
+    def __dask_tokenize__(self):
+        ...
+
 
 class Tiles:
     """
@@ -155,6 +158,13 @@ class Tiles:
             (nx,) * (NX - 1) + (nx_,),
         )
 
+    def __dask_tokenize__(self):
+        return (
+            "odc.geo.roi.Tiles",
+            *self._shape,
+            *self._tile_shape,
+        )
+
 
 class VariableSizedTiles:
     """
@@ -204,6 +214,12 @@ class VariableSizedTiles:
         """Dask compatible chunk rerpesentation."""
         y, x = (tuple(np.diff(idx).tolist()) for idx in self._offsets)
         return (y, x)
+
+    def __dask_tokenize__(self):
+        return (
+            "odc.geo.roi.VariableSizedTiles",
+            *self._offsets,
+        )
 
 
 def roi_tiles(shape: SomeShape, how: Union[SomeShape, Chunks2d]) -> RoiTiles:

@@ -24,6 +24,10 @@ def test_tokenize_geobox():
         GeoboxTiles(gbox.pad(1), (1, 2))
     )
 
+    gbt = GeoboxTiles(gbox, ((30, 40, 30), (45, 55)))
+    assert tokenize(gbt) == tokenize(GeoboxTiles(gbox, gbt.chunks))
+    assert tokenize(gbt) != tokenize(GeoboxTiles(gbox, gbt.chunks[::-1]))
+
     crs = CRS("epsg:4326")
     assert tokenize(crs) == tokenize(crs)
     assert tokenize(crs) == tokenize(CRS(crs))

@@ -200,3 +200,5 @@ def test_varsz_tiles(chunks):
                 sum(ix[:x]) : sum(ix[: x + 1]),
             ]
         )
+
+    assert isinstance(tt.__dask_tokenize__(), tuple)
