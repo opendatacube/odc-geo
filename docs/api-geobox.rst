@@ -59,9 +59,12 @@ GeoboxTiles
    GeoboxTiles
    GeoboxTiles.base
    GeoboxTiles.chunk_shape
+   GeoboxTiles.chunks
    GeoboxTiles.range_from_bbox
    GeoboxTiles.shape
    GeoboxTiles.tiles
+   GeoboxTiles.grid_intersect
+   GeoboxTiles.roi
 
 
 Standalone Methods

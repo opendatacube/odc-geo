@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 import xarray as xr
 
-from odc.geo.data import ocean_geom
+from odc.geo.data import country_geom, ocean_geom
 from odc.geo.geobox import GeoBox
 from odc.geo.xr import rasterize
 
@@ -31,3 +31,18 @@ def ocean_raster_ds(ocean_raster: xr.DataArray) -> xr.Dataset:
             blue=xx,
         )
     )
+
+
+@pytest.fixture()
+def iso3():
+    return "AUS"
+
+
+@pytest.fixture()
+def crs():
+    return "epsg:3857"
+
+
+@pytest.fixture()
+def country(iso3, crs):
+    return country_geom(iso3, crs=crs)
