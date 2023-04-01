@@ -1212,6 +1212,10 @@ class GeoboxTiles:
         """
         return self._tiles.tile_shape(idx)
 
+    @property
+    def chunks(self) -> Chunks2d:
+        return self._tiles.chunks
+
     def __getitem__(self, idx: SomeIndex2d) -> GeoBox:
         """
         Lookup tile by index, index is in matrix access order: ``(row, col)``.
@@ -1265,6 +1269,24 @@ class GeoboxTiles:
             gbox = self[idx]
             if gbox.extent.intersects(poly):
                 yield idx
+
+    def grid_intersect(
+        self, src: "GeoboxTiles"
+    ) -> Dict[Tuple[int, int], List[Tuple[int, int]]]:
+        """
+        Figure out tile to tile overlap graph between two grids.
+
+        For every tile in this :py:class:`GeoboxTiles` find every tile in ``other`` that
+        intersects with this ``tile``.
+        """
+        xy_chunks_with_data = list(self.tiles(src.base.extent))
+        deps: Dict[Tuple[int, int], List[Tuple[int, int]]] = {}
+
+        for idx in xy_chunks_with_data:
+            geobox = self[idx]
+            deps[idx] = list(src.tiles(geobox.extent))
+
+        return deps
 
     def __dask_tokenize__(self):
         return (
