@@ -1291,6 +1291,6 @@ class GeoboxTiles:
     def __dask_tokenize__(self):
         return (
             "odc.geo.geobox.GeoboxTiles",
-            *self._tiles.shape.yx,
             *self._gbox.__dask_tokenize__()[1:],
+            *self._tiles.__dask_tokenize__()[1:],
         )
