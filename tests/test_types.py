@@ -1,9 +1,11 @@
 from collections import abc
+from typing import Tuple
 
 import pytest
 
 from odc.geo import ixy_, iyx_, res_, resxy_, resyx_, shape_, wh_, xy_, yx_
 from odc.geo.geom import point
+from odc.geo.types import func2map
 
 
 def test_basics():
@@ -116,3 +118,20 @@ def test_map():
 
 def test_geom_interop():
     assert xy_(1.0, 2.0) == xy_(point(1.0, 2.0, "epsg:4326"))
+
+
+def test_func_to_map() -> None:
+    def aa(idx: int) -> Tuple[int, int]:
+        return (idx, idx + 1)
+
+    def first(idx: Tuple[int, ...]) -> int:
+        return idx[0]
+
+    AA = func2map(aa)
+    assert len(AA) == 0
+    assert list(AA) == []
+    assert AA[10] == aa(10)
+
+    FF = func2map(first)
+    assert FF[3, 2] == 3
+    assert FF[100, 3, 4] == 100
