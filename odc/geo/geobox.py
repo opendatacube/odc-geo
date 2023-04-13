@@ -7,7 +7,7 @@ import itertools
 import math
 from collections import OrderedDict, namedtuple
 from enum import Enum
-from typing import Dict, Iterable, List, Literal, Optional, Tuple, Union
+from typing import Dict, Iterable, List, Literal, Mapping, Optional, Tuple, Union
 
 import numpy
 from affine import Affine
@@ -26,9 +26,9 @@ from .math import (
 )
 from .roi import RoiTiles, align_up, roi_boundary, roi_normalise, roi_shape, roi_tiles
 from .types import (
+    ROI,
     XY,
     Chunks2d,
-    Index2d,
     MaybeInt,
     NormalizedROI,
     OutlineMode,
@@ -38,7 +38,7 @@ from .types import (
     SomeResolution,
     SomeShape,
     Unset,
-    iyx_,
+    func2map,
     res_,
     shape_,
     xy_,
@@ -1169,7 +1169,13 @@ def affine_transform_pix(gbox: GeoBox, transform: Affine) -> GeoBox:
 class GeoboxTiles:
     """Partition GeoBox into sub geoboxes."""
 
-    def __init__(self, box: GeoBox, tile_shape: Union[SomeShape, Chunks2d]):
+    def __init__(
+        self,
+        box: GeoBox,
+        tile_shape: Union[SomeShape, Chunks2d],
+        *,
+        _tiles: Optional[RoiTiles] = None,
+    ):
         """
         Construct from a :py:class:`~odc.geo.GeoBox`.
 
@@ -1177,8 +1183,10 @@ class GeoboxTiles:
         :param tile_shape: Shape of sub-tiles in pixels ``(rows, cols)``
         """
         self._gbox = box
-        self._tiles = roi_tiles(box.shape, tile_shape)
-        self._cache: Dict[Index2d, GeoBox] = {}
+        if _tiles is not None:
+            self._tiles = _tiles
+        else:
+            self._tiles = roi_tiles(box.shape, tile_shape)
 
     @property
     def base(self) -> GeoBox:
@@ -1216,7 +1224,15 @@ class GeoboxTiles:
     def chunks(self) -> Chunks2d:
         return self._tiles.chunks
 
-    def __getitem__(self, idx: SomeIndex2d) -> GeoBox:
+    def _crop(self, roi: ROI) -> "GeoboxTiles":
+        gbox_new = self.base[self._tiles[roi]]
+        return GeoboxTiles(gbox_new, (0, 0), _tiles=self._tiles.crop(roi))
+
+    @property
+    def crop(self) -> Mapping[ROI, "GeoboxTiles"]:
+        return func2map(self._crop)
+
+    def __getitem__(self, idx: Union[SomeIndex2d, ROI]) -> GeoBox:
         """
         Lookup tile by index, index is in matrix access order: ``(row, col)``.
 
@@ -1224,13 +1240,7 @@ class GeoboxTiles:
         :returns: GeoBox of a tile
         :raises: IndexError when index is outside of ``[(0,0) -> .shape)``
         """
-        idx = iyx_(idx)
-        sub_gbox = self._cache.get(idx, None)
-        if sub_gbox is not None:
-            return sub_gbox
-
-        roi = self._tiles[idx]
-        return self._cache.setdefault(idx, self._gbox[roi])
+        return self._gbox[self._tiles[idx]]
 
     def range_from_bbox(self, bbox: BoundingBox) -> Tuple[range, range]:
         """

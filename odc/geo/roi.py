@@ -16,6 +16,7 @@ import numpy as np
 
 from .math import align_down, align_up, edge_index
 from .types import (
+    ROI,
     Chunks2d,
     NdROI,
     NormalizedROI,
@@ -59,7 +60,10 @@ class RoiTiles(Protocol):
     Abstraction for 2d slice/shape/chunks lookup.
     """
 
-    def __getitem__(self, idx: SomeIndex2d) -> NormalizedROI:
+    def __getitem__(self, idx: Union[SomeIndex2d, ROI]) -> NormalizedROI:
+        ...
+
+    def crop(self, roi: ROI) -> "RoiTiles":
         ...
 
     def tile_shape(self, idx: SomeIndex2d) -> Shape2d:
@@ -81,6 +85,15 @@ class RoiTiles(Protocol):
         ...
 
 
+def norm_slice_2d(
+    idx: Union[SomeIndex2d, ROI], shape: Tuple[int, int]
+) -> NormalizedROI:
+    if isinstance(idx, tuple):
+        return roi_normalise(idx, shape)
+    y, x = iyx_(idx).yx
+    return slice(y, y + 1), slice(x, x + 1)
+
+
 class Tiles:
     """
     Partition box into tiles.
@@ -98,18 +111,24 @@ class Tiles:
         )
         self._shape = shape_((ny, nx))
 
-    def __getitem__(self, idx: SomeIndex2d) -> NormalizedROI:
-        def _slice(i, N, n) -> NormalizedSlice:
-            _in = i * n
-            if 0 <= _in < N:
-                return slice(_in, min(_in + n, N))
+    def crop(self, roi: ROI) -> "Tiles":
+        base_shape = roi_shape(self[roi])
+        return Tiles(base_shape, self._tile_shape)
+
+    def __getitem__(self, idx: Union[SomeIndex2d, ROI]) -> NormalizedROI:
+        def _slice(i: NormalizedSlice, N: int, n: int) -> NormalizedSlice:
+            _in = i.start * n
+            _out = i.stop * n
+
+            if 0 <= _in < N and _out < N + n:
+                return slice(_in, min(_out, N))
             raise IndexError(f"Index {idx} is out of range")
 
-        idx = iyx_(idx)
+        idx = norm_slice_2d(idx, self._shape.yx)
 
         ir, ic = (
             _slice(i, N, n)
-            for i, N, n in zip(idx.yx, self._base_shape.yx, self._tile_shape.yx)
+            for i, N, n in zip(idx, self._base_shape.yx, self._tile_shape.yx)
         )
         return (ir, ic)
 
@@ -180,9 +199,16 @@ class VariableSizedTiles:
             np.asarray([0, *idx], dtype="int32").cumsum(dtype="int32") for idx in chunks
         )
 
-    def __getitem__(self, idx: SomeIndex2d) -> NormalizedROI:
-        idx = iyx_(idx)
-        y, x = (slice(int(a[i]), int(a[i + 1])) for a, i in zip(self._offsets, idx.yx))
+    def crop(self, roi: ROI) -> "VariableSizedTiles":
+        roi = roi_normalise(roi, self.shape.yx)
+        y, x = (ch[s.start : s.stop] for ch, s in zip(self.chunks, roi))
+        return VariableSizedTiles((y, x))
+
+    def __getitem__(self, idx: Union[SomeIndex2d, ROI]) -> NormalizedROI:
+        idx = norm_slice_2d(idx, self.shape.yx)
+        y, x = (
+            slice(int(a[i.start]), int(a[i.stop])) for a, i in zip(self._offsets, idx)
+        )
         return (y, x)
 
     def tile_shape(self, idx: SomeIndex2d) -> Shape2d:
@@ -336,6 +362,14 @@ def scaled_down_shape(shape: Tuple[int, ...], scale: int) -> Tuple[int, ...]:
     return tuple(align_up(s, scale) // scale for s in shape)
 
 
+# fmt: off
+@overload
+def roi_shape(roi: ROI) -> Tuple[int, int]: ...
+@overload
+def roi_shape(roi: NdROI) -> Tuple[int, ...]: ...
+# fmt: on
+
+
 def roi_shape(roi: NdROI) -> Tuple[int, ...]:
     """
     Shape of an array after cropping with ``roi``.
@@ -428,6 +462,8 @@ def _norm_slice(s: SomeSlice, n: int) -> NormalizedSlice:
 # fmt: off
 @overload
 def roi_normalise(roi: SomeSlice, shape: Union[int, Tuple[int]]) -> NormalizedSlice: ...
+@overload
+def roi_normalise(roi: ROI, shape: Tuple[int, int]) -> NormalizedROI: ...
 @overload
 def roi_normalise(roi: Tuple[SomeSlice, ...], shape: Tuple[int, ...]
 ) -> Tuple[NormalizedSlice, ...]: ...
