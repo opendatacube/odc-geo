@@ -272,6 +272,10 @@ def test_gbox_boundary():
 
     assert geobox.map_bounds() == geobox.boundingbox.map_bounds()
 
+    geobox = GeoBox(wh_(6, 2), Affine.translation(0, 0), None)
+    assert geobox.boundingbox.crs is None
+    assert geobox.map_bounds() == geobox.boundingbox.map_bounds()
+
 
 def test_geobox_scale_down():
     crs = CRS("EPSG:3857")

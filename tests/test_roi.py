@@ -163,6 +163,12 @@ def test_tiles():
     assert tt[0, 0] == np.s_[0:3, 0:7]
     assert tt[3, 2] == np.s_[9:10, 14:20]
 
+    assert tt[0, 0] == tt[:1, :1]
+    assert tt[:, :] == np.s_[0:10, 0:20]
+    assert tt[0:2, 0] == np.s_[0:6, 0:7]
+    assert tt[1:4, -1:] == np.s_[3:10, 14:20]
+    assert tt[1:, -1:] == np.s_[3:10, 14:20]
+
     tt_ = VariableSizedTiles(tt.chunks)
     assert tt_.shape == tt.shape
     assert tt_.tile_shape((0, 0)) == (3, 7)
@@ -200,5 +206,35 @@ def test_varsz_tiles(chunks):
                 sum(ix[:x]) : sum(ix[: x + 1]),
             ]
         )
+        # test slice version
+        assert tt[y, x] == tt[y : y + 1, x : x + 1]
+        assert tt[y, x] == tt[y, x : x + 1]
+        assert tt[y, x] == tt[y : y + 1, x]
+        assert tt[:y, x:] == np.s_[0 : sum(iy[:y]), sum(ix[:x]) : sum(ix)]
 
     assert isinstance(tt.__dask_tokenize__(), tuple)
+
+
+@pytest.mark.parametrize(
+    "tile",
+    [
+        VariableSizedTiles(((10, 1, 30), (2, 4, 5, 6))),
+        VariableSizedTiles(((10, 1, 30), (2, 4, 7, 13))),
+        Tiles((104, 201), (11, 23)),
+    ],
+)
+@pytest.mark.parametrize(
+    "roi",
+    [
+        np.s_[:1, :1],
+        np.s_[1:2, 2:],
+        np.s_[-1:, 0],
+    ],
+)
+def test_tiles_crop(tile, roi):
+    assert isinstance(tile.crop(roi), type(tile))
+
+    # tile.chunks[roi] == tile[roi].chunks
+    _roi = roi_normalise(roi, tile.shape.yx)
+    expect_chunks = tuple(ch[s.start : s.stop] for ch, s in zip(tile.chunks, _roi))
+    assert tile.crop(roi).chunks == expect_chunks
