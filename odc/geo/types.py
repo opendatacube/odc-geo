@@ -6,6 +6,7 @@ from typing import (
     Iterator,
     List,
     Literal,
+    Mapping,
     Optional,
     Protocol,
     Sequence,
@@ -21,6 +22,8 @@ MaybeFloat = Optional[float]
 T = TypeVar("T")
 T1 = TypeVar("T1")
 T2 = TypeVar("T2")
+TK = TypeVar("TK")
+TV = TypeVar("TV")
 
 
 class Unset:
@@ -448,3 +451,37 @@ NormalizedROI = Tuple[NormalizedSlice, NormalizedSlice]
 OutlineMode = Union[
     Literal["native"], Literal["pixel"], Literal["geo"], Literal["auto"]
 ]
+
+
+class _Func2Map(Mapping[TK, TV]):
+    """
+    Turn ``f(K)`` into ``ff[K]``.
+    """
+
+    __slots__ = ("_func", "_keys")
+
+    def __init__(self, func: Callable[[TK], TV], keys: Sequence[TK]):
+        self._func = func
+        self._keys = keys
+
+    def __getitem__(self, idx: TK) -> TV:
+        return self._func(idx)
+
+    def __len__(self) -> int:
+        return len(self._keys)
+
+    def __iter__(self) -> Iterator[TK]:
+        yield from self._keys
+
+
+def func2map(
+    f: Callable[[TK], TV],
+    keys: Optional[Sequence[TK]] = None,
+) -> Mapping[TK, TV]:
+    """
+    Turn ``f(K) -> V`` into ``ff[K] -> V``.
+
+    :param f: Callable mapping ``K -> V``
+    :param keys: Optional sequence of valid keys
+    """
+    return _Func2Map(f, [] if keys is None else keys)
