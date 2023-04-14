@@ -60,7 +60,7 @@ class RoiTiles(Protocol):
     Abstraction for 2d slice/shape/chunks lookup.
     """
 
-    def __getitem__(self, idx: Union[SomeIndex2d, ROI]) -> NormalizedROI:
+    def __getitem__(self, idx: Union[SomeIndex2d, ROI]) -> Tuple[slice, slice]:
         ...
 
     def crop(self, roi: ROI) -> "RoiTiles":
@@ -115,8 +115,8 @@ class Tiles:
         base_shape = roi_shape(self[roi])
         return Tiles(base_shape, self._tile_shape)
 
-    def __getitem__(self, idx: Union[SomeIndex2d, ROI]) -> NormalizedROI:
-        def _slice(i: NormalizedSlice, N: int, n: int) -> NormalizedSlice:
+    def __getitem__(self, idx: Union[SomeIndex2d, ROI]) -> Tuple[slice, slice]:
+        def _slice(i: NormalizedSlice, N: int, n: int) -> slice:
             _in = i.start * n
             _out = i.stop * n
 
@@ -204,7 +204,7 @@ class VariableSizedTiles:
         y, x = (ch[s.start : s.stop] for ch, s in zip(self.chunks, roi))
         return VariableSizedTiles((y, x))
 
-    def __getitem__(self, idx: Union[SomeIndex2d, ROI]) -> NormalizedROI:
+    def __getitem__(self, idx: Union[SomeIndex2d, ROI]) -> Tuple[slice, slice]:
         idx = norm_slice_2d(idx, self.shape.yx)
         y, x = (
             slice(int(a[i.start]), int(a[i.stop])) for a, i in zip(self._offsets, idx)
