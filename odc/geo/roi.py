@@ -94,6 +94,13 @@ def norm_slice_2d(
     return slice(y, y + 1), slice(x, x + 1)
 
 
+def _fmt_shape(shape):
+    n1, n2 = shape.yx
+    if max(n1, n2) > 10_000:
+        return f"{n1:_d}x{n2:_d}"
+    return f"{n1:d}x{n2:d}"
+
+
 class Tiles:
     """
     Partition box into tiles.
@@ -184,6 +191,13 @@ class Tiles:
             *self._tile_shape,
         )
 
+    def __str__(self) -> str:
+        b1, b2, b3 = map(_fmt_shape, [self._shape, self._tile_shape, self._base_shape])
+        return f"Tiles: {b1}|{b2}px => {b3}px"
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
 
 class VariableSizedTiles:
     """
@@ -246,6 +260,13 @@ class VariableSizedTiles:
             "odc.geo.roi.VariableSizedTiles",
             *self._offsets,
         )
+
+    def __str__(self) -> str:
+        b1, b2, b3 = map(_fmt_shape, [self.shape, self.tile_shape((0, 0)), self.base])
+        return f"Tiles: {b1}|chunked {b2}px => {b3}px"
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
 
 def roi_tiles(shape: SomeShape, how: Union[SomeShape, Chunks2d]) -> RoiTiles:
