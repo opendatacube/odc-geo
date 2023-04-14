@@ -1304,3 +1304,8 @@ class GeoboxTiles:
             *self._gbox.__dask_tokenize__()[1:],
             *self._tiles.__dask_tokenize__()[1:],
         )
+
+    def __str__(self):
+        return str(self.roi)
+
+    __repr__ = __str__

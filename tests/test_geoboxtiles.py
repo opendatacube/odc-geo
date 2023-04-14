@@ -52,6 +52,10 @@ def test_gbox_tiles(use_chunks):
     if use_chunks:
         tt = GeoboxTiles(gbox, tt.roi.chunks)
 
+    # smoke test textual repr
+    assert isinstance(str(tt), str)
+    assert isinstance(repr(tt), str)
+
     assert tt[0, 0] == gbox[0:h, 0:w]
     assert tt[0, 1] == gbox[0:h, w : w + w]
 

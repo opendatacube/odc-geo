@@ -181,6 +181,11 @@ def test_tiles():
     assert isinstance(roi_tiles(tt.shape, tt.shape), Tiles)
     assert isinstance(roi_tiles(tt.shape, tt.chunks), VariableSizedTiles)
 
+    # smoke test repr/str
+    assert isinstance(repr(tt), str)
+    assert isinstance(repr(tt_), str)
+    assert "100_123x200_321" in repr(Tiles((100_123, 200_321), (1000, 1000)))
+
 
 @pytest.mark.parametrize(
     "chunks",
