@@ -64,6 +64,8 @@ def test_roi_tools():
     assert roi_normalise(s_[:4], (40,)) == s_[0:4]
     assert roi_normalise(s_[:], (40,)) == s_[0:40]
     assert roi_normalise(s_[:-1], (3,)) == s_[0:2]
+    assert roi_normalise(-1, (3,)) == s_[2:3]
+    assert roi_normalise(s_[-1:], (3,)) == s_[2:3]
     assert roi_normalise((s_[:-1],), 3) == (s_[0:2],)
     assert roi_normalise(s_[-2:-1, :], (10, 20)) == s_[8:9, 0:20]
     assert roi_normalise(s_[-2:-1, :, 3:4], (10, 20, 100)) == s_[8:9, 0:20, 3:4]
@@ -162,6 +164,10 @@ def test_tiles():
 
     assert tt[0, 0] == np.s_[0:3, 0:7]
     assert tt[3, 2] == np.s_[9:10, 14:20]
+    assert tt[-1, -1] == tt[3, 2]
+    assert tt[-4, -3] == tt[0, 0]
+    assert tt.tile_shape((-1, -1)) == tt.tile_shape((3, 2))
+    assert tt.tile_shape((-4, -3)) == tt.tile_shape((0, 0))
 
     assert tt[0, 0] == tt[:1, :1]
     assert tt[:, :] == np.s_[0:10, 0:20]
@@ -176,6 +182,10 @@ def test_tiles():
     assert tt_.shape.yx == (4, 3)
     assert tt_.base.yx == (10, 20)
     assert tt_.chunks == ((3, 3, 3, 1), (7, 7, 6))
+    assert tt[-1, -1] == tt[3, 2]
+    assert tt[-4, -3] == tt[0, 0]
+    assert tt.tile_shape((-1, -1)) == tt.tile_shape((3, 2))
+    assert tt.tile_shape((-4, -3)) == tt.tile_shape((0, 0))
 
     assert isinstance(roi_tiles(tt.shape, (1, 2)), Tiles)
     assert isinstance(roi_tiles(tt.shape, tt.shape), Tiles)

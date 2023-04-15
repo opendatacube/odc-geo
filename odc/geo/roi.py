@@ -90,8 +90,7 @@ def norm_slice_2d(
 ) -> NormalizedROI:
     if isinstance(idx, tuple):
         return roi_normalise(idx, shape)
-    y, x = iyx_(idx).yx
-    return slice(y, y + 1), slice(x, x + 1)
+    return roi_normalise(iyx_(idx).yx, shape)
 
 
 def _fmt_shape(shape):
@@ -143,13 +142,15 @@ class Tiles:
         """
         Query shape for a given tile.
 
-        :param idx: ``(row, col)`` chunk index
+        :param idx: ``(row, col)`` chunk index, supports numpy style indexing.
         :returns: shape of a tile (edge tiles might be smaller)
         :raises: :py:class:`IndexError` when index is outside of ``[(0,0) -> .shape)``.
         """
         idx = iyx_(idx)
 
         def _sz(i: int, n: int, tile_sz: int, total_sz: int) -> int:
+            if i < 0:  # numpy style index from the right
+                i = n + i
             if 0 <= i < n - 1:  # not edge tile
                 return tile_sz
             if i == n - 1:  # edge tile
@@ -473,6 +474,8 @@ def _norm_slice_or_error(s: SomeSlice) -> NormalizedSlice:
 
 def _norm_slice(s: SomeSlice, n: int) -> NormalizedSlice:
     if isinstance(s, int):
+        if s < 0:
+            s = n + s
         return slice(s, s + 1)
     start = _fill_if_none(s.start, 0)
     stop = _fill_if_none(s.stop, n)
