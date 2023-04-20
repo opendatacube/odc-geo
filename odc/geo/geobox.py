@@ -7,7 +7,17 @@ import itertools
 import math
 from collections import OrderedDict, namedtuple
 from enum import Enum
-from typing import Dict, Iterable, List, Literal, Mapping, Optional, Tuple, Union
+from typing import (
+    Dict,
+    Iterable,
+    List,
+    Literal,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 import numpy
 from affine import Affine
@@ -24,7 +34,15 @@ from .math import (
     snap_grid,
     split_translation,
 )
-from .roi import RoiTiles, align_up, roi_boundary, roi_normalise, roi_shape, roi_tiles
+from .roi import (
+    RoiTiles,
+    align_up,
+    clip_tiles,
+    roi_boundary,
+    roi_normalise,
+    roi_shape,
+    roi_tiles,
+)
 from .types import (
     ROI,
     XY,
@@ -1169,10 +1187,12 @@ def affine_transform_pix(gbox: GeoBox, transform: Affine) -> GeoBox:
 class GeoboxTiles:
     """Partition GeoBox into sub geoboxes."""
 
+    __slots__ = ("_gbox", "_tiles")
+
     def __init__(
         self,
         box: GeoBox,
-        tile_shape: Union[SomeShape, Chunks2d],
+        tile_shape: Union[SomeShape, Chunks2d, None],
         *,
         _tiles: Optional[RoiTiles] = None,
     ):
@@ -1186,6 +1206,7 @@ class GeoboxTiles:
         if _tiles is not None:
             self._tiles = _tiles
         else:
+            assert tile_shape is not None
             self._tiles = roi_tiles(box.shape, tile_shape)
 
     @property
@@ -1227,6 +1248,18 @@ class GeoboxTiles:
     def _crop(self, roi: ROI) -> "GeoboxTiles":
         gbox_new = self.base[self._tiles[roi]]
         return GeoboxTiles(gbox_new, (0, 0), _tiles=self._tiles.crop(roi))
+
+    def clip(
+        self, selection: Sequence[Tuple[int, int]]
+    ) -> Tuple["GeoboxTiles", List[Tuple[int, int]]]:
+        """
+        Crop to a set of tiles.
+
+        Returns cropped version of :py:class:`GeoboxTiles` and a list of
+        tile coordinates in the new, cropped space.
+        """
+        tiles, roi, new_idx = clip_tiles(self._tiles, selection)
+        return GeoboxTiles(self[roi], None, _tiles=tiles), new_idx
 
     @property
     def crop(self) -> Mapping[ROI, "GeoboxTiles"]:
@@ -1307,5 +1340,12 @@ class GeoboxTiles:
 
     def __str__(self):
         return str(self.roi)
+
+    def __eq__(self, __value: object) -> bool:
+        if not isinstance(__value, GeoboxTiles):
+            return False
+        if self is __value:
+            return True
+        return self._tiles == __value._tiles and self._gbox == __value._gbox
 
     __repr__ = __str__
