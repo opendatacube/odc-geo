@@ -21,6 +21,7 @@ from odc.geo.roi import (
     scaled_down_roi,
     scaled_down_shape,
     scaled_up_roi,
+    slice_intersect3,
     w_,
 )
 
@@ -93,6 +94,38 @@ def test_roi_from_points():
     assert roi_from_points(xy, (100, 100)) == np.s_[1:22, 0:11]
     assert roi_from_points(xy, (5, 7)) == np.s_[1:5, 0:7]
     assert roi_from_points(xy[2:, :], (3, 3)) == np.s_[0:0, 0:0]
+
+
+@pytest.mark.parametrize(
+    "a,b",
+    [
+        np.s_[0:3, :3],
+        np.s_[:4, 2:6],
+        np.s_[4:13, 5:17],
+        np.s_[10:13, 3:7],
+        np.s_[10:13, 13:17],
+        np.s_[10:13, 14:17],
+    ],
+)
+def test_slice_intersect3(a: slice, b: slice):
+    assert isinstance(a.stop, int)
+    assert isinstance(b.stop, int)
+    _a, _b, _ab = slice_intersect3(a, b)
+
+    (na,) = roi_shape(a)
+    (nb,) = roi_shape(b)
+
+    assert _a.start <= _a.stop
+    assert 0 <= _a.start <= na
+    assert 0 <= _a.stop <= na
+
+    assert _b.start <= _b.stop
+    assert 0 <= _b.start <= nb
+    assert 0 <= _b.stop <= nb
+
+    X = np.arange(max(a.stop, b.stop))
+    np.testing.assert_array_equal(X[a][_a], X[b][_b])
+    np.testing.assert_array_equal(X[a][_a], X[_ab])
 
 
 def test_roi_intersect():
