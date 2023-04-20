@@ -523,6 +523,35 @@ def _norm_slice(s: SomeSlice, n: int) -> NormalizedSlice:
     return slice(start, stop, s.step)
 
 
+def slice_intersect3(a: SomeSlice, b: SomeSlice) -> Tuple[slice, slice, slice]:
+    """
+    Compute overlap 3 way.
+
+    Compute part of a that overlaps b, part of b that overlaps a and the region
+    of the original region covered by the overlap.
+
+    :returns: ``a', b', ab'``, such that ``X[a][a'] == X[b][b'] == X[ab']``
+    """
+    a = _norm_slice_or_error(a)
+    b = _norm_slice_or_error(b)
+    na = a.stop - a.start
+    nb = b.stop - b.start
+
+    if a.stop < b.start:
+        return slice(na, na), slice(0, 0), slice(a.stop, a.stop)
+    if a.start > b.stop:
+        return slice(0, 0), slice(nb, nb), slice(a.start, a.start)
+
+    _in = max(a.start, b.start)
+    _out = min(a.stop, b.stop)
+
+    return (
+        slice(_in - a.start, _out - a.start),
+        slice(_in - b.start, _out - b.start),
+        slice(_in, _out),
+    )
+
+
 # fmt: off
 @overload
 def roi_normalise(roi: SomeSlice, shape: Union[int, Tuple[int]]) -> NormalizedSlice: ...
