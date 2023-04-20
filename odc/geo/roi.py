@@ -10,7 +10,7 @@ will have an ROI that can be constructed with :py:func:`numpy.s_` like this: ``s
 """
 import math
 from collections import abc
-from typing import Optional, Protocol, Tuple, Union, overload
+from typing import List, Optional, Protocol, Sequence, Tuple, Union, overload
 
 import numpy as np
 
@@ -98,6 +98,23 @@ def _fmt_shape(shape):
     if max(n1, n2) > 10_000:
         return f"{n1:_d}x{n2:_d}"
     return f"{n1:d}x{n2:d}"
+
+
+def clip_tiles(
+    tiles: RoiTiles, selection: Sequence[Tuple[int, int]]
+) -> Tuple["RoiTiles", Tuple[slice, slice], List[Tuple[int, int]]]:
+    """
+    Compute cropped version of tiles from a selection of tile indexes.
+
+    :return: Cropped RoiTiles object, crop that was applied and tile indexes
+             changed to the cropped address space.
+    """
+    ii = np.asarray(selection)
+    y1, x1 = ii.min(axis=0).tolist()
+    y2, x2 = ii.max(axis=0).tolist()
+    roi = np.s_[y1 : y2 + 1, x1 : x2 + 1]
+    sel_new = [(y - y1, x - x1) for y, x in selection]
+    return tiles.crop(roi), roi, sel_new
 
 
 class Tiles:
@@ -199,6 +216,16 @@ class Tiles:
     def __repr__(self) -> str:
         return self.__str__()
 
+    def __eq__(self, __value: object) -> bool:
+        if __value is self:
+            return True
+        if not isinstance(__value, Tiles):
+            return False
+        return (
+            self._base_shape == __value._base_shape
+            and self._tile_shape == __value._tile_shape
+        )
+
 
 class VariableSizedTiles:
     """
@@ -268,6 +295,19 @@ class VariableSizedTiles:
 
     def __repr__(self) -> str:
         return self.__str__()
+
+    def __eq__(self, __value: object) -> bool:
+        if __value is self:
+            return True
+        if not isinstance(__value, VariableSizedTiles):
+            return False
+
+        for a, b in zip(self._offsets, __value._offsets):
+            if a.shape != b.shape:
+                return False
+            if (a != b).any():
+                return False
+        return True
 
 
 def roi_tiles(shape: SomeShape, how: Union[SomeShape, Chunks2d]) -> RoiTiles:

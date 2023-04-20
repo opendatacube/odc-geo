@@ -56,6 +56,14 @@ def test_gbox_tiles(use_chunks):
     assert isinstance(str(tt), str)
     assert isinstance(repr(tt), str)
 
+    # check ==
+    assert tt == tt
+    assert tt != "?"
+    if use_chunks:
+        assert tt == GeoboxTiles(tt.base, tt.chunks)
+    else:
+        assert tt == GeoboxTiles(tt.base, (h, w))
+
     assert tt[0, 0] == gbox[0:h, 0:w]
     assert tt[0, 1] == gbox[0:h, w : w + w]
 
@@ -120,3 +128,10 @@ def test_gbox_tiles_roi(use_chunks):
     assert tt[:, :] == gbox
     assert tt.crop[:, :].base == gbox
     assert tt.crop[1, 2].base == tt[1, 2]
+
+    assert tt.clip([(0, 0)]) == (tt.crop[0, 0], [(0, 0)])
+    assert tt.clip([(1, 0)]) == (tt.crop[1, 0], [(0, 0)])
+    assert tt.clip([(1, 2), (2, 5)]) == (
+        tt.crop[1 : 2 + 1, 2 : 5 + 1],
+        [(0, 0), (1, 3)],
+    )

@@ -2,9 +2,11 @@ import numpy as np
 import pytest
 
 from odc.geo.roi import (
+    RoiTiles,
     Tiles,
     VariableSizedTiles,
     _norm_slice_or_error,
+    clip_tiles,
     polygon_path,
     roi_boundary,
     roi_center,
@@ -175,6 +177,10 @@ def test_tiles():
     assert tt[1:4, -1:] == np.s_[3:10, 14:20]
     assert tt[1:, -1:] == np.s_[3:10, 14:20]
 
+    assert tt == tt
+    assert tt != Tiles((1, 1), (1, 1))
+    assert tt != {"": 3}
+
     tt_ = VariableSizedTiles(tt.chunks)
     assert tt_.shape == tt.shape
     assert tt_.tile_shape((0, 0)) == (3, 7)
@@ -210,6 +216,17 @@ def test_varsz_tiles(chunks):
 
     assert tt.shape == (len(iy), len(ix))
     assert tt.base == (sum(iy), sum(ix))
+    assert tt == tt
+    assert (tt == "") is False
+    assert tt != [9]
+
+    # test comparison with different chunk sizes
+    _chunks = tuple(ch + (1,) for ch in chunks)
+    assert tt != VariableSizedTiles(_chunks)
+
+    # test comparison with different chunk values
+    _chunks = tuple((ch[0] + 3, *ch[1:]) for ch in chunks)
+    assert tt != VariableSizedTiles(_chunks)
 
     for idx in np.ndindex(tt.shape.yx):
         y, x = idx
@@ -253,3 +270,21 @@ def test_tiles_crop(tile, roi):
     _roi = roi_normalise(roi, tile.shape.yx)
     expect_chunks = tuple(ch[s.start : s.stop] for ch, s in zip(tile.chunks, _roi))
     assert tile.crop(roi).chunks == expect_chunks
+
+
+@pytest.mark.parametrize(
+    "tiles",
+    [
+        VariableSizedTiles(((10, 1, 30), (2, 4, 5, 6))),
+        VariableSizedTiles(((10, 1, 30), (2, 4, 7, 13))),
+        Tiles((104, 201), (11, 23)),
+    ],
+)
+def test_clip_tiles(tiles: RoiTiles):
+    ny, nx = tiles.shape.yx
+    tl, tr, br, bl = (0, 0), (0, nx - 1), (ny - 1, nx - 1), (ny - 1, 0)
+
+    tt, roi, idx = clip_tiles(tiles, [tl, tr, br, bl])
+    assert tt == tiles
+    assert roi == np.s_[0:ny, 0:nx]
+    assert idx == [tl, tr, br, bl]
