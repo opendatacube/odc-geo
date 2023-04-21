@@ -552,6 +552,14 @@ def slice_intersect3(a: SomeSlice, b: SomeSlice) -> Tuple[slice, slice, slice]:
     )
 
 
+def roi_intersect3(
+    a: Tuple[SomeSlice, ...], b: Tuple[SomeSlice, ...]
+) -> Tuple[Tuple[slice, ...], Tuple[slice, ...], Tuple[slice, ...]]:
+    assert len(a) == len(b)
+    aa, bb, cc = zip(*[slice_intersect3(a_, b_) for a_, b_ in zip(a, b)])
+    return aa, bb, cc
+
+
 # fmt: off
 @overload
 def roi_normalise(roi: SomeSlice, shape: Union[int, Tuple[int]]) -> NormalizedSlice: ...
