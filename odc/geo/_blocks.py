@@ -5,11 +5,11 @@
 """
 Working with 2d+ chunks.
 """
-from typing import Any, Mapping, Optional, Tuple
+from typing import Any, Iterator, Mapping, Optional, Tuple
 
 import numpy as np
 
-from .roi import VariableSizedTiles
+from .roi import VariableSizedTiles, roi_intersect3, roi_normalise, roi_shape
 from .types import Chunks2d
 
 
@@ -79,10 +79,36 @@ class BlockAssembler:
     def ndim(self) -> int:
         return len(self._shape)
 
+    def _norm_roi(self, roi):
+        if roi is None:
+            roi = tuple(slice(0, n) for n in self._shape)
+        if not isinstance(roi, tuple):
+            roi = (roi,)
+        ndim = len(roi)
+        if ndim == 2:
+            prefix = tuple(slice(0, n) for n in self._shape[: self._axis])
+            postfix = tuple(slice(0, n) for n in self._shape[self._axis + 2 :])
+            roi = (*prefix, *roi, *postfix)
+        elif ndim < self.ndim:
+            roi = (*roi, *tuple(slice(0, n) for n in self._shape[ndim:]))
+        elif ndim > self.ndim:
+            raise IndexError("Too many index dimensions")
+
+        # squeeze out non Y/X axis that were indexed with a single int
+        YX = (self._axis, self._axis + 1)
+        to_squeze = tuple(
+            idx
+            for idx, s in enumerate(roi)
+            if not isinstance(s, slice) and idx not in YX
+        )
+        return roi_normalise(roi, self._shape), to_squeze
+
     def extract(
         self,
         fill_value: Any = None,
+        *,
         dtype=None,
+        roi=None,
         casting="same_kind",
     ) -> np.ndarray:
         """
@@ -97,12 +123,31 @@ class BlockAssembler:
         if fill_value is None:
             fill_value = dtype.type("nan" if np.issubdtype(dtype, np.floating) else 0)
 
-        prefix = tuple([slice(None)] * self._axis)
-        postfix = tuple([slice(None)] * (self.ndim - self._axis - 2))
+        roi, squeeze_axis = self._norm_roi(roi)
+        assert len(roi) == self.ndim
 
-        xx = np.full(self.shape, fill_value, dtype=dtype)
-        for idx, b in self._blocks.items():
-            roi = (*prefix, *self._tiles[idx], *postfix)
-            np.copyto(xx[roi], b, casting=casting)
+        xx = np.full(roi_shape(roi), fill_value, dtype=dtype)
 
+        for idx, block in self._blocks.items():
+            yx_roi_b = self._tiles[idx]  # area covered by this block
+            s_roi = (*roi[: self._axis], *yx_roi_b, *roi[self._axis + 2 :])
+            s_roi, d_roi, _ = roi_intersect3(s_roi, roi)
+            np.copyto(xx[d_roi], block[s_roi], casting=casting)
+
+        if squeeze_axis:
+            xx = np.squeeze(xx, axis=squeeze_axis)
         return xx
+
+    def __getitem__(self, roi) -> np.ndarray:
+        return self.extract(roi=roi)
+
+    def planes_yx(self, yx_roi=None) -> Iterator[Any]:
+        a = self._axis
+        if yx_roi is None:
+            yx = np.s_[:, :]
+        else:
+            ry, rx = yx_roi
+            yx = (ry, rx)
+
+        for idx in np.ndindex(self.shape[:a] + self.shape[a + 2 :]):
+            yield (*idx[:a], *yx, *idx[a:])
