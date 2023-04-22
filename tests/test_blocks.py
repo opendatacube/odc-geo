@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from odc.geo._blocks import BlockAssembler
-from odc.geo.roi import RoiTiles, roi_tiles
+from odc.geo.roi import RoiTiles, roi_normalise, roi_shape, roi_tiles
 
 
 @pytest.mark.parametrize(
@@ -79,12 +79,41 @@ def test_block_assembler(tiles: RoiTiles, idx, dtype):
         ((10, 13, 3), 0),
     ],
 )
-def test_block_planes(bshape: Tuple[int, ...], axis: int):
+@pytest.mark.parametrize(
+    "yx_crop",
+    [
+        np.s_[3:4, 5:9],
+        np.s_[:4, -3:],
+    ],
+)
+def test_block_planes(bshape: Tuple[int, ...], axis: int, yx_crop):
     ny, nx = bshape[axis : axis + 2]
-    rtiles = roi_tiles((ny * 10 + 1, nx * 10 + min(nx - 1, 2)), (ny, nx))
+    NY = ny * 10 + 1
+    NX = nx * 9 + min(nx - 1, 2)
+    rtiles = roi_tiles((NY, NX), (ny, nx))
     chunks = rtiles.chunks
     ba = BlockAssembler({(0, 0): np.zeros(bshape)}, chunks, axis=axis)
     assert ba.ndim == len(bshape)
 
     for _roi in ba.planes_yx():
         assert len(_roi) == len(bshape)
+        assert ba[_roi].shape == (NY, NX)
+
+        if axis == 1 and len(bshape) == 3:
+            assert isinstance(_roi[0], int)
+            np.testing.assert_array_equal(ba[_roi[0]], ba[_roi])
+        if axis == 0 and len(bshape) == 3:
+            assert isinstance(_roi[2], int)
+            np.testing.assert_array_equal(ba[:, :, _roi[2]], ba[_roi])
+
+    crop_shape = roi_shape(roi_normalise(yx_crop, (NY, NX)))
+    for _roi in ba.planes_yx(yx_crop):
+        assert len(_roi) == len(bshape)
+        assert ba[_roi].shape == crop_shape
+        if axis == 1:
+            assert isinstance(_roi[0], int)
+            if len(bshape) == 3:
+                np.testing.assert_array_equal(ba[_roi[0]][yx_crop], ba[_roi])
+
+    with pytest.raises(IndexError):
+        _ = ba[tuple(slice(None) for _ in range(len(bshape) + 1))]
