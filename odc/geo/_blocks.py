@@ -103,6 +103,9 @@ class BlockAssembler:
         )
         return roi_normalise(roi, self._shape), to_squeze
 
+    def with_yx(self, src, yx):
+        return (*src[: self._axis], *yx, *src[self._axis + 2 :])
+
     def extract(
         self,
         fill_value: Any = None,
@@ -128,12 +131,16 @@ class BlockAssembler:
         roi, squeeze_axis = self._norm_roi(roi)
         assert len(roi) == self.ndim
 
+        yx_roi = roi[self._axis : self._axis + 2]
+        everything = tuple(slice(None) for _ in range(self.ndim))
+
         xx = np.full(roi_shape(roi), fill_value, dtype=dtype)
 
         for idx, block in self._blocks.items():
             yx_roi_b = self._tiles[idx]  # area covered by this block
-            s_roi = (*roi[: self._axis], *yx_roi_b, *roi[self._axis + 2 :])
-            s_roi, d_roi, _ = roi_intersect3(s_roi, roi)
+            s_roi, d_roi, _ = roi_intersect3(yx_roi_b, yx_roi)
+            s_roi = self.with_yx(roi, s_roi)
+            d_roi = self.with_yx(everything, d_roi)
             np.copyto(xx[d_roi], block[s_roi], casting=casting)
 
         if squeeze_axis:
