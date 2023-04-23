@@ -359,6 +359,10 @@ def test_wrap_xr():
     assert xx.time.dt.year.values[0] == 2022
     assert xx.time.dt.month.values[0] == 2
 
+    xx = wrap_xr(data[..., np.newaxis], gbox)
+    assert xx.shape == (*gbox.shape, 1)
+    assert xx.band.data.tolist() == ["b0"]
+
 
 def test_xr_reproject(xx_epsg4326: xr.DataArray):
     assert isinstance(xx_epsg4326.odc, ODCExtensionDa)
