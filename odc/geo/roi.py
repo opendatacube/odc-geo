@@ -555,6 +555,14 @@ def slice_intersect3(a: SomeSlice, b: SomeSlice) -> Tuple[slice, slice, slice]:
 def roi_intersect3(
     a: Tuple[SomeSlice, ...], b: Tuple[SomeSlice, ...]
 ) -> Tuple[Tuple[slice, ...], Tuple[slice, ...], Tuple[slice, ...]]:
+    """
+    Compute overlap 3 way.
+
+    Compute part of a that overlaps b, part of b that overlaps a and the region
+    of the original region covered by the overlap.
+
+    :returns: ``a', b', ab'``, such that ``X[a][a'] == X[b][b'] == X[ab']``
+    """
     assert len(a) == len(b)
     aa, bb, cc = zip(*[slice_intersect3(a_, b_) for a_, b_ in zip(a, b)])
     return aa, bb, cc
