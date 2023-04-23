@@ -760,6 +760,7 @@ def wrap_xr(
     time=None,
     nodata=None,
     crs_coord_name: Optional[str] = _DEFAULT_CRS_COORD_NAME,
+    axis: Optional[int] = None,
     **attrs,
 ) -> xarray.DataArray:
     """
@@ -772,11 +773,20 @@ def wrap_xr(
     :param attrs: Any other attributes to set on the result
     :return: xarray DataArray
     """
-    assert im.shape[-2:] == gbox.shape
+    if axis is None:
+        axis = 1 if time is not None else 0
 
-    prefix_dims: Tuple[str, ...] = ("time",) if im.ndim > 2 else ()
+    if im.ndim == 2 and axis == 1:
+        im = im[numpy.newaxis, ...]
 
-    dims = (*prefix_dims, *gbox.dimensions)
+    assert axis in (0, 1)  # upto 1 extra dimension on the left only
+    assert im.ndim - axis - 2 in (0, 1)  # upto 1 extra dimension on the right only
+    assert im.shape[axis : axis + 2] == gbox.shape
+
+    prefix_dims: Tuple[str, ...] = ("time",) if axis == 1 else ()
+    postfix_dims: Tuple[str, ...] = ("band",) if im.ndim - axis > 2 else ()
+
+    dims = (*prefix_dims, *gbox.dimensions, *postfix_dims)
     coords = xr_coords(gbox, crs_coord_name=crs_coord_name)
 
     if time is not None:
@@ -787,6 +797,10 @@ def wrap_xr(
             time = xarray.DataArray(time, dims=prefix_dims).astype("datetime64[ns]")
 
         coords["time"] = time
+    if postfix_dims:
+        coords["band"] = xarray.DataArray(
+            [f"b{i}" for i in range(im.shape[-1])], dims=postfix_dims
+        )
 
     if nodata is not None:
         attrs = dict(nodata=nodata, **attrs)
