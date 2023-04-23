@@ -22,6 +22,8 @@ def test_block_assembler(tiles: RoiTiles, idx, dtype):
     Z = np.zeros(tiles.base.shape, dtype)
     for v, _i in enumerate(idx, start=1):
         Z[tiles[_i]] = v
+    Zf = Z.astype(np.floating).copy()
+    Zf[Z == 0] = np.nan
 
     blocks = {i: Z[tiles[i]].copy() for i in idx}
     ba = BlockAssembler(blocks, tiles.chunks)
@@ -37,11 +39,10 @@ def test_block_assembler(tiles: RoiTiles, idx, dtype):
         np.testing.assert_equal(Z, ba[:, :])
         np.testing.assert_equal(Z[:10, :3], ba[:10, :3])
         np.testing.assert_equal(Z[1:-1, 2:-3], ba[1:-1, 2:-3])
+        np.testing.assert_array_equal(ba.extract(dtype="float32"), Zf)
 
     # for floats default fill value is nan
     if np.issubdtype(dtype, np.floating):
-        Zf = Z.copy()
-        Zf[Z == 0] = np.nan
         np.testing.assert_array_equal(Zf, ba.extract())
         np.testing.assert_array_equal(Zf, ba[:, :])
         np.testing.assert_equal(Zf[:10, 3:], ba[:10, 3:])

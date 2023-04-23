@@ -119,6 +119,8 @@ class BlockAssembler:
             if fill_value is not None:
                 # possibly upgrade to float based on fill_value
                 dtype = np.find_common_type([dtype], [np.min_scalar_type(fill_value)])
+        else:
+            dtype = np.dtype(dtype)
 
         if fill_value is None:
             fill_value = dtype.type("nan" if np.issubdtype(dtype, np.floating) else 0)
