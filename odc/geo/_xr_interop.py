@@ -550,32 +550,46 @@ def _xr_reproject_da(
     else:
         dst_geobox = src.odc.output_geobox(how)
 
-    if is_dask_collection(src):
-        raise NotImplementedError("Dask inputs are not yet supported.")
-
     # compute destination shape by replacing spatial dimensions shape
     ydim = src.odc.ydim
     assert ydim + 1 == src.odc.xdim
     dst_shape = (*src.shape[:ydim], *dst_geobox.shape, *src.shape[ydim + 2 :])
 
-    dst = numpy.empty(dst_shape, dtype=src.dtype)
     src_nodata = kw.pop("src_nodata", None)
     if src_nodata is None:
         src_nodata = src.odc.nodata
     if dst_nodata is None:
         dst_nodata = src_nodata
 
-    dst = rio_reproject(
-        src.values,
-        dst,
-        src_gbox,
-        dst_geobox,
-        resampling=resampling,
-        src_nodata=src_nodata,
-        dst_nodata=dst_nodata,
-        ydim=ydim,
-        **kw,
-    )
+    if is_dask_collection(src):
+        # raise NotImplementedError("Dask inputs are not yet supported.")
+
+        from ._dask import _dask_rio_reproject
+
+        dst: Any = _dask_rio_reproject(
+            src.data,
+            src_gbox,
+            dst_geobox,
+            resampling=resampling,
+            src_nodata=src_nodata,
+            dst_nodata=dst_nodata,
+            ydim=ydim,
+            **kw,
+        )
+    else:
+        dst = numpy.empty(dst_shape, dtype=src.dtype)
+
+        dst = rio_reproject(
+            src.values,
+            dst,
+            src_gbox,
+            dst_geobox,
+            resampling=resampling,
+            src_nodata=src_nodata,
+            dst_nodata=dst_nodata,
+            ydim=ydim,
+            **kw,
+        )
 
     attrs = src.attrs.copy()
     if dst_nodata is None:
