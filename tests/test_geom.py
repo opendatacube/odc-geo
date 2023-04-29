@@ -9,7 +9,6 @@ import numpy as np
 import pytest
 from affine import Affine
 from pytest import approx
-from shapely.errors import ShapelyDeprecationWarning
 
 from odc.geo import CRS, CRSMismatchError, geom, wh_
 from odc.geo.geobox import GeoBox, _round_to_res
@@ -342,6 +341,7 @@ def test_to_crs():
     assert poly.to_crs(epsg3857).crs is epsg3857
     assert poly.to_crs("EPSG:3857").crs == "EPSG:3857"
     assert poly.to_crs("EPSG:3857", 0.1).crs == epsg3857
+    assert poly.to_crs(3857, "auto").crs == epsg3857
 
     assert poly.exterior.to_crs(epsg3857) == poly.to_crs(epsg3857).exterior
 
@@ -797,12 +797,11 @@ def test_lonlat_bounds():
     }
 
     multi_geom = geom.Geometry(multi, "epsg:4326")
-    multi_geom_projected = multi_geom.to_crs("epsg:32659", math.inf)
+    multi_geom_projected = multi_geom.to_crs("epsg:32659")
+    expect = approx(geom.lonlat_bounds(multi_geom))
 
-    ll_bounds = geom.lonlat_bounds(multi_geom)
-    ll_bounds_projected = geom.lonlat_bounds(multi_geom_projected)
-
-    assert ll_bounds == approx(ll_bounds_projected)
+    assert geom.lonlat_bounds(multi_geom_projected) == expect
+    assert geom.lonlat_bounds(multi_geom_projected, resolution="auto") == expect
 
 
 def test_geojson():

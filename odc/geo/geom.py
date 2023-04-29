@@ -15,6 +15,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Literal,
     Optional,
     Sequence,
     Tuple,
@@ -633,7 +634,7 @@ class Geometry(SupportsCoords[float]):
     def to_crs(
         self,
         crs: SomeCRS,
-        resolution: Optional[float] = None,
+        resolution: Union[float, Literal["auto"], None] = None,
         wrapdateline: bool = False,
     ) -> "Geometry":
         """
@@ -667,6 +668,9 @@ class Geometry(SupportsCoords[float]):
 
         if self.crs is None:
             raise ValueError("Cannot project geometries without CRS")
+
+        if resolution == "auto":
+            resolution = _auto_resolution(self)
 
         if resolution is not None and math.isfinite(resolution):
             geom = self.segmented(resolution)
@@ -1263,10 +1267,12 @@ def bbox_intersection(bbs: Iterable[BoundingBox]) -> BoundingBox:
 
 
 def lonlat_bounds(
-    geom: Geometry, mode: str = "safe", resolution: Optional[float] = None
+    geom: Geometry,
+    mode: str = "safe",
+    resolution: Union[float, None, Literal["auto"]] = None,
 ) -> BoundingBox:
     """
-    Return the bounding box of a geometry.
+    Return the bounding box of a geometry in lon/lat.
 
     :param geom:
        Geometry in any projection
@@ -1282,6 +1288,9 @@ def lonlat_bounds(
 
     if geom.crs.geographic:
         return geom.boundingbox
+
+    if resolution == "auto":
+        resolution = _auto_resolution(geom)
 
     if resolution is not None and math.isfinite(resolution):
         geom = geom.segmented(resolution)
@@ -1306,7 +1315,7 @@ def lonlat_bounds(
             if span_x_ < bbox.span_x:
                 xx_range = xx_range_
 
-    return BoundingBox.from_xy(xx_range, bbox.range_y)
+    return BoundingBox.from_xy(xx_range, bbox.range_y, crs=4326)
 
 
 def mid_longitude(geom: Geometry) -> float:
@@ -1315,3 +1324,8 @@ def mid_longitude(geom: Geometry) -> float:
     """
     ((lon,), _) = geom.centroid.to_crs("epsg:4326").xy
     return lon
+
+
+def _auto_resolution(g: Geometry) -> float:
+    # aim for ~100 points per side of a square
+    return math.sqrt(g.area) * 4 / 100
