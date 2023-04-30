@@ -41,6 +41,8 @@ def _do_chunked_reproject(
     src_gbt, src_idx = src_gbt.clip(d2s[dst_idx])
     src_gbox = src_gbt.base
     dst_gbox = dst_gbt[dst_idx]
+    assert isinstance(dst_gbox, GeoBox)
+    assert isinstance(src_gbox, (GCPGeoBox, GeoBox))
 
     ba = BlockAssembler(dict(zip(src_idx, blocks)), src_gbt.chunks, axis=axis)
     if dtype is None:
