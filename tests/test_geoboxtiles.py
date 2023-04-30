@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from affine import Affine
 
-from odc.geo import CRSMismatchError, MaybeCRS, geom, wh_
+from odc.geo import MaybeCRS, geom, wh_
 from odc.geo.geobox import GeoBox, GeoboxTiles
 from odc.geo.testutils import epsg3857
 
@@ -37,6 +37,10 @@ def test_geoboxtiles_intersect(
         assert idx in mm
         assert len(mm[idx]) >= 1
         assert idx in mm[idx]
+
+    gbt2 = GeoboxTiles(geobox.pad(2).to_crs(6933), (13, 11))
+    mm = gbt.grid_intersect(gbt2)
+    assert set(mm) == set(np.ndindex(gbt.shape.yx))
 
 
 @pytest.mark.parametrize("use_chunks", [False, True])
@@ -108,8 +112,13 @@ def test_gbox_tiles(use_chunks):
         range(0, tt.shape[1]),
     )
 
-    with pytest.raises(CRSMismatchError):
-        _ = tt.range_from_bbox(gbox.geographic_extent.boundingbox)
+    # bounding box in any projection should work
+    assert tt.range_from_bbox(gbox.geographic_extent.boundingbox) == (
+        range(0, tt.shape[0]),
+        range(0, tt.shape[1]),
+    )
+
+    assert tt.range_from_bbox(tt[0, 0].extent.boundingbox) == (range(0, 1), range(0, 1))
 
 
 @pytest.mark.parametrize("use_chunks", [False, True])

@@ -321,3 +321,26 @@ def test_clip_tiles(tiles: RoiTiles):
     assert tt == tiles
     assert roi == np.s_[0:ny, 0:nx]
     assert idx == [tl, tr, br, bl]
+
+
+@pytest.mark.parametrize(
+    "tiles",
+    [
+        VariableSizedTiles(((10, 1, 30), (2, 4, 5, 6))),
+        VariableSizedTiles(((10, 1, 30), (2, 4, 7, 13))),
+        Tiles((104, 201), (11, 23)),
+    ],
+)
+def test_locate(tiles: RoiTiles):
+    NY, NX = tiles.base.yx
+    ny, nx = tiles.shape.yx
+
+    # check all four corners
+    assert tiles.locate((0, 0)) == (0, 0)
+    assert tiles.locate((NY - 1, NX - 1)) == (ny - 1, nx - 1)
+    assert tiles.locate((0, NX - 1)) == (0, nx - 1)
+    assert tiles.locate((NY - 1, 0)) == (ny - 1, 0)
+
+    for idx in [(-1, 0), (NY, 0), (NY, NX), (NY * 1000, 1)]:
+        with pytest.raises(IndexError):
+            _ = tiles.locate(idx)
