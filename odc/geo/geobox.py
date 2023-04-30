@@ -406,6 +406,9 @@ class GeoBoxBase:
             n, padding=padding, with_edges=with_edges, offset=offset
         )
 
+    def __getitem__(self, roi) -> "GeoBoxBase":
+        raise NotImplementedError()
+
 
 class GeoBox(GeoBoxBase):
     """
@@ -1191,7 +1194,7 @@ class GeoboxTiles:
 
     def __init__(
         self,
-        box: GeoBox,
+        box: GeoBoxBase,
         tile_shape: Union[SomeShape, Chunks2d, None],
         *,
         _tiles: Optional[RoiTiles] = None,
@@ -1210,7 +1213,7 @@ class GeoboxTiles:
             self._tiles = roi_tiles(box.shape, tile_shape)
 
     @property
-    def base(self) -> GeoBox:
+    def base(self) -> GeoBoxBase:
         """Access base Geobox"""
         return self._gbox
 
@@ -1265,7 +1268,7 @@ class GeoboxTiles:
     def crop(self) -> Mapping[ROI, "GeoboxTiles"]:
         return func2map(self._crop)
 
-    def __getitem__(self, idx: Union[SomeIndex2d, ROI]) -> GeoBox:
+    def __getitem__(self, idx: Union[SomeIndex2d, ROI]) -> GeoBoxBase:
         """
         Lookup tile by index, index is in matrix access order: ``(row, col)``.
 
