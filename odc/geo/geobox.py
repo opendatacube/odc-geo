@@ -23,8 +23,8 @@ import numpy
 from affine import Affine
 
 from . import geom
-from .crs import CRS, CRSMismatchError, MaybeCRS, SomeCRS, norm_crs
-from .geom import BoundingBox, Geometry, bbox_intersection, bbox_union
+from .crs import CRS, MaybeCRS, SomeCRS, norm_crs
+from .geom import BoundingBox, Geometry, bbox_intersection, bbox_union, intersects
 from .math import (
     clamp,
     is_affine_st,
@@ -1282,23 +1282,23 @@ class GeoboxTiles:
         Compute rows and columns overlapping with a given :py:class:`~odc.geo.geom.BoundingBox`.
         """
 
-        def clamped_range(v1: float, v2: float, N: int) -> range:
-            _in = clamp(math.floor(v1), 0, N)
-            _out = clamp(math.ceil(v2), 0, N)
-            return range(_in, _out)
+        if bbox.crs is not None:
+            bbox = self._gbox.project(bbox.polygon).boundingbox
 
-        if bbox.crs != self._gbox.crs:
-            raise CRSMismatchError()
+        def _clamp(span: Tuple[float, float], N: int):
+            a1, a2 = span
+            a1 = int(clamp(math.floor(a1), 0, N - 1))
+            a2 = int(clamp(math.ceil(a2), 1, N)) - 1
+            return a1, a2
 
-        sy, sx = self._tiles.tile_shape((0, 0)).yx
-        A = Affine.scale(1.0 / sx, 1.0 / sy) * (~self._gbox.transform)
-        # A maps from X,Y in meters to chunk index
-        bbox = bbox.transform(A)
+        NY, NX = self._gbox.shape.yx
+        x1, x2 = _clamp(bbox.range_x, NX)
+        y1, y2 = _clamp(bbox.range_y, NY)
 
-        NY, NX = self._tiles.shape.yx
-        xx = clamped_range(bbox.left, bbox.right, NX)
-        yy = clamped_range(bbox.bottom, bbox.top, NY)
-        return (yy, xx)
+        y1, x1 = self._tiles.locate((y1, x1))
+        y2, x2 = self._tiles.locate((y2, x2))
+
+        return range(y1, y2 + 1), range(x1, x2 + 1)
 
     def tiles(self, polygon: Geometry) -> Iterable[Tuple[int, int]]:
         """Return tile indexes overlapping with a given geometry."""
@@ -1310,7 +1310,7 @@ class GeoboxTiles:
         yy, xx = self.range_from_bbox(poly.boundingbox)
         for idx in itertools.product(yy, xx):
             gbox = self[idx]
-            if gbox.extent.intersects(poly):
+            if intersects(gbox.extent, poly):
                 yield idx
 
     def grid_intersect(
@@ -1322,7 +1322,15 @@ class GeoboxTiles:
         For every tile in this :py:class:`GeoboxTiles` find every tile in ``other`` that
         intersects with this ``tile``.
         """
-        xy_chunks_with_data = list(self.tiles(src.base.extent))
+        if src.base.crs == self.base.crs:
+            src_footprint = src.base.extent
+        else:
+            # compute "robust" source footprint in CRS of self via espg:4326
+            src_footprint = (
+                src.base.footprint(4326, 2) & self.base.footprint(4326, 2)
+            ).to_crs(self.base.crs)
+
+        xy_chunks_with_data = list(self.tiles(src_footprint))
         deps: Dict[Tuple[int, int], List[Tuple[int, int]]] = {}
 
         for idx in xy_chunks_with_data:

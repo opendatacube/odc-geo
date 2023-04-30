@@ -81,6 +81,9 @@ class RoiTiles(Protocol):
     def chunks(self) -> Chunks2d:
         ...
 
+    def locate(self, pix: SomeIndex2d) -> Tuple[int, int]:
+        ...
+
     def __dask_tokenize__(self):
         ...
 
@@ -202,6 +205,15 @@ class Tiles:
             (nx,) * (NX - 1) + (nx_,),
         )
 
+    def locate(self, pix: SomeIndex2d) -> Tuple[int, int]:
+        """Tile index from pixel coordinate."""
+        NY, NX = self._base_shape.yx
+        y, x = iyx_(pix).yx
+        if y < 0 or y >= NY or x < 0 or x >= NX:
+            raise IndexError()
+        ny, nx = self.tile_shape((0, 0)).yx
+        return (y // ny, x // nx)
+
     def __dask_tokenize__(self):
         return (
             "odc.geo.roi.Tiles",
@@ -281,6 +293,19 @@ class VariableSizedTiles:
     def chunks(self) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
         """Dask compatible chunk rerpesentation."""
         y, x = (tuple(np.diff(idx).tolist()) for idx in self._offsets)
+        return (y, x)
+
+    def locate(self, pix: SomeIndex2d) -> Tuple[int, int]:
+        """Tile index from pixel coordinate."""
+        NY, NX = self.base.yx
+        y, x = iyx_(pix).yx
+        if y < 0 or y >= NY or x < 0 or x >= NX:
+            raise IndexError()
+        y, x = (
+            # 1: because offsets start from 0, n1, n1+n2, ...
+            int(np.searchsorted(bins[1:], pix))
+            for bins, pix in zip(self._offsets, (y, x))
+        )
         return (y, x)
 
     def __dask_tokenize__(self):
