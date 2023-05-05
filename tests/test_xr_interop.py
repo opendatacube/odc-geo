@@ -367,12 +367,15 @@ def test_wrap_xr():
 def test_xr_reproject(xx_epsg4326: xr.DataArray):
     assert isinstance(xx_epsg4326.odc, ODCExtensionDa)
     xx0 = xx_epsg4326
+    xx0.attrs["crs"] = "epsg:4326"
     # smoke-test only
     assert isinstance(xx_epsg4326.odc.geobox, GeoBox)
     assert xx_epsg4326.odc.nodata is None
     dst_gbox = xx_epsg4326.odc.geobox.zoom_out(1.3)
     xx = xx_epsg4326.odc.reproject(dst_gbox)
     assert xx.odc.geobox == dst_gbox
+    assert xx.encoding["grid_mapping"] == "spatial_ref"
+    assert "crs" not in xx.attrs
 
     yy = xr.Dataset({"a": xx0, "b": xx0 + 1, "c": xr.DataArray([2, 3, 4])})
     assert isinstance(yy.odc, ODCExtensionDs)

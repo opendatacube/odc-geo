@@ -50,6 +50,9 @@ SomeGeoBox = Union[GeoBox, GCPGeoBox]
 
 _DEFAULT_CRS_COORD_NAME = "spatial_ref"
 
+# these attributes are pruned during reproject
+SPATIAL_ATTRIBUTES = ("crs", "crs_wkt", "grid_mapping", "gcps", "epsg")
+
 
 @dataclass
 class GeoState:
@@ -534,6 +537,7 @@ def _xr_reproject_da(
 
     This method uses :py:mod:`rasterio`.
     """
+    # pylint: disable=too-many-locals
     assert isinstance(src, xarray.DataArray)
 
     if have.rasterio is False:  # pragma: nocover
@@ -562,8 +566,6 @@ def _xr_reproject_da(
         dst_nodata = src_nodata
 
     if is_dask_collection(src):
-        # raise NotImplementedError("Dask inputs are not yet supported.")
-
         from ._dask import _dask_rio_reproject
 
         dst: Any = _dask_rio_reproject(
@@ -591,7 +593,7 @@ def _xr_reproject_da(
             **kw,
         )
 
-    attrs = src.attrs.copy()
+    attrs = {k: v for k, v in src.attrs.items() if k not in SPATIAL_ATTRIBUTES}
     if dst_nodata is None:
         attrs.pop("nodata", None)
         attrs.pop("_FillValue", None)
@@ -604,7 +606,9 @@ def _xr_reproject_da(
 
     dims = (*src.dims[:ydim], *dst_geobox.dimensions, *src.dims[ydim + 2 :])
 
-    return xarray.DataArray(dst, coords=coords, dims=dims, attrs=attrs)
+    out = xarray.DataArray(dst, coords=coords, dims=dims, attrs=attrs)
+    out.encoding["grid_mapping"] = _DEFAULT_CRS_COORD_NAME
+    return out
 
 
 class ODCExtension:
