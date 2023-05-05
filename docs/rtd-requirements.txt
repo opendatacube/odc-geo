@@ -19,3 +19,5 @@ sphinx-autodoc-typehints
 jupyter_sphinx
 geopandas
 ipykernel
+# work-around for rtd build issues
+urllib3<2
