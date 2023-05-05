@@ -36,6 +36,7 @@ def _do_chunked_reproject(
     resampling: Resampling = "nearest",
     src_nodata: Nodata = None,
     dst_nodata: Nodata = None,
+    **kwargs,
 ):
     # pylint: disable=too-many-locals
     src_gbt, src_idx = src_gbt.clip(d2s[dst_idx])
@@ -63,6 +64,7 @@ def _do_chunked_reproject(
             resampling=resampling,
             src_nodata=src_nodata,
             dst_nodata=dst_nodata,
+            **kwargs,
         )
 
     return dst
@@ -90,7 +92,7 @@ def _dask_rio_reproject(
     def with_yx(a, yx):
         return (*a[:ydim], *yx, *a[ydim + 2 :])
 
-    name: str = kwargs.get("name", "reproject")
+    name: str = kwargs.pop("name", "reproject")
 
     assert isinstance(s_gbox, GeoBox)
     gbt_src = GeoboxTiles(s_gbox, src.chunks[ydim : ydim + 2])
@@ -112,6 +114,8 @@ def _dask_rio_reproject(
         src_nodata=src_nodata,
         dst_nodata=dst_nodata,
         axis=ydim,
+        resampling=resampling,
+        **kwargs,
     )
     src_block_keys = src.__dask_keys__()
 
