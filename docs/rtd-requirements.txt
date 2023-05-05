@@ -13,7 +13,7 @@ matplotlib
 dask[array]
 
 ## for docs
-sphinx
+sphinx<7
 sphinx_rtd_theme
 sphinx-autodoc-typehints
 jupyter_sphinx
