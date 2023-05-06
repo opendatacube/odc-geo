@@ -34,8 +34,21 @@ def geobox_epsg4326():
 
 
 @pytest.fixture
-def xx_epsg4326(geobox_epsg4326: GeoBox):
-    yield xr_zeros(geobox_epsg4326, dtype="uint16")
+def xx_chunks():
+    yield None
+
+
+@pytest.fixture
+def xx_time():
+    yield None
+
+
+@pytest.fixture
+def xx_epsg4326(geobox_epsg4326: GeoBox, xx_time, xx_chunks):
+    if xx_time is not None and xx_chunks is not None:
+        if len(xx_chunks) < 3:
+            xx_chunks = (-1, *xx_chunks)
+    yield xr_zeros(geobox_epsg4326, dtype="uint16", chunks=xx_chunks, time=xx_time)
 
 
 def test_geobox_xr_coords():
@@ -364,6 +377,8 @@ def test_wrap_xr():
     assert xx.band.data.tolist() == ["b0"]
 
 
+@pytest.mark.parametrize("xx_time", [None, ["2020-01-30"]])
+@pytest.mark.parametrize("xx_chunks", [None, (-1, -1), (4, 4)])
 def test_xr_reproject(xx_epsg4326: xr.DataArray):
     assert isinstance(xx_epsg4326.odc, ODCExtensionDa)
     xx0 = xx_epsg4326
@@ -411,10 +426,13 @@ def test_xr_reproject(xx_epsg4326: xr.DataArray):
     assert xx.odc.nodata == 255
 
     # multi-time should work just the same
-    xx2 = xx_epsg4326.expand_dims(time=2).odc.reproject("epsg:3857", dst_nodata=255)
-    assert xx2.shape[0] == 2
-    np.testing.assert_array_equal(xx2[0], xx)
-    np.testing.assert_array_equal(xx2[1], xx)
+    if "time" in xx_epsg4326.dims:
+        assert (xx_epsg4326.time == xx.time).all()
+    else:
+        xx2 = xx_epsg4326.expand_dims(time=2).odc.reproject("epsg:3857", dst_nodata=255)
+        assert xx2.shape[0] == 2
+        np.testing.assert_array_equal(xx2[0], xx)
+        np.testing.assert_array_equal(xx2[1], xx)
 
     xx_i8 = xx_epsg4326.astype("int8")
     assert xx_i8.odc.reproject("epsg:3857").dtype == "int8"
