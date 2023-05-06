@@ -546,7 +546,7 @@ def _xr_reproject_da(
     assert isinstance(src.odc, ODCExtensionDa)  # for mypy sake
     src_gbox = src.odc.geobox
 
-    if src_gbox is None:
+    if src_gbox is None or src_gbox.crs is None:
         raise ValueError("Can not reproject non-georegistered array.")
 
     if isinstance(how, GeoBox):
@@ -601,7 +601,9 @@ def _xr_reproject_da(
         attrs.update(nodata=dst_nodata)
 
     # new set of coords (replace x,y dims)
-    coords = dict((k, v) for k, v in src.coords.items() if k not in src.dims)
+    sdims = src.odc.spatial_dims
+    assert sdims is not None
+    coords = dict((k, v) for k, v in src.coords.items() if k not in sdims)
     coords.update(xr_coords(dst_geobox))
 
     dims = (*src.dims[:ydim], *dst_geobox.dimensions, *src.dims[ydim + 2 :])

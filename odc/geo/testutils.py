@@ -207,6 +207,7 @@ def purge_crs_info(xx: xr.DataArray) -> xr.DataArray:
     # remove non-dimensional coordinate, which is CRS in our case
     to_drop = [name for name in xx.coords if name not in xx.dims]
     xx = xx.drop_vars(to_drop)
+    xx.encoding.pop("grid_spatial", None)
 
     # purge attributes from coords and xx
     cc = {name: _purge_attributes(coord) for name, coord in xx.coords.items()}
