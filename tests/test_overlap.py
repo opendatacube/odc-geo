@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from affine import Affine
 
-from odc.geo import CRS, geom, resyx_, wh_, xy_
+from odc.geo import CRS, geom, res_, resyx_, wh_, xy_
 from odc.geo.geobox import GeoBox, scaled_down_geobox
 from odc.geo.gridspec import GridSpec
 from odc.geo.math import affine_from_pts, decompose_rws, is_affine_st, stack_xy
@@ -463,6 +463,12 @@ def test_compute_output_geobox():
     assert dst.crs == "epsg:6933"
     assert dst.resolution != src.resolution
     assert dst.resolution.x == -dst.resolution.y
+    assert dst.geographic_extent.contains(src.geographic_extent)
+
+    # force specific resolution
+    dst = compute_output_geobox(src, "epsg:6933", resolution=101)
+    assert dst.crs == "epsg:6933"
+    assert dst.resolution == res_(101)
     assert dst.geographic_extent.contains(src.geographic_extent)
 
     # check conversion to lon/lat
