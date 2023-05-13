@@ -3,6 +3,7 @@ import lzma
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
+from warnings import catch_warnings, filterwarnings
 
 from ..crs import MaybeCRS, norm_crs
 from ..geom import Geometry, box, multigeom
@@ -29,7 +30,9 @@ def ocean_geom(
     gjson = ocean_geojson()
     gg = multigeom([Geometry(f["geometry"], "epsg:4326") for f in gjson["features"]])
     if bbox is not None:
-        gg = gg & box(*bbox, "epsg:4326")
+        with catch_warnings():
+            filterwarnings("ignore")
+            gg = gg & box(*bbox, "epsg:4326")
     crs = norm_crs(crs)
     if crs is not None:
         gg = gg.to_crs(crs)
@@ -52,7 +55,9 @@ def country_geom(iso3: str, crs: MaybeCRS = None) -> Geometry:
 
     from ..converters import from_geopandas
 
-    df = gpd.read_file(gpd.datasets.get_path("naturalearth_lowres"))
+    with catch_warnings():
+        filterwarnings("ignore", category=FutureWarning)
+        df = gpd.read_file(gpd.datasets.get_path("naturalearth_lowres"))
     (gg,) = from_geopandas(df[df.iso_a3 == iso3])
     crs = norm_crs(crs)
     if crs is not None:
