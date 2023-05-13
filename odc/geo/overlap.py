@@ -31,7 +31,7 @@ from .roi import (
     roi_is_empty,
     scaled_up_roi,
 )
-from .types import XY, SomeShape, res_, shape_, xy_
+from .types import XY, SomeResolution, SomeShape, res_, shape_, xy_
 
 
 class PointTransform(Protocol):
@@ -556,7 +556,7 @@ def compute_output_geobox(
     gbox: Union[GeoBox, GCPGeoBox],
     crs: SomeCRS,
     *,
-    resolution: Literal["auto", "fit", "same"] = "auto",
+    resolution: Union[SomeResolution, Literal["auto", "fit", "same"]] = "auto",
     tight: bool = False,
 ) -> GeoBox:
     """
@@ -577,6 +577,7 @@ def compute_output_geobox(
        * "fit" use center pixel to determine scale change between the two
        * | "auto" is to use the same resolution on the output if CRS units are the same
          |  between the source and destination and otherwise use "fit"
+       * Else resolution in the units of the output crs
 
     :param tight:
       By default output pixel grid is adjusted to align pixel edges to X/Y axis, suppling
@@ -617,8 +618,11 @@ def compute_output_geobox(
         avg_res = (abs(dst_.resolution.x / sx) + abs(dst_.resolution.y / sy)) / 2
         res = res_(avg_res)
     else:
-        raise ValueError(
-            f"Resolution ought to be one of: same,auto,fit, not '{resolution}'"
-        )
+        if isinstance(resolution, str):
+            raise ValueError(
+                f"Resolution ought to be one of: same,auto,fit, not '{resolution}'"
+            )
+
+        res = res_(resolution)
 
     return GeoBox.from_bbox(bbox, dst_crs, resolution=res, tight=tight)
