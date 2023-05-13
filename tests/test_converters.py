@@ -1,5 +1,6 @@
 # pylint: disable=wrong-import-position
 from pathlib import Path
+from warnings import catch_warnings, filterwarnings
 
 import pytest
 from mock import MagicMock
@@ -14,8 +15,16 @@ from odc.geo.gcp import GCPGeoBox
 from odc.geo.geobox import GeoBox, GeoBoxBase
 
 
-def test_from_geopandas():
-    df = gpd.read_file(gpd_datasets.get_path("naturalearth_lowres"))
+@pytest.fixture
+def ne_lowres_path():
+    with catch_warnings():
+        filterwarnings("ignore")
+        path = gpd_datasets.get_path("naturalearth_lowres")
+    yield path
+
+
+def test_from_geopandas(ne_lowres_path):
+    df = gpd.read_file(ne_lowres_path)
     gg = from_geopandas(df)
     assert isinstance(gg, list)
     assert len(gg) == len(df)
