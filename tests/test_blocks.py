@@ -22,7 +22,7 @@ def test_block_assembler(tiles: RoiTiles, idx, dtype):
     Z = np.zeros(tiles.base.shape, dtype)
     for v, _i in enumerate(idx, start=1):
         Z[tiles[_i]] = v
-    Zf = Z.astype(np.floating).copy()
+    Zf = Z.astype(np.float32).copy()
     Zf[Z == 0] = np.nan
 
     blocks = {i: Z[tiles[i]].copy() for i in idx}
