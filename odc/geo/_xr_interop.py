@@ -255,8 +255,8 @@ def xr_coords(
        CRS coordinate at all.
 
     :returns:
-      Dictionary ``name:str -> xr.DataArray``. Where names are either ``y,x`` for projected or
-      ``latitude, longitude`` for geographic.
+       Dictionary ``name:str -> xr.DataArray``. Where names are either ``y,x`` for projected or
+       ``latitude, longitude`` for geographic.
 
     """
     attrs = {}
