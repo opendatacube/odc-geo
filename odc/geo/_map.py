@@ -31,7 +31,7 @@ def _add_to_ipyleaflet(url, bounds, map, name=None, **kw):
         kw.update(name=name)
 
     img_overlay = ImageOverlay(url=url, bounds=bounds, **kw)
-    map.add_layer(img_overlay)
+    map.add(img_overlay)
 
     return img_overlay
 
