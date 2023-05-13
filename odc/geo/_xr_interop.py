@@ -549,10 +549,13 @@ def _xr_reproject_da(
     if src_gbox is None or src_gbox.crs is None:
         raise ValueError("Can not reproject non-georegistered array.")
 
+    resolution = kw.pop("resolution", "auto")
+    tight = kw.pop("tight", False)
+
     if isinstance(how, GeoBox):
         dst_geobox = how
     else:
-        dst_geobox = src.odc.output_geobox(how)
+        dst_geobox = src.odc.output_geobox(how, resolution=resolution, tight=tight)
 
     # compute destination shape by replacing spatial dimensions shape
     ydim = src.odc.ydim
