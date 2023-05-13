@@ -471,6 +471,11 @@ def test_compute_output_geobox():
     assert dst.resolution == res_(101)
     assert dst.geographic_extent.contains(src.geographic_extent)
 
+    # check identity case
+    assert src is compute_output_geobox(src, src.crs)
+    assert src is compute_output_geobox(src, src.crs, resolution="same")
+    assert src is compute_output_geobox(src, src.crs, resolution="auto")
+
     # check conversion to lon/lat
     dst = compute_output_geobox(src, "epsg:4326")
     assert dst.crs == "epsg:4326"

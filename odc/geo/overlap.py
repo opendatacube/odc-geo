@@ -594,6 +594,14 @@ def compute_output_geobox(
     bbox = gbox.footprint(crs, buffer=0.9, npoints=100).boundingbox
     dst_crs = bbox.crs
     assert dst_crs is not None
+
+    if (
+        dst_crs == src_crs
+        and resolution in ("auto", "same")
+        and isinstance(gbox, GeoBox)
+    ):
+        return gbox
+
     same_units = src_crs.units == dst_crs.units
 
     if resolution == "same":
