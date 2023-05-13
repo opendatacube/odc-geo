@@ -32,7 +32,7 @@ from .crs import CRS, CRSError, SomeCRS, norm_crs_or_error
 from .gcp import GCPGeoBox, GCPMapping
 from .geobox import Coordinate, GeoBox
 from .geom import Geometry
-from .math import affine_from_axis, resolution_from_affine
+from .math import affine_from_axis, maybe_int, resolution_from_affine
 from .overlap import compute_output_geobox
 from .types import Resolution, xy_
 
@@ -598,7 +598,7 @@ def _xr_reproject_da(
         attrs.pop("nodata", None)
         attrs.pop("_FillValue", None)
     else:
-        attrs.update(nodata=dst_nodata)
+        attrs.update(nodata=maybe_int(dst_nodata, 1e-6))
 
     # new set of coords (replace x,y dims)
     sdims = src.odc.spatial_dims
