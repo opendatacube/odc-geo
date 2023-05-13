@@ -164,11 +164,11 @@ def _np_colorize(x, cmap, clip):
 
 
 def _matplotlib_colorize(x, cmap, vmin=None, vmax=None, nodata=None, robust=False):
-    from matplotlib import cm
+    from matplotlib import colormaps
     from matplotlib.colors import Normalize
 
     if cmap is None or isinstance(cmap, str):
-        cmap = cm.get_cmap(cmap)
+        cmap = colormaps.get_cmap(cmap)
 
     if nodata is not None:
         x = np.where(x == nodata, np.float32("nan"), x)
