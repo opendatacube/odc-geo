@@ -13,12 +13,13 @@ abstraction for a geo-registered bounded pixel plane where a linear mapping from
 to the real world is defined.
 
 .. jupyter-execute::
+      :stderr:
 
-   from odc.geo.geobox import GeoBox
-   GeoBox.from_bbox(
-      (-2_000_000, -5_000_000,
-        2_250_000, -1_000_000),
-      "epsg:3577", resolution=1000)
+      from odc.geo.geobox import GeoBox
+      GeoBox.from_bbox(
+         (-2_000_000, -5_000_000,
+         2_250_000, -1_000_000),
+         "epsg:3577", resolution=1000)
 
 To make working with geo-registered raster data easier an integration with xarray_ is provided.
 Importing ``odc.geo.xr`` enables ``.odc.`` accessor on every :py:class:`xarray.Dataset` and
