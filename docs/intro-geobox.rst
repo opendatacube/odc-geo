@@ -45,12 +45,13 @@ corner of the top left pixel of the image. The center of the top-left pixel is a
 Valid range of pixel coordinates spans :math:`x_p \in [0, width], y_p \in [0, height]`.
 
 .. jupyter-execute::
+      :stderr:
 
-   from odc.geo.geobox import GeoBox
-   GeoBox.from_bbox(
-      (-2_000_000, -5_000_000,
-        2_250_000, -1_000_000),
-      "epsg:3577", resolution=1000)
+      from odc.geo.geobox import GeoBox
+      GeoBox.from_bbox(
+         (-2_000_000, -5_000_000,
+         2_250_000, -1_000_000),
+         "epsg:3577", resolution=1000)
 
 In the sample above we have constructed a |gbx| in the Australia Albers projection with 1km pixels.
 It describes an image plane 4,250 pixels wide by 4,000 pixels tall. Mapping from pixel coordinates
