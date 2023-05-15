@@ -46,9 +46,7 @@ def pick_grid_step(N: int, at_least: int = 4, no_more: int = 11) -> int:
 def _ocean_svg_path(ndecimal=3, clip_bbox=None):
     from .data import ocean_geom
 
-    g = ocean_geom()
-    if clip_bbox is not None:
-        g = g & geom.box(*clip_bbox, crs=g.crs)
+    g = ocean_geom(bbox=clip_bbox)
     return g.svg_path(ndecimal)
 
 
@@ -91,7 +89,7 @@ def svg_base_map(
     if bbox is not None:
         clip_bbox = geom.bbox_intersection(
             [geom.BoundingBox(*bbox).buffered(1), geom.BoundingBox(-180, -90, 180, 90)]
-        )
+        ).bbox
     else:
         bbox = (-180, -90, 180, 90)
 
