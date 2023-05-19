@@ -877,6 +877,8 @@ class Geometry(SupportsCoords[float]):
 
         if self.geom_type in ("LinearRing", "LineString"):
             pts = [(x, y) for x, y in self.points if pred(x, y)]
+            if len(pts) == 1:
+                pts = []  # need at least 2 points for this type
             _geom = type(self.geom)(pts)
             return Geometry(_geom, self.crs)
 
