@@ -473,6 +473,8 @@ class Geometry(SupportsCoords[float]):
     @wrap_shapely
     def contains(self, other: "Geometry") -> bool: return self.contains(other)
     @wrap_shapely
+    def covers(self, other: "Geometry") -> bool: return self.covers(other)
+    @wrap_shapely
     def crosses(self, other: "Geometry") -> bool: return self.crosses(other)
     @wrap_shapely
     def disjoint(self, other: "Geometry") -> bool: return self.disjoint(other)
