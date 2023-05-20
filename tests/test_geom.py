@@ -366,6 +366,18 @@ def test_to_crs():
         poly.to_crs(epsg3857)
 
 
+def test_to_crs_with_check():
+    crs = "+proj=ortho +lat0=40"
+    gg = geom.line([[-180, 0], [180, 0]], 4326).segmented(5)
+    assert gg.to_crs(crs).is_valid is False
+    assert gg.to_crs(crs, check_and_fix=True).is_valid is True
+
+    gg = gg.buffer(1.1) & geom.box(-180, -90, 180, 90, 4326)
+
+    assert gg.to_crs(crs).is_valid is False
+    assert gg.to_crs(crs, check_and_fix=True).is_valid is True
+
+
 def test_to_crs_utm():
     poly = geom.box(0.1, 43, 1.3, 44, epsg4326)
     assert poly.to_crs("utm").crs.epsg == 32631
@@ -424,6 +436,7 @@ def test_unary_intersection():
     box5 = geom.box(30, 10, 50, 30, crs=epsg4326)
     box6 = geom.box(35, 10, 55, 30, crs=epsg4326)
 
+    assert geom.intersects(box1, box2)
     inter1 = geom.unary_intersection([box1])
     assert bool(inter1)
     assert inter1 == box1
