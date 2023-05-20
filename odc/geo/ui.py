@@ -56,7 +56,7 @@ def _compute_display_box(
     """
     return: shape in pixels, ``s`` maps sizes from world to pix
     """
-    span_x, span_y = span.xy
+    span_x, span_y = ((v if math.isfinite(v) else 0) for v in span.xy)
     if max(span_x, span_y) < tol:
         # both too small, make it square
         span_x = span_y = tol
