@@ -2,6 +2,7 @@
 #
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
+import itertools
 import math
 
 import numpy
@@ -102,6 +103,23 @@ def test_web_tiles():
     assert gs.crs == epsg3857
     assert gs.tile_shape == (256, 256)
     assert gs.tile_size.xy == approx((TSZ0 / 2, TSZ0 / 2))
+
+
+@pytest.mark.parametrize(
+    "gs, tiles_to_check",
+    [
+        (GridSpec.web_tiles(3), itertools.product(range(8), range(8))),
+        (GridSpec(4326, (360, 360), 0.01), [(0, 0), (1, 3), (2, 1)]),
+    ],
+)
+def test_tiles_tight_query_issue_97(gs: GridSpec, tiles_to_check):
+    for idx in tiles_to_check:
+        bbox = gs[idx].boundingbox
+        tiles = list(gs.tiles(bbox))
+        assert len(tiles) == 1
+        ((_idx, gbox),) = tiles
+        assert idx == _idx
+        assert gs[idx] == gbox
 
 
 def test_geojson():
