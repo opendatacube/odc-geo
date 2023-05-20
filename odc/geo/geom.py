@@ -638,6 +638,8 @@ class Geometry(SupportsCoords[float]):
         crs: SomeCRS,
         resolution: Union[float, Literal["auto"], None] = None,
         wrapdateline: bool = False,
+        *,
+        check_and_fix: bool = False,
     ) -> "Geometry":
         """
         Convert geometry to a different Coordinate Reference System.
@@ -663,6 +665,10 @@ class Geometry(SupportsCoords[float]):
            Attempt to gracefully handle geometry that intersects the dateline when converting to
            geographic projections. Currently only works in few specific cases (source CRS is smooth
            over the dateline).
+
+        :param check_and_fix:
+           When ``True`` remove vertices that didn't project cleanly and apply ``.buffer(0)`` is geometry
+           is not valid after projection.
         """
         crs = norm_crs_or_error(crs, self)
         if self.crs == crs:
@@ -679,15 +685,23 @@ class Geometry(SupportsCoords[float]):
         else:
             geom = self
 
+        def maybe_fix(g: Geometry) -> Geometry:
+            if not check_and_fix or g.is_valid:
+                return g
+            g = g.dropna()
+            if g.geom_type in ["Polygon", "MultiPolygon"] and not g.is_valid:
+                g = g.buffer(0)
+            return g
+
         eps = 1e-4
         if wrapdateline and crs.geographic:
             # TODO: derive precision from resolution by converting to degrees
             precision = 0.1
             chopped = chop_along_antimeridian(geom, precision)
-            chopped_lonlat = chopped._to_crs(crs)
+            chopped_lonlat = maybe_fix(chopped._to_crs(crs))
             return clip_lon180(chopped_lonlat, eps)
 
-        return geom._to_crs(crs)
+        return maybe_fix(geom._to_crs(crs))
 
     def assign_crs(self, crs: MaybeCRS) -> "Geometry":
         """
@@ -1302,7 +1316,7 @@ def lonlat_bounds(
     if resolution is not None and math.isfinite(resolution):
         geom = geom.segmented(resolution)
 
-    bbox = geom.to_crs("EPSG:4326").boundingbox
+    bbox = geom.to_crs("EPSG:4326", check_and_fix=True).boundingbox
 
     xx_range = bbox.range_x
     if mode == "safe":
