@@ -145,22 +145,23 @@ class GridSpec:
         """Lookup :py:class:`~odc.geo.geobox.GeoBox` of a given tile."""
         return self.tile_geobox(idx)
 
-    def idx_bounds(self, bounds: BoundingBox) -> BoundingBox:
+    def idx_bounds(self, bounds: BoundingBox) -> Tuple[int, int, int, int]:
         """
         Convert bounds from CRS to index space.
 
         :param bounds: Query bounding box
-        :return: Bounding box in tile index space
+        :return: ``x1, y1, x2, y2``, with closed/open range, i.e. ``[x1, x2), [y1, y2)``
         """
         assert self.crs == bounds.crs
+        tol = 1e-8
 
         x1, y1, x2, y2 = bounds
-        ix1, iy1 = self.pt2idx(x1, y1).xy
-        ix2, iy2 = self.pt2idx(x2, y2).xy
+        ix1, iy1 = self.pt2idx(x1 + tol, y1 + tol).xy
+        ix2, iy2 = self.pt2idx(x2 - tol, y2 - tol).xy
 
         ix1, ix2 = sorted([ix1, ix2])
         iy1, iy2 = sorted([iy1, iy2])
-        return BoundingBox(ix1, iy1, ix2, iy2, self.crs)
+        return ix1, iy1, ix2 + 1, iy2 + 1
 
     def tiles(
         self, bounds: BoundingBox, geobox_cache: Optional[dict] = None
@@ -195,8 +196,8 @@ class GridSpec:
 
         ix1, iy1, ix2, iy2 = map(int, self.idx_bounds(bounds))
 
-        for iy in range(iy1, iy2 + 1):
-            for ix in range(ix1, ix2 + 1):
+        for iy in range(iy1, iy2):
+            for ix in range(ix1, ix2):
                 tile_index = (ix, iy)
                 yield tile_index, geobox(tile_index)
 
