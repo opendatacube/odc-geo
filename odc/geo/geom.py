@@ -950,6 +950,8 @@ def projected_lon(
         for x, y in zip(xx_, yy_)
         if math.isfinite(x) and math.isfinite(y)
     ]
+    if len(pts) < 2:
+        return line([], crs)
     return line(pts, crs)
 
 
@@ -1138,6 +1140,7 @@ def _multigeom(geoms: List[base.BaseGeometry]) -> base.BaseGeometry:
     if len(src_type) > 1:
         return geometry.GeometryCollection(geoms)
 
+    geoms = [g for g in geoms if not g.is_empty]
     src_type = src_type.pop()
     if src_type == "Polygon":
         return geometry.MultiPolygon(geoms)
