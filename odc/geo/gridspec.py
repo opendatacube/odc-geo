@@ -11,7 +11,7 @@ from affine import Affine
 from . import geom
 from .crs import SomeCRS, norm_crs_or_error
 from .geobox import GeoBox
-from .geom import BoundingBox, Geometry, intersects
+from .geom import BoundingBox, Geometry
 from .math import Bin1D
 from .types import (
     XY,
@@ -217,11 +217,11 @@ class GridSpec:
           Optional cache to re-use geoboxes instead of creating new one each turn: iterator of grid
           cells with :py:class:`odc.geo.geobox.GeoBox` tiles
         """
-        geopolygon = geopolygon.to_crs(self.crs)
+        geopolygon = geopolygon.to_crs(self.crs, check_and_fix=True)
         bbox = geopolygon.boundingbox
 
         for tile_index, tile_geobox in self.tiles(bbox, geobox_cache):
-            if intersects(tile_geobox.extent, geopolygon):
+            if not geopolygon.disjoint(tile_geobox.extent):
                 yield (tile_index, tile_geobox)
 
     def __str__(self) -> str:
