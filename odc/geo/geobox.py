@@ -24,7 +24,7 @@ from affine import Affine
 
 from . import geom
 from .crs import CRS, MaybeCRS, SomeCRS, norm_crs
-from .geom import BoundingBox, Geometry, bbox_intersection, bbox_union, intersects
+from .geom import BoundingBox, Geometry, bbox_intersection, bbox_union
 from .math import (
     clamp,
     is_affine_st,
@@ -226,7 +226,7 @@ class GeoBoxBase:
         """
         assert self.crs is not None
         ext = self.extent
-        if buffer > 0:
+        if buffer != 0:
             buffer = buffer * max(*self.resolution.xy)
             ext = ext.buffer(buffer)
 
@@ -1308,12 +1308,12 @@ class GeoboxTiles:
         target_crs = self._gbox.crs
         poly = polygon
         if target_crs is not None and poly.crs != target_crs:
-            poly = poly.to_crs(target_crs)
+            poly = poly.to_crs(target_crs, check_and_fix=True)
 
         yy, xx = self.range_from_bbox(poly.boundingbox)
         for idx in itertools.product(yy, xx):
             gbox = self[idx]
-            if intersects(gbox.extent, poly):
+            if not poly.disjoint(gbox.extent):
                 yield idx
 
     def grid_intersect(
