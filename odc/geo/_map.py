@@ -15,8 +15,8 @@ def _add_to_folium(url, bounds, map, name=None, **kw):
 
     from folium.raster_layers import ImageOverlay
 
-    img_overlay = ImageOverlay(url, bounds, **kw)
-    img_overlay.add_to(map, name=name)
+    img_overlay = ImageOverlay(url, bounds, name=name, **kw)
+    img_overlay.add_to(map)
     return img_overlay
 
 
