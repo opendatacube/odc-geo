@@ -109,7 +109,7 @@ def add_to(
 
     # If array xx has a name (xx.name), use it by default
     if (name is None) and (xx.name is not None):
-        name = xx.name
+        name = xx.name if isinstance(xx.name, str) else str(xx.name)
 
     gbox0 = xx.odc.geobox
     assert gbox0 is not None
