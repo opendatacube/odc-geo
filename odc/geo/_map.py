@@ -78,7 +78,7 @@ def add_to(
     :param map:
        Map object, :py:mod:`folium` and :py:mod:`ipyleaflet` are understood, can be ``None``.
 
-    :param name: Image layer name
+    :param name: The name of the layer as it will appear in :py:mod:`folium` and :py:mod:`ipyleaflet` Layer Controls. The default ``None`` will use the input array name (e.g. ``xx.name``) if it exists.
     :param fmt: compress image format, defaults to "png", can be "webp", "jpeg" as well.
     :param max_size:
        If longest dimension is bigger than this, shrink it down before compression, defaults to 4096
@@ -104,6 +104,10 @@ def add_to(
 
     _add_to = _get_add_to_method(map)  # raises on error
     _crs = map_crs(map)
+
+    # If array xx has a name (xx.name), use it by default
+    if (name is None) and (xx.name is not None):
+        name = xx.name
 
     gbox0 = xx.odc.geobox
     assert gbox0 is not None
