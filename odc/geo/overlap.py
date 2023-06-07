@@ -183,7 +183,10 @@ class ReprojectInfo:
     """
 
     scale: float
-    """Scale change as a single number."""
+    """Scale change as a single number. (the min of scale2)"""
+
+    scale2: XY[float]
+    """Full 2D Scale change as an XY."""
 
     transform: PointTransform
     """Mapping from src pixels to destination pixels."""
@@ -501,12 +504,14 @@ def compute_reproject_roi(
             read_shrink = _pick_read_scale(scale)
         else:
             scale = 0
+            scale2 = XY(x=0, y=0)
             read_shrink = 1
 
         return ReprojectInfo(
             roi_src=roi_src,
             roi_dst=roi_dst,
             scale=scale,
+            scale2=scale2,
             paste_ok=False,
             read_shrink=read_shrink,
             transform=tr,
@@ -546,6 +551,7 @@ def compute_reproject_roi(
         roi_src=roi_src,
         roi_dst=roi_dst,
         scale=scale,
+        scale2=scale2,
         paste_ok=paste_ok,
         read_shrink=read_shrink,
         transform=tr,

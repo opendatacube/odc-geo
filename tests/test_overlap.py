@@ -165,6 +165,7 @@ def test_compute_reproject_roi():
 
     assert rr.roi_src == np.s_[0 : src.height, 0 : src.width]
     assert 0 < rr.scale < 1
+    assert all(0 < scale < 1 for scale in rr.scale2.xy)
     assert rr.transform.linear is None
     assert rr.transform.back is not None
     assert rr.transform.back.linear is None
@@ -178,6 +179,7 @@ def test_compute_reproject_roi():
     rr = compute_reproject_roi(src, src[roi_], padding=0, align=0)
     assert rr.roi_src == roi_normalise(roi_, src.shape)
     assert rr.scale == 1
+    assert rr.scale2.xy == (1, 1)
 
     # check pure translation case
     roi_ = np.s_[113:-100, 33:-10]
