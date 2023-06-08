@@ -12,7 +12,6 @@ autopep8
 autoflake
 black
 isort
-mock
 mypy
 pycodestyle
 pylint
