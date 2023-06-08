@@ -25,22 +25,13 @@ dependencies:
   - autoflake
   - black
   - isort
-  - mock
   - mypy
   - pycodestyle
   - pylint
   - docutils
-  ### shed dependencies
-  - pyyaml
-  - pyupgrade
-  - libcst
 
   ## test
   - pytest
   - hypothesis
   - pytest-cov
   - pytest-timeout
-
-  - pip:
-      # linter
-      - shed

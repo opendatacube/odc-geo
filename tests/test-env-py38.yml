@@ -18,7 +18,6 @@ dependencies:
   - autoflake
   - black >=23.1.0
   - isort
-  - mock
   - mypy
   - pycodestyle
   - pylint =2.14

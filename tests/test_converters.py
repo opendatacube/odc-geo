@@ -1,9 +1,9 @@
 # pylint: disable=wrong-import-position
 from pathlib import Path
+from unittest.mock import MagicMock
 from warnings import catch_warnings, filterwarnings
 
 import pytest
-from mock import MagicMock
 
 rasterio = pytest.importorskip("rasterio")
 gpd = pytest.importorskip("geopandas")
