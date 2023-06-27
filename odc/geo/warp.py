@@ -175,6 +175,17 @@ def _rio_reproject(
     assert src.ndim == dst.ndim
     assert src.ndim == 2
 
+    if "XSCALE" not in kwargs and "YSCALE" not in kwargs:
+        # Work around for issue in GDAL
+        #    https://github.com/OSGeo/gdal/issues/7750
+        # Force GDAL into performing bilinear,cubic,lanczos with raidius=1px.
+        # GDAL is trying to be smart and pick sampling radius based on scale
+        # change, but does it without consideration for rotational component
+        # of the transform, leading to blury output in some situations
+        # See also:
+        #    https://github.com/opendatacube/datacube-core/issues/1448
+        kwargs.update(XSCALE=1, YSCALE=1)
+
     dtype_remap = {"int8": "int16", "bool": "uint8"}
 
     def _alias_or_convert(arr: np.ndarray) -> Tuple[np.ndarray, bool]:
