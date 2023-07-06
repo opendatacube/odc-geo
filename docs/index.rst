@@ -20,6 +20,7 @@ odc-geo
 
    api.rst
    migration.rst
+   cog-work-plan.rst
 
 .. toctree::
    :caption: Index
