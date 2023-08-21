@@ -32,8 +32,14 @@ def _compress_image(im: np.ndarray, driver="PNG", **opts) -> bytes:
     else:
         raise ValueError(f"Expect 2 or 3 dimensional array got: {im.ndim}")
 
-    rio_opts = dict(width=w, height=h, count=nc, driver=driver, dtype=im.dtype, **opts)
-
+    rio_opts = {
+        "width": w,
+        "height": h,
+        "count": nc,
+        "driver": driver,
+        "dtype": im.dtype,
+        **opts,
+    }
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", rasterio.errors.NotGeoreferencedWarning)
 
