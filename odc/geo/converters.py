@@ -3,13 +3,17 @@ Interop with other geometry libraries.
 """
 
 import re
-from typing import Any, List, Tuple, Union
+from io import BytesIO
+from typing import Any, Dict, List, Tuple, Union
 
+from ._interop import have
 from .crs import CRS, MaybeCRS, Optional, norm_crs
 from .gcp import GCPGeoBox
 from .geobox import GeoBox
 from .geom import Geometry, point
 from .types import XY, xy_
+
+GEOTIFF_TAGS = {34735, 34737, 33920, 33550, 33922, 34264, 50844}
 
 
 def from_geopandas(series) -> List[Geometry]:
@@ -95,3 +99,43 @@ def rio_geobox(rdr: Any) -> Union[GeoBox, GCPGeoBox]:
         return GCPGeoBox.from_rio(rdr)
 
     return GeoBox.from_rio(rdr)
+
+
+def geotiff_metadata(
+    geobox: GeoBox,
+) -> Tuple[List[Tuple[int, int, int, Any]], Dict[str, Any]]:
+    """
+    Convert GeoBox to geotiff tags and metadata for :py:mod:`tifffile`.
+
+    .. note::
+
+       Requires :py:mod:`rasterio`, :py:mod:`tifffile` and :py:mod:`xarray`.
+
+
+    :returns:
+       List of TIFF tag tuples suitable for passing to :py:mod:`tifffile` as
+       ``extratags=``, and dictionary representation of GEOTIFF tags.
+
+    """
+    # pylint: disable=import-outside-toplevel
+
+    if not (have.tifffile and have.rasterio):
+        raise RuntimeError(
+            "Please install `tifffile` and `rasterio` to use this method"
+        )
+
+    from tifffile import TiffFile
+
+    from ._cog import to_cog
+    from .xr import xr_zeros
+
+    buf = to_cog(xr_zeros(geobox[:2, :2]), compress=None, overview_levels=[])
+    tf = TiffFile(BytesIO(buf), mode="r")
+    assert tf.geotiff_metadata is not None
+    geo_tags = [
+        (t.code, t.dtype.value, t.count, t.value)
+        for t in tf.pages.first.tags.values()
+        if t.code in GEOTIFF_TAGS
+    ]
+
+    return geo_tags, tf.geotiff_metadata

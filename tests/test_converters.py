@@ -1,4 +1,4 @@
-# pylint: disable=wrong-import-position
+# pylint: disable=wrong-import-position,redefined-outer-name
 from pathlib import Path
 from unittest.mock import MagicMock
 from warnings import catch_warnings, filterwarnings
@@ -10,9 +10,18 @@ gpd = pytest.importorskip("geopandas")
 gpd_datasets = pytest.importorskip("geopandas.datasets")
 
 from odc.geo._interop import have
-from odc.geo.converters import extract_gcps, from_geopandas, map_crs, rio_geobox
+from odc.geo.converters import (
+    GEOTIFF_TAGS,
+    extract_gcps,
+    from_geopandas,
+    geotiff_metadata,
+    map_crs,
+    rio_geobox,
+)
 from odc.geo.gcp import GCPGeoBox
 from odc.geo.geobox import GeoBox, GeoBoxBase
+
+_gbox = GeoBox.from_bbox((-10, -20, 15, 30), 4326, resolution=1)
 
 
 @pytest.fixture
@@ -88,3 +97,47 @@ def test_map_crs():
     assert map_crs(MagicMock(crs="EPSG4326")).epsg == 4326
     assert map_crs(MagicMock(crs=dict(name="EPSG3857"))).epsg == 3857
     assert map_crs(MagicMock(crs=dict(name="custom", proj4def=proj_3031))).epsg == 3031
+
+
+@pytest.mark.parametrize(
+    "gbox",
+    [
+        _gbox,
+        _gbox.to_crs(3857),
+        _gbox.to_crs("ESRI:53010"),
+        _gbox.rotate(10),
+        _gbox.center_pixel.pad(3),
+    ],
+)
+def test_geotiff_metadata(gbox: GeoBox):
+    assert gbox.crs is not None
+
+    geo_tags, md = geotiff_metadata(gbox)
+    assert isinstance(md, dict)
+    assert isinstance(geo_tags, list)
+    assert len(geo_tags) >= 2
+    for code, dtype, count, val in geo_tags:
+        assert code in GEOTIFF_TAGS
+        assert isinstance(dtype, int)
+        assert isinstance(count, int)
+        if count > 0:
+            assert isinstance(val, (tuple, str))
+            if isinstance(val, str):
+                assert len(val) + 1 == count
+            else:
+                assert len(val) == count
+
+    if gbox.axis_aligned:
+        assert "ModelPixelScale" in md
+    else:
+        assert "ModelTransformation" in md
+
+    if gbox.crs.epsg is not None:
+        if gbox.crs.projected:
+            assert md["GTModelTypeGeoKey"] == 1
+            assert md["ProjectedCSTypeGeoKey"] == gbox.crs.epsg
+        else:
+            assert md["GTModelTypeGeoKey"] == 2
+            assert md["GeographicTypeGeoKey"] == gbox.crs.epsg
+    else:
+        assert md["GTModelTypeGeoKey"] == 32767

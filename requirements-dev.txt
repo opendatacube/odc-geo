@@ -5,6 +5,7 @@ rasterio
 xarray
 numpy
 cachetools
+tifffile
 
 # dev dependencies
 ## linting tools
@@ -17,7 +18,6 @@ pycodestyle
 pylint
 types-cachetools
 types-certifi
-shed
 
 ## test
 pytest
