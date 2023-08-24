@@ -263,3 +263,18 @@ odc.geo.overlap
    affine_from_pts
    compute_output_geobox
    compute_reproject_roi
+
+odc.geo.converters
+******************
+
+.. currentmodule:: odc.geo.converters
+.. autosummary::
+   :toctree: _api/
+
+   from_geopandas
+   extract_gcps_raw
+   extract_gcps_raw
+   map_crs
+   rio_geobox
+   geotiff_metadata
+       
