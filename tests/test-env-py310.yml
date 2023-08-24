@@ -12,6 +12,7 @@ dependencies:
   - xarray
   - numpy
   - cachetools
+  - tifffile
 
   ## linting tools
   - autopep8
