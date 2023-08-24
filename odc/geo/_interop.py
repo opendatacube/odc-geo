@@ -38,6 +38,10 @@ class _LibChecker:
     def datacube(self) -> bool:
         return self._check("datacube")
 
+    @property
+    def tifffile(self) -> bool:
+        return self._check("tifffile")
+
     @staticmethod
     def _check(lib_name):
         return importlib.util.find_spec(lib_name) is not None
