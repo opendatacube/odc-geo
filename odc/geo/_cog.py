@@ -64,15 +64,15 @@ def _default_cog_opts(
     *, blocksize: int = 512, shape: SomeShape = (0, 0), is_float: bool = False, **other
 ) -> Dict[str, Any]:
     nx, ny = shape_(shape).xy
-    return dict(
-        tiled=True,
-        blockxsize=_adjust_blocksize(blocksize, nx),
-        blockysize=_adjust_blocksize(blocksize, ny),
-        zlevel=6,
-        predictor=3 if is_float else 2,
-        compress="DEFLATE",
+    return {
+        "tiled": True,
+        "blockxsize": _adjust_blocksize(blocksize, nx),
+        "blockysize": _adjust_blocksize(blocksize, ny),
+        "zlevel": 6,
+        "predictor": 3 if is_float else 2,
+        "compress": "DEFLATE",
         **other,
-    )
+    }
 
 
 def _norm_compression_opts(
@@ -145,17 +145,17 @@ def _write_cog(
     if (blocksize % 16) != 0:
         warnings.warn("Block size must be a multiple of 16, will be adjusted")
 
-    rio_opts = dict(
-        width=w,
-        height=h,
-        count=nbands,
-        dtype=pix.dtype.name,
-        crs=str(geobox.crs),
-        transform=geobox.transform,
+    rio_opts = {
+        "width": w,
+        "height": h,
+        "count": nbands,
+        "dtype": pix.dtype.name,
+        "crs": str(geobox.crs),
+        "transform": geobox.transform,
         **_default_cog_opts(
             blocksize=blocksize, shape=wh_(w, h), is_float=pix.dtype.kind == "f"
         ),
-    )
+    }
     if nodata is not None:
         rio_opts.update(nodata=nodata)
 
@@ -376,7 +376,7 @@ def _memfiles_ovr(nlevels) -> Generator[Tuple[rasterio.MemoryFile, ...], None, N
         for mem in mems[::-1]:
             if not mem.closed:
                 mem.close()
-            del mem
+        del mems
 
 
 def write_cog_layers(
@@ -418,13 +418,13 @@ def write_cog_layers(
     )
     rio_opts.update(extra_rio_opts)
 
-    first_pass_cfg: Dict[str, Any] = dict(
-        num_threads="ALL_CPUS",
-        blocksize=blocksize,
-        nodata=rio_opts.get("nodata", None),
-        use_windowed_writes=use_windowed_writes,
+    first_pass_cfg: Dict[str, Any] = {
+        "num_threads": "ALL_CPUS",
+        "blocksize": blocksize,
+        "nodata": rio_opts.get("nodata", None),
+        "use_windowed_writes": use_windowed_writes,
         **_norm_compression_opts(intermediate_compression),
-    )
+    }
 
     with _memfiles_ovr(len(xx)) as mm:
         temp_fname = mm[0].name
