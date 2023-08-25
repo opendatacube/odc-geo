@@ -764,7 +764,7 @@ class Geometry(SupportsCoords[float]):
         if simplify > 0:
             gg = gg.simplify(simplify)
         if properties is None:
-            properties = dict(**props)
+            properties = {**props}
         return {"type": "Feature", "geometry": gg.json, "properties": properties}
 
     def split(self, splitter: "Geometry") -> Iterable["Geometry"]:
