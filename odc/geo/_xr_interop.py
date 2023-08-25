@@ -204,7 +204,7 @@ def _coord_to_xr(name: str, c: Coordinate, **attrs) -> xarray.DataArray:
 
     This can then be used to define coordinates for ``xr.Dataset|xr.DataArray``
     """
-    attrs = dict(units=c.units, resolution=c.resolution, **attrs)
+    attrs = {"units": c.units, "resolution": c.resolution, **attrs}
     return xarray.DataArray(
         c.values, coords={name: c.values}, dims=(name,), attrs=attrs
     )
@@ -826,7 +826,7 @@ def wrap_xr(
         )
 
     if nodata is not None:
-        attrs = dict(nodata=nodata, **attrs)
+        attrs = {"nodata": nodata, **attrs}
 
     out = xarray.DataArray(im, coords=coords, dims=dims, attrs=attrs)
     if crs_coord_name is not None:
