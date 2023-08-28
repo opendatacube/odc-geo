@@ -1,3 +1,4 @@
+import math
 from typing import Tuple
 
 import numpy as np
@@ -10,7 +11,9 @@ from odc.geo.math import (
     Poly2d,
     affine_from_axis,
     align_down,
+    align_down_pow2,
     align_up,
+    align_up_pow2,
     apply_affine,
     data_resolution_and_offset,
     is_almost_int,
@@ -358,3 +361,33 @@ def test_poly2d_not_enough_points():
 
     with pytest.raises(ValueError):
         _ = Poly2d.fit(pts[:2], pts[:2])
+
+
+@pytest.mark.parametrize(
+    "x",
+    [
+        *[2**n for n in range(20)],
+        *[2**n - 1 for n in range(20)],
+        *[2**n + 1 for n in range(20)],
+    ],
+)
+def test_align_up_pow2(x: int):
+    y = align_up_pow2(x)
+    assert isinstance(y, int)
+    assert y >= x
+    assert 2 ** int(math.log2(y)) == y
+
+
+@pytest.mark.parametrize(
+    "x",
+    [
+        *[2**n for n in range(20)],
+        *[2**n - 1 for n in range(1, 20)],
+        *[2**n + 1 for n in range(20)],
+    ],
+)
+def test_align_down_pow2(x: int):
+    y = align_down_pow2(x)
+    assert isinstance(y, int)
+    assert y <= x
+    assert 2 ** int(math.log2(y)) == y
