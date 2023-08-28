@@ -17,8 +17,8 @@ import xarray as xr
 from rasterio.shutil import copy as rio_copy  # pylint: disable=no-name-in-module
 
 from .geobox import GeoBox
-from .math import align_up
-from .types import SomeShape, shape_, wh_
+from .math import align_down_pow2, align_up
+from .types import Shape2d, SomeShape, shape_, wh_
 from .warp import resampling_s2rio
 
 # pylint: disable=too-many-locals,too-many-branches,too-many-arguments,too-many-statements
@@ -58,6 +58,33 @@ def _adjust_blocksize(block: int, dim: int = 0) -> int:
     if 0 < dim < block:
         return align_up(dim, 16)
     return align_up(block, 16)
+
+
+def _num_overviews(block: int, dim: int) -> int:
+    c = 0
+    while block < dim:
+        dim = dim // 2
+        c += 1
+    return c
+
+
+def _compute_cog_spec(
+    data_shape: SomeShape,
+    tile_shape: SomeShape,
+    *,
+    max_pad: Optional[int] = None,
+) -> Tuple[Shape2d, Shape2d, int]:
+    data_shape = shape_(data_shape)
+    tile_shape = shape_(shape_(tile_shape).map(_adjust_blocksize))
+    n1, n2 = (_num_overviews(b, dim) for dim, b in zip(data_shape.xy, tile_shape.xy))
+    n = max(n1, n2)
+    pad = 2**n
+    if max_pad is not None and max_pad < pad:
+        pad = 0 if max_pad == 0 else align_down_pow2(max_pad)
+
+    if pad > 0:
+        data_shape = shape_(data_shape.map(lambda d: align_up(d, pad)))
+    return (data_shape, tile_shape, n)
 
 
 def _default_cog_opts(
@@ -101,7 +128,7 @@ def _write_cog(
     ovr_blocksize: Optional[int] = None,
     use_windowed_writes: bool = False,
     intermediate_compression: Union[bool, str, Dict[str, Any]] = False,
-    **extra_rio_opts
+    **extra_rio_opts,
 ) -> Union[Path, bytes]:
     if blocksize is None:
         blocksize = 512
@@ -233,7 +260,7 @@ def write_cog(
     overview_levels: Optional[List[int]] = None,
     use_windowed_writes: bool = False,
     intermediate_compression: Union[bool, str, Dict[str, Any]] = False,
-    **extra_rio_opts
+    **extra_rio_opts,
 ) -> Union[Path, bytes]:
     """
     Save ``xarray.DataArray`` to a file in Cloud Optimized GeoTiff format.
@@ -318,7 +345,7 @@ def to_cog(
     overview_levels: Optional[List[int]] = None,
     use_windowed_writes: bool = False,
     intermediate_compression: Union[bool, str, Dict[str, Any]] = False,
-    **extra_rio_opts
+    **extra_rio_opts,
 ) -> bytes:
     """
     Compress ``xarray.DataArray`` into Cloud Optimized GeoTiff bytes in memory.
@@ -387,7 +414,7 @@ def write_cog_layers(
     ovr_blocksize: Optional[int] = None,
     intermediate_compression: Union[bool, str, Dict[str, Any]] = False,
     use_windowed_writes: bool = False,
-    **extra_rio_opts
+    **extra_rio_opts,
 ) -> Union[Path, bytes, None]:
     """
     Write COG from externally computed overviews.
