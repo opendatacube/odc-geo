@@ -7,7 +7,7 @@ Various mathy helpers.
 
 Minimal dependencies in this module.
 """
-from math import ceil, floor, fmod, isfinite
+from math import ceil, floor, fmod, isfinite, log2
 from typing import (
     Any,
     Iterator,
@@ -120,6 +120,31 @@ def align_up(x: int, align: int) -> int:
       ``y`` such that ``y % align == 0`` and ``y >= x`` and ``(y - x) < align``
     """
     return align_down(x + (align - 1), align)
+
+
+def align_up_pow2(x: int) -> int:
+    """
+    Align up to the nearest power of 2.
+
+    :return:
+       Smallest ``y`` such that ``y >= x`` and ``y == 2**n`` for some integer ``n``.
+    """
+    if x <= 0:
+        return 1
+    return 2 ** int(ceil(log2(x)))
+
+
+def align_down_pow2(x: int) -> int:
+    """
+    Align down to the nearest power of 2.
+
+    :return:
+       Largest ``y`` such that ``y <= x`` and ``y == 2**n`` for some integer ``n``.
+    """
+    y = align_up_pow2(x)
+    if y > x:
+        y = y // 2
+    return y
 
 
 def clamp(x, lo, up):
