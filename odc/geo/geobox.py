@@ -853,6 +853,17 @@ class GeoBox(GeoBoxBase):
 
         return GeoBox((ny, nx), self._affine, self._crs)
 
+    def crop(self, shape: SomeShape) -> "GeoBox":
+        """
+        Crop or expand to a given shape.
+
+        :returns: New :py:class:`~odc.geo.geobox.GeoBox` with a new shape,
+                 top left pixel remains at the same location and scale.
+        """
+        return GeoBox(shape, self._affine, self._crs)
+
+    expand = crop
+
     def zoom_out(self, factor: float) -> "GeoBox":
         """
         Compute :py:class:`~odc.geo.geobox.GeoBox` with changed resolution.
