@@ -601,3 +601,21 @@ def test_qr2sample(n, with_edges):
     assert (gbox.project(xx1) - gbox.extent).is_empty
     assert (xx1 - gbox.project(gbox.extent)).is_empty
     assert (xx2 - gbox.project(gbox.extent)).is_empty
+
+
+_gbox = GeoBox((3, 17), mkA(scale=(10, -10), translation=(1000, -20)), epsg3857)
+
+
+@pytest.mark.parametrize(
+    ("gbox", "shape"),
+    [
+        (_gbox, (1, 1)),
+        (_gbox, (100, 200)),
+        (_gbox, (200, 100)),
+    ],
+)
+def test_crop(gbox, shape):
+    assert gbox.crop(shape).shape == shape
+    assert gbox.crop(shape).crs == gbox.crs
+    assert gbox.crop(shape)[:1, :1] == gbox[:1, :1]
+    assert gbox.crop(shape) == gbox.expand(shape)
