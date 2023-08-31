@@ -7,6 +7,8 @@ from odc.geo import ixy_, iyx_, res_, resxy_, resyx_, shape_, wh_, xy_, yx_
 from odc.geo.geom import point
 from odc.geo.types import func2map
 
+# pylint: disable=use-implicit-booleaness-not-comparison
+
 
 def test_basics():
     assert xy_(0, 2) == xy_([0, 2])

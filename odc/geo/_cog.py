@@ -18,7 +18,7 @@ from rasterio.shutil import copy as rio_copy  # pylint: disable=no-name-in-modul
 
 from .geobox import GeoBox
 from .math import align_down_pow2, align_up
-from .types import Shape2d, SomeShape, shape_, wh_
+from .types import MaybeNodata, Shape2d, SomeShape, Unset, shape_, wh_
 from .warp import resampling_s2rio
 
 # pylint: disable=too-many-locals,too-many-branches,too-many-arguments,too-many-statements
@@ -120,7 +120,7 @@ def _write_cog(
     pix: np.ndarray,
     geobox: GeoBox,
     fname: Union[Path, str],
-    nodata: Optional[float] = None,
+    nodata: MaybeNodata = None,
     overwrite: bool = False,
     blocksize: Optional[int] = None,
     overview_resampling: Optional[str] = None,
