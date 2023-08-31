@@ -11,9 +11,9 @@ from .crs import CRS, MaybeCRS, Optional, norm_crs
 from .gcp import GCPGeoBox
 from .geobox import GeoBox
 from .geom import Geometry, point
-from .types import XY, xy_
+from .types import XY, MaybeNodata, xy_
 
-GEOTIFF_TAGS = {34735, 34737, 33920, 33550, 33922, 34264, 50844}
+GEOTIFF_TAGS = {42113, 34735, 34737, 33920, 33550, 33922, 34264, 50844}
 
 
 def from_geopandas(series) -> List[Geometry]:
@@ -103,6 +103,7 @@ def rio_geobox(rdr: Any) -> Union[GeoBox, GCPGeoBox]:
 
 def geotiff_metadata(
     geobox: GeoBox,
+    nodata: MaybeNodata = None,
 ) -> Tuple[List[Tuple[int, int, int, Any]], Dict[str, Any]]:
     """
     Convert GeoBox to geotiff tags and metadata for :py:mod:`tifffile`.
@@ -129,7 +130,9 @@ def geotiff_metadata(
     from ._cog import to_cog
     from .xr import xr_zeros
 
-    buf = to_cog(xr_zeros(geobox[:2, :2]), compress=None, overview_levels=[])
+    buf = to_cog(
+        xr_zeros(geobox[:2, :2]), nodata=nodata, compress=None, overview_levels=[]
+    )
     tf = TiffFile(BytesIO(buf), mode="r")
     assert tf.geotiff_metadata is not None
     geo_tags = [
