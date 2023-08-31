@@ -66,6 +66,8 @@ def test_shape2d():
     assert wh34 == (4, 3)
     assert shape_([4, 5]) == (4, 5)
     assert (4, 5) == shape_([4, 5])
+    assert wh_(2, 3) == wh_(4, 6).shrink2()
+    assert wh_(2, 3) == wh_(4, 7).shrink2()
 
     # should unpack like a tuple
     ny, nx = wh34
