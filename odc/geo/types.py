@@ -221,6 +221,9 @@ class Shape2d(XY[int], Sequence[int]):
     def __radd__(self, other):
         return other + self.shape
 
+    def shrink2(self) -> "Shape2d":
+        return Shape2d(x=self._xy[0] // 2, y=self._xy[1] // 2)
+
 
 SomeShape = Union[Tuple[int, int], XY[int], Shape2d, Index2d]
 SomeIndex2d = Union[Tuple[int, int], XY[int], Index2d]
