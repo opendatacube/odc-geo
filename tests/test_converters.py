@@ -1,5 +1,6 @@
 # pylint: disable=wrong-import-position,redefined-outer-name
 from pathlib import Path
+from typing import Optional
 from unittest.mock import MagicMock
 from warnings import catch_warnings, filterwarnings
 
@@ -109,13 +110,22 @@ def test_map_crs():
         _gbox.center_pixel.pad(3),
     ],
 )
-def test_geotiff_metadata(gbox: GeoBox):
+@pytest.mark.parametrize("nodata", [None, float("nan"), 0, -999])
+@pytest.mark.parametrize("gdal_metadata", [None, "<GDALMetadata></GDALMetadata>"])
+def test_geotiff_metadata(gbox: GeoBox, nodata, gdal_metadata: Optional[str]):
     assert gbox.crs is not None
 
-    geo_tags, md = geotiff_metadata(gbox)
+    geo_tags, md = geotiff_metadata(gbox, nodata=nodata, gdal_metadata=gdal_metadata)
     assert isinstance(md, dict)
     assert isinstance(geo_tags, list)
     assert len(geo_tags) >= 2
+    tag_codes = set([code for code, *_ in geo_tags])
+
+    if nodata is not None:
+        assert 42113 in tag_codes
+    if gdal_metadata is not None:
+        assert 42112 in tag_codes
+
     for code, dtype, count, val in geo_tags:
         assert code in GEOTIFF_TAGS
         assert isinstance(dtype, int)
