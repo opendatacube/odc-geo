@@ -4,7 +4,7 @@ Tools for interop with other libraries.
 Check if libraries available without importing them which can be slow.
 """
 import importlib.util
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 # pylint: disable=import-outside-toplevel
 
@@ -43,8 +43,15 @@ class _LibChecker:
         return self._check("tifffile")
 
     @staticmethod
-    def _check(lib_name):
+    def _check(lib_name: str) -> bool:
         return importlib.util.find_spec(lib_name) is not None
+
+    def check_or_error(self, *libs: str, msg: Optional[str] = None) -> None:
+        for lib in libs:
+            if not self._check(lib):
+                if msg is None:
+                    msg = f"Missing library: {lib}"
+                raise RuntimeError(msg)
 
 
 have = _LibChecker()
