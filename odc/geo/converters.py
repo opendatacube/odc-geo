@@ -13,7 +13,20 @@ from .geobox import GeoBox
 from .geom import Geometry, point
 from .types import XY, MaybeNodata, xy_
 
-GEOTIFF_TAGS = {42113, 34735, 34737, 33920, 33550, 33922, 34264, 50844}
+GEOTIFF_TAGS = {
+    34264,  # ModelTransformation
+    34735,  # GeoKeyDirectory
+    34737,  # GeoAsciiParams
+    33550,  # ModelPixelScale
+    33922,  # ModelTiePoint
+    #
+    42112,  # GDAL_METADATA
+    42113,  # GDAL_NODATA
+    #
+    # probably never used in the wild
+    33920,  # IrasB Transformation Matrix
+    50844,  # RPCCoefficientTag
+}
 
 
 def from_geopandas(series) -> List[Geometry]:
@@ -104,6 +117,7 @@ def rio_geobox(rdr: Any) -> Union[GeoBox, GCPGeoBox]:
 def geotiff_metadata(
     geobox: GeoBox,
     nodata: MaybeNodata = None,
+    gdal_metadata: Optional[str] = None,
 ) -> Tuple[List[Tuple[int, int, int, Any]], Dict[str, Any]]:
     """
     Convert GeoBox to geotiff tags and metadata for :py:mod:`tifffile`.
@@ -135,10 +149,13 @@ def geotiff_metadata(
     )
     tf = TiffFile(BytesIO(buf), mode="r")
     assert tf.geotiff_metadata is not None
-    geo_tags = [
+    geo_tags: List[Tuple[int, int, int, Any]] = [
         (t.code, t.dtype.value, t.count, t.value)
         for t in tf.pages.first.tags.values()
         if t.code in GEOTIFF_TAGS
     ]
+
+    if gdal_metadata is not None:
+        geo_tags.append((42112, 2, len(gdal_metadata) + 1, gdal_metadata))
 
     return geo_tags, tf.geotiff_metadata
