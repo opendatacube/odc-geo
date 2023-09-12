@@ -60,6 +60,10 @@ def test_have():
     assert isinstance(have.tifffile, bool)
     assert have.rasterio is True
     assert have.xarray is True
+    assert have.check_or_error("xarray", "rasterio") is None
+
+    with pytest.raises(RuntimeError):
+        have.check_or_error("xarray", "noSuchLibaBCD")
 
 
 def test_extract_gcps(data_dir: Path):
