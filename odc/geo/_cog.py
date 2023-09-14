@@ -5,10 +5,12 @@
 """
 Write Cloud Optimized GeoTIFFs from xarrays.
 """
+import itertools
 import warnings
 from contextlib import contextmanager
+from io import BytesIO
 from pathlib import Path
-from typing import Any, Dict, Generator, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Generator, Iterable, List, Literal, Optional, Tuple, Union
 from uuid import uuid4
 
 import numpy as np
@@ -16,12 +18,16 @@ import rasterio
 import xarray as xr
 from rasterio.shutil import copy as rio_copy  # pylint: disable=no-name-in-module
 
+from ._interop import have
+from .converters import geotiff_metadata
 from .geobox import GeoBox
 from .math import align_down_pow2, align_up
 from .types import MaybeNodata, Shape2d, SomeShape, Unset, shape_, wh_
 from .warp import resampling_s2rio
 
 # pylint: disable=too-many-locals,too-many-branches,too-many-arguments,too-many-statements
+
+AxisOrder = Union[Literal["YX"], Literal["YXS"], Literal["SYX"]]
 
 
 def _without(cfg: Dict[str, Any], *skip: str) -> Dict[str, Any]:
@@ -58,6 +64,15 @@ def _adjust_blocksize(block: int, dim: int = 0) -> int:
     if 0 < dim < block:
         return align_up(dim, 16)
     return align_up(block, 16)
+
+
+def _norm_blocksize(block: Union[int, Tuple[int, int]]) -> Tuple[int, int]:
+    if isinstance(block, int):
+        block = _adjust_blocksize(block)
+        return (block, block)
+
+    b1, b2 = map(_adjust_blocksize, block)
+    return (b1, b2)
 
 
 def _num_overviews(block: int, dim: int) -> int:
@@ -480,3 +495,127 @@ def write_cog_layers(
             else:
                 rio_copy(temp_fname, dst, copy_src_overviews=True, **rio_opts)
                 return Path(dst)
+
+
+def _yaxis_from_shape(
+    shape: Tuple[int, ...], gbox: Optional[GeoBox] = None
+) -> Tuple[AxisOrder, int]:
+    ndim = len(shape)
+
+    if ndim == 2:
+        return "YX", 0
+
+    if ndim != 3:
+        raise ValueError("Can only work with 2-d or 3-d data")
+    if shape[-1] in (3, 4):  # YXS in RGB(A)
+        return "YXS", 0
+
+    if gbox is None:
+        return "SYX", 1
+    if gbox.shape == shape[:2]:  # YXS
+        return "YXS", 0
+    if gbox.shape == shape[1:]:  # SYX
+        return "SYX", 1
+
+    raise ValueError("Geobox and image shape do not match")
+
+
+def make_empty_cog(
+    shape: Tuple[int, ...],
+    dtype: Any,
+    gbox: Optional[GeoBox] = None,
+    *,
+    nodata: MaybeNodata = None,
+    gdal_metadata: Optional[str] = None,
+    compression: Union[str, Unset] = Unset(),
+    predictor: Union[int, str, bool, Unset] = Unset(),
+    blocksize: Union[int, List[Union[int, Tuple[int, int]]]] = 2048,
+    **kw,
+) -> memoryview:
+    # pylint: disable=import-outside-toplevel
+    have.check_or_error("tifffile", "rasterio", "xarray")
+    from tifffile import (
+        COMPRESSION,
+        FILETYPE,
+        PHOTOMETRIC,
+        PLANARCONFIG,
+        TIFF,
+        TiffWriter,
+    )
+
+    if isinstance(compression, Unset):
+        compression = str(kw.pop("compress", "ADOBE_DEFLATE"))
+    compression = compression.upper()
+    compression = {"DEFLATE": "ADOBE_DEFLATE"}.get(compression, compression)
+    compression = COMPRESSION[compression]
+
+    if isinstance(predictor, Unset):
+        predictor = compression not in TIFF.IMAGE_COMPRESSIONS
+
+    if isinstance(blocksize, int):
+        blocksize = [blocksize]
+
+    ax, yaxis = _yaxis_from_shape(shape, gbox)
+    im_shape = shape_(shape[yaxis : yaxis + 2])
+    photometric = PHOTOMETRIC.MINISBLACK
+    planarconfig = PLANARCONFIG.SEPARATE
+    if ax == "YX":
+        nsamples = 1
+    elif ax == "YXS":
+        nsamples = shape[-1]
+        planarconfig = PLANARCONFIG.CONTIG
+        if nsamples in (3, 4):
+            photometric = PHOTOMETRIC.RGB
+    else:
+        nsamples = shape[0]
+
+    extratags: List[Tuple[int, int, int, Any]] = []
+    if gbox is not None:
+        extratags, _ = geotiff_metadata(
+            gbox, nodata=nodata, gdal_metadata=gdal_metadata
+        )
+
+    buf = BytesIO()
+
+    opts_common = {
+        "dtype": dtype,
+        "photometric": photometric,
+        "planarconfig": planarconfig,
+        "predictor": predictor,
+        "compression": compression,
+        "software": False,
+        **kw,
+    }
+
+    def _sh(shape: Shape2d) -> Tuple[int, ...]:
+        if ax == "YX":
+            return shape.shape
+        if ax == "YXS":
+            return (*shape.shape, nsamples)
+        return (nsamples, *shape.shape)
+
+    tsz = _norm_blocksize(blocksize[-1])
+    im_shape, _, nlevels = _compute_cog_spec(im_shape, tsz)
+
+    _blocks = itertools.chain(iter(blocksize), itertools.repeat(blocksize[-1]))
+
+    tw = TiffWriter(buf, bigtiff=True)
+
+    for tsz, idx in zip(_blocks, range(nlevels + 1)):
+        if idx == 0:
+            kw = {**opts_common, "extratags": extratags}
+        else:
+            kw = {**opts_common, "subfiletype": FILETYPE.REDUCEDIMAGE}
+
+        tw.write(
+            itertools.repeat(b""),
+            shape=_sh(im_shape),
+            tile=_norm_blocksize(tsz),
+            **kw,
+        )
+
+        im_shape = im_shape.shrink2()
+
+    tw.close()
+
+    return buf.getbuffer()
