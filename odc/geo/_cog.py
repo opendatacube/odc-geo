@@ -599,7 +599,7 @@ def make_empty_cog(
 
     _blocks = itertools.chain(iter(blocksize), itertools.repeat(blocksize[-1]))
 
-    tw = TiffWriter(buf, bigtiff=True)
+    tw = TiffWriter(buf, bigtiff=True, shaped=False)
 
     for tsz, idx in zip(_blocks, range(nlevels + 1)):
         if idx == 0:
