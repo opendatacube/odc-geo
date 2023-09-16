@@ -303,7 +303,7 @@ class VariableSizedTiles:
             raise IndexError()
         y, x = (
             # 1: because offsets start from 0, n1, n1+n2, ...
-            int(np.searchsorted(bins[1:], pix))
+            int(np.searchsorted(bins[1:], pix, "right"))
             for bins, pix in zip(self._offsets, (y, x))
         )
         return (y, x)
