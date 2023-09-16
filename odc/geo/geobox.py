@@ -9,7 +9,7 @@ from collections import OrderedDict, namedtuple
 from enum import Enum
 from typing import (
     Dict,
-    Iterable,
+    Iterator,
     List,
     Literal,
     Mapping,
@@ -31,6 +31,7 @@ from .math import (
     is_almost_int,
     maybe_zero,
     resolution_from_affine,
+    snap_affine,
     snap_grid,
     split_translation,
 )
@@ -1289,6 +1290,13 @@ class GeoboxTiles:
         """
         return self._gbox[self._tiles[idx]]
 
+    def pix_bbox(self, idx: Union[SomeIndex2d, ROI]) -> BoundingBox:
+        """
+        BoundingBox in pixel space of a given tile.
+        """
+        ry, rx = self._tiles[idx]
+        return BoundingBox(rx.start, ry.start, rx.stop, ry.stop)
+
     def range_from_bbox(self, bbox: BoundingBox) -> Tuple[range, range]:
         """
         Intersect with a bounding box.
@@ -1314,10 +1322,23 @@ class GeoboxTiles:
 
         return range(y1, y2 + 1), range(x1, x2 + 1)
 
-    def tiles(self, polygon: Geometry) -> Iterable[Tuple[int, int]]:
+    def _tiles_from_pix_bbox(self, bbox: BoundingBox) -> Iterator[Tuple[int, int]]:
+        yy, xx = self.range_from_bbox(bbox)
+        yield from itertools.product(yy, xx)
+
+    def tiles(self, query: Union[Geometry, BoundingBox]) -> Iterator[Tuple[int, int]]:
         """Return tile indexes overlapping with a given geometry."""
         target_crs = self._gbox.crs
-        poly = polygon
+
+        if isinstance(query, BoundingBox):
+            if query.crs is None:
+                # special case for bounding box in pixel domain
+                yield from self._tiles_from_pix_bbox(query)
+                return
+            poly = query.polygon
+        else:
+            poly = query
+
         if target_crs is not None and poly.crs != target_crs:
             poly = poly.to_crs(target_crs, check_and_fix=True)
 
@@ -1326,6 +1347,37 @@ class GeoboxTiles:
             gbox = self[idx]
             if not poly.disjoint(gbox.extent):
                 yield idx
+
+    def _check_linear(self, src: "GeoboxTiles") -> Optional[Affine]:
+        if src.base.crs != self.base.crs:
+            return None
+        if not isinstance(self.base, GeoBox):
+            return None
+        if not isinstance(src.base, GeoBox):
+            return None
+        # src_pix = A*dst_pix
+        A = snap_affine((~src.base.transform) * self.base.transform)
+        if is_affine_st(A):
+            return A
+        return None
+
+    def _all_tiles(self) -> Iterator[Tuple[int, int]]:
+        for iy, ix in numpy.ndindex(self.shape.shape):
+            yield (iy, ix)
+
+    def _grid_intersect_linear(
+        self,
+        src: "GeoboxTiles",
+        A: Affine,
+    ) -> Dict[Tuple[int, int], List[Tuple[int, int]]]:
+        deps: Dict[Tuple[int, int], List[Tuple[int, int]]] = {}
+
+        for idx in self._all_tiles():
+            bbox = self.pix_bbox(idx).transform(A).round()
+            src_idx = list(src.tiles(bbox))
+            deps[idx] = src_idx
+
+        return deps
 
     def grid_intersect(
         self, src: "GeoboxTiles"
@@ -1336,6 +1388,10 @@ class GeoboxTiles:
         For every tile in this :py:class:`GeoboxTiles` find every tile in ``other`` that
         intersects with this ``tile``.
         """
+        A = self._check_linear(src)
+        if A is not None:
+            return self._grid_intersect_linear(src, A)
+
         if src.base.crs == self.base.crs:
             src_footprint = src.base.extent
         else:
