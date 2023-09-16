@@ -4,10 +4,13 @@ from typing import Optional, Tuple
 
 import pytest
 
-from odc.geo._cog import _compute_cog_spec, _num_overviews, make_empty_cog
+from odc.geo._cog import _compute_cog_spec, _num_overviews, cog_gbox, make_empty_cog
+from odc.geo.geobox import GeoBox
 from odc.geo.gridspec import GridSpec
 from odc.geo.types import Unset
 from odc.geo.xr import xr_zeros
+
+gbox_globe = GridSpec.web_tiles(0)[0, 0]
 
 
 def test_write_cog():
@@ -70,6 +73,8 @@ def test_num_overviews(block: int, dim: int, n_expect: int):
     ("shape", "tshape", "max_pad"),
     [
         [(1024, 2048), (256, 128), None],
+        [(1024, 2048), (256, 128), 0],
+        [(1024 + 11, 2048 + 13), (256, 128), 0],
     ],
 )
 def test_cog_spec(
@@ -90,6 +95,29 @@ def test_cog_spec(
     if max_pad is not None:
         assert _shape[0] - shape[0] <= max_pad
         assert _shape[1] - shape[1] <= max_pad
+
+
+@pytest.mark.parametrize(
+    "gbox",
+    [
+        gbox_globe.zoom_to(shape)
+        for shape in [
+            (1024, 2048),
+            (17, 19),
+            (10_003, 10_003),
+            (1 << 20, 1 << 20),
+        ]
+    ],
+)
+@pytest.mark.parametrize("kw", [{}, {"tile": 256}, {"nlevels": 5}])
+def test_cog_gbox(gbox: GeoBox, kw):
+    _gbox = cog_gbox(gbox, **kw)
+    assert _gbox[:1, :1] == gbox[:1, :1]
+    assert _gbox.shape[0] >= gbox.shape[0]
+    assert _gbox.shape[1] >= gbox.shape[1]
+
+    # once expanded has to stay same size
+    assert cog_gbox(gbox, **kw) == cog_gbox(cog_gbox(gbox, **kw), **kw)
 
 
 @pytest.mark.parametrize(
