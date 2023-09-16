@@ -35,11 +35,15 @@ def test_geoboxtiles_intersect(
     for iy, ix in np.ndindex(gbt.shape.yx):
         idx = (iy, ix)
         assert idx in mm
-        assert len(mm[idx]) >= 1
+        assert len(mm[idx]) == 1
         assert idx in mm[idx]
 
     gbt2 = GeoboxTiles(geobox.pad(2).to_crs(6933), (13, 11))
     mm = gbt.grid_intersect(gbt2)
+    assert set(mm) == set(np.ndindex(gbt.shape.yx))
+
+    gbt3 = GeoboxTiles(geobox.pad(2).rotate(1), (13, 11))
+    mm = gbt.grid_intersect(gbt3)
     assert set(mm) == set(np.ndindex(gbt.shape.yx))
 
 
@@ -96,6 +100,7 @@ def test_gbox_tiles(use_chunks):
     np.testing.assert_array_equal(cc, np.ones(tt.shape))
 
     assert list(tt.tiles(gbox[:h, :w].extent)) == [(0, 0)]
+    assert list(tt.tiles(gbox[:h, :w].extent.boundingbox)) == [(0, 0)]
     assert list(tt.tiles(gbox[:h, :w].extent.to_crs("epsg:4326"))) == [(0, 0)]
 
     (H, W) = (11, 22)
@@ -144,3 +149,10 @@ def test_gbox_tiles_roi(use_chunks):
         tt.crop[1 : 2 + 1, 2 : 5 + 1],
         [(0, 0), (1, 3)],
     )
+
+    for idx in np.ndindex(tt.shape.shape):
+        bbox = tt.pix_bbox(idx)
+        assert bbox.crs is None
+        _idx = list(tt.tiles(bbox))
+        assert len(_idx) == 1
+        assert _idx[0] == idx
