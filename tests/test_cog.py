@@ -150,7 +150,7 @@ def test_empty_cog(shape, blocksize, expect_ax, dtype, compression, expect_predi
         gbox = gbox.zoom_to(shape[:2])
         assert gbox.shape == shape[:2]
 
-    mm = make_empty_cog(
+    meta, mm = make_empty_cog(
         shape,
         dtype,
         gbox=gbox,
@@ -158,6 +158,12 @@ def test_empty_cog(shape, blocksize, expect_ax, dtype, compression, expect_predi
         compression=compression,
     )
     assert isinstance(mm, memoryview)
+    assert meta.axis == expect_ax
+    assert meta.dtype == dtype
+    assert meta.shape[0] >= gbox.shape[0]
+    assert meta.shape[1] >= gbox.shape[1]
+    assert meta.gbox is not None
+    assert meta.shape == meta.gbox.shape
 
     f = tifffile.TiffFile(BytesIO(mm))
     assert f.tiff.is_bigtiff

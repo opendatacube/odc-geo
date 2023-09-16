@@ -8,6 +8,7 @@ Write Cloud Optimized GeoTIFFs from xarrays.
 import itertools
 import warnings
 from contextlib import contextmanager
+from dataclasses import dataclass, field
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, Generator, Iterable, List, Literal, Optional, Tuple, Union
@@ -25,9 +26,41 @@ from .math import align_down_pow2, align_up
 from .types import MaybeNodata, Shape2d, SomeShape, Unset, shape_, wh_
 from .warp import resampling_s2rio
 
-# pylint: disable=too-many-locals,too-many-branches,too-many-arguments,too-many-statements
+# pylint: disable=too-many-locals,too-many-branches,too-many-arguments,too-many-statements,too-many-instance-attributes
 
 AxisOrder = Union[Literal["YX"], Literal["YXS"], Literal["SYX"]]
+
+
+@dataclass
+class CogMeta:
+    """
+    COG metadata.
+    """
+
+    axis: AxisOrder
+    shape: Shape2d
+    tile: Shape2d
+    nsamples: int
+    dtype: Any
+    compression: int
+    predictor: int
+    gbox: Optional[GeoBox] = None
+    overviews: Tuple["CogMeta", ...] = field(default=(), repr=False)
+
+    def _pix_shape(self, shape: Shape2d) -> Tuple[int, ...]:
+        if self.axis == "YX":
+            return shape.shape
+        if self.axis == "YXS":
+            return (*shape.shape, self.nsamples)
+        return (self.nsamples, *shape.shape)
+
+    @property
+    def chunks(self) -> Tuple[int, ...]:
+        return self._pix_shape(self.tile)
+
+    @property
+    def pix_shape(self) -> Tuple[int, ...]:
+        return self._pix_shape(self.shape)
 
 
 def _without(cfg: Dict[str, Any], *skip: str) -> Dict[str, Any]:
@@ -545,6 +578,20 @@ def _yaxis_from_shape(
     raise ValueError("Geobox and image shape do not match")
 
 
+def _norm_predictor(predictor: Union[int, bool], dtype: Any) -> int:
+    if isinstance(predictor, int):
+        return predictor
+
+    dtype = np.dtype(dtype)
+    if not predictor:
+        return 1
+    if dtype.kind == "f":
+        return 3
+    if dtype.kind in "ui" and dtype.itemsize <= 4:
+        return 2
+    return 1
+
+
 def make_empty_cog(
     shape: Tuple[int, ...],
     dtype: Any,
@@ -553,10 +600,11 @@ def make_empty_cog(
     nodata: MaybeNodata = None,
     gdal_metadata: Optional[str] = None,
     compression: Union[str, Unset] = Unset(),
-    predictor: Union[int, str, bool, Unset] = Unset(),
+    predictor: Union[int, bool, Unset] = Unset(),
     blocksize: Union[int, List[Union[int, Tuple[int, int]]]] = 2048,
+    bigtiff: bool = True,
     **kw,
-) -> memoryview:
+) -> Tuple[CogMeta, memoryview]:
     # pylint: disable=import-outside-toplevel
     have.check_or_error("tifffile", "rasterio", "xarray")
     from tifffile import (
@@ -572,10 +620,15 @@ def make_empty_cog(
         compression = str(kw.pop("compress", "ADOBE_DEFLATE"))
     compression = compression.upper()
     compression = {"DEFLATE": "ADOBE_DEFLATE"}.get(compression, compression)
-    compression = COMPRESSION[compression]
+    _compression = int(COMPRESSION[compression])
 
     if isinstance(predictor, Unset):
-        predictor = compression not in TIFF.IMAGE_COMPRESSIONS
+        if _compression in TIFF.IMAGE_COMPRESSIONS:
+            predictor = 1
+        else:
+            predictor = _norm_predictor(True, dtype)
+    else:
+        predictor = _norm_predictor(predictor, dtype)
 
     if isinstance(blocksize, int):
         blocksize = [blocksize]
@@ -594,12 +647,6 @@ def make_empty_cog(
     else:
         nsamples = shape[0]
 
-    extratags: List[Tuple[int, int, int, Any]] = []
-    if gbox is not None:
-        extratags, _ = geotiff_metadata(
-            gbox, nodata=nodata, gdal_metadata=gdal_metadata
-        )
-
     buf = BytesIO()
 
     opts_common = {
@@ -607,7 +654,7 @@ def make_empty_cog(
         "photometric": photometric,
         "planarconfig": planarconfig,
         "predictor": predictor,
-        "compression": compression,
+        "compression": _compression,
         "software": False,
         **kw,
     }
@@ -622,25 +669,44 @@ def make_empty_cog(
     tsz = _norm_blocksize(blocksize[-1])
     im_shape, _, nlevels = _compute_cog_spec(im_shape, tsz)
 
+    extratags: List[Tuple[int, int, int, Any]] = []
+    if gbox is not None:
+        gbox = gbox.expand(im_shape)
+        extratags, _ = geotiff_metadata(
+            gbox, nodata=nodata, gdal_metadata=gdal_metadata
+        )
+    # TODO: support nodata/gdal_metadata without gbox?
+
     _blocks = itertools.chain(iter(blocksize), itertools.repeat(blocksize[-1]))
 
-    tw = TiffWriter(buf, bigtiff=True, shaped=False)
+    tw = TiffWriter(buf, bigtiff=bigtiff, shaped=False)
+    metas: List[CogMeta] = []
 
     for tsz, idx in zip(_blocks, range(nlevels + 1)):
+        tile = _norm_blocksize(tsz)
+        meta = CogMeta(
+            ax, im_shape, shape_(tile), nsamples, dtype, _compression, predictor
+        )
+
         if idx == 0:
             kw = {**opts_common, "extratags": extratags}
+            meta.gbox = gbox
         else:
             kw = {**opts_common, "subfiletype": FILETYPE.REDUCEDIMAGE}
 
         tw.write(
             itertools.repeat(b""),
             shape=_sh(im_shape),
-            tile=_norm_blocksize(tsz),
+            tile=tile,
             **kw,
         )
 
+        metas.append(meta)
         im_shape = im_shape.shrink2()
+
+    meta = metas[0]
+    meta.overviews = tuple(metas[1:])
 
     tw.close()
 
-    return buf.getbuffer()
+    return meta, buf.getbuffer()
