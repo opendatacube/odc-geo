@@ -102,6 +102,31 @@ def _compute_cog_spec(
     return (data_shape, tile_shape, n)
 
 
+def cog_gbox(
+    gbox: GeoBox,
+    *,
+    tile: Union[None, int, Tuple[int, int], Shape2d] = None,
+    nlevels: Optional[int] = None,
+) -> GeoBox:
+    """
+    Return padded gbox with safe dimensions for COG.
+
+    1. Compute number of desired overviews
+    2. Expand gebox on the right/bottom to have exact pixel shrink across all levels
+    """
+
+    if nlevels is None:
+        if tile is None:
+            tile = wh_(256, 256)
+        if isinstance(tile, int):
+            tile = wh_(tile, tile)
+        new_shape, _, _ = _compute_cog_spec(gbox.shape, tile)
+    else:
+        pad = 1 << nlevels
+        new_shape = shape_(gbox.shape.map(lambda d: align_up(d, pad)))
+    return gbox.expand(new_shape)
+
+
 def _default_cog_opts(
     *, blocksize: int = 512, shape: SomeShape = (0, 0), is_float: bool = False, **other
 ) -> Dict[str, Any]:
