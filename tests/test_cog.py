@@ -4,10 +4,16 @@ from typing import Optional, Tuple
 
 import pytest
 
-from odc.geo._cog import _compute_cog_spec, _num_overviews, cog_gbox, make_empty_cog
+from odc.geo._cog import (
+    CogMeta,
+    _compute_cog_spec,
+    _num_overviews,
+    cog_gbox,
+    make_empty_cog,
+)
 from odc.geo.geobox import GeoBox
 from odc.geo.gridspec import GridSpec
-from odc.geo.types import Unset
+from odc.geo.types import Unset, wh_
 from odc.geo.xr import xr_zeros
 
 gbox_globe = GridSpec.web_tiles(0)[0, 0]
@@ -203,3 +209,49 @@ def test_empty_cog(shape, blocksize, expect_ax, dtype, compression, expect_predi
 
         assert tsz[0] <= p.chunks[0] < tsz[0] + 16
         assert tsz[1] <= p.chunks[1] < tsz[1] + 16
+
+
+@pytest.mark.parametrize(
+    "meta",
+    [
+        CogMeta("YX", wh_(256, 256), wh_(128, 128), 1, "int16", 8, 1),
+        CogMeta("YXS", wh_(500, 256), wh_(128, 128), 3, "uint8", 8, 1),
+        CogMeta("SYX", wh_(500, 256), wh_(128, 128), 5, "float32", 8, 1),
+    ],
+)
+def test_cog_meta(meta: CogMeta):
+    for idx_flat, idx in enumerate(meta.tidx()):
+        assert meta.flat_tile_idx(idx) == idx_flat
+
+    assert meta.num_tiles == (meta.chunked.x * meta.chunked.y * meta.num_planes)
+    assert meta.num_tiles == len(list(meta.tidx()))
+
+    assert len(meta.pix_shape) == {"YX": 2, "SYX": 3, "YXS": 3}[meta.axis]
+    assert len(meta.pix_shape) == len(meta.chunks)
+
+    if meta.axis in ("YX", "YXS"):
+        assert meta.num_planes == 1
+        assert meta.nsamples >= meta.num_planes
+
+    if meta.axis == "SYX":
+        assert meta.num_planes == meta.nsamples
+
+    layers = meta.flatten()
+    for idx in meta.cog_tidx():
+        assert isinstance(idx, tuple)
+        assert len(idx) == 4
+        img_idx, s, y, x = idx
+        tidx = (s, y, x)
+        assert 0 <= img_idx < len(layers)
+        assert layers[img_idx].flat_tile_idx(tidx) <= layers[img_idx].num_tiles
+
+    for bad_idx in [
+        (0, -1, 0),
+        (-1, 0, 0),
+        (0, 0, -1),
+        (meta.num_planes, 0, 0),
+        (0, meta.chunked.y, 0),
+        (0, meta.chunked.y - 1, meta.chunked.x + 2),
+    ]:
+        with pytest.raises(IndexError):
+            _ = meta.flat_tile_idx(bad_idx)
