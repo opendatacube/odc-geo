@@ -13,6 +13,7 @@ dependencies:
   - numpy
   - cachetools
   - tifffile
+  - glymur
 
   ## linting tools
   - autopep8
