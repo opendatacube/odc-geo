@@ -8,6 +8,7 @@ import math
 from collections import OrderedDict, namedtuple
 from enum import Enum
 from typing import (
+    Callable,
     Dict,
     Iterator,
     List,
@@ -733,6 +734,7 @@ class GeoBox(GeoBoxBase):
         *,
         resolution: Literal["auto", "fit", "same"] = "auto",
         tight: bool = False,
+        round_resolution: Union[None, bool, Callable[[float, str], float]] = None,
     ) -> "GeoBox":
         """
         Compute GeoBox covering the same region in a different projection.
@@ -759,7 +761,13 @@ class GeoBox(GeoBoxBase):
         # can't be up-top due to circular imports issues
         from .overlap import compute_output_geobox
 
-        return compute_output_geobox(self, crs, resolution=resolution, tight=tight)
+        return compute_output_geobox(
+            self,
+            crs,
+            resolution=resolution,
+            tight=tight,
+            round_resolution=round_resolution,
+        )
 
     def __str__(self):
         return self.__repr__()
