@@ -12,6 +12,7 @@ dependencies:
   - xarray
   - numpy
   - cachetools
+  - glymur
 
   ## linting tools
   - autopep8
