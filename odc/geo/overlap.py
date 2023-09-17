@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 import math
 from dataclasses import dataclass
-from typing import Literal, Optional, Protocol, Sequence, Tuple, Union
+from typing import Callable, Literal, Optional, Protocol, Sequence, Tuple, Union
 
 import numpy as np
 from affine import Affine
@@ -564,6 +564,7 @@ def compute_output_geobox(
     *,
     resolution: Union[SomeResolution, Literal["auto", "fit", "same"]] = "auto",
     tight: bool = False,
+    round_resolution: Union[None, bool, Callable[[float, str], float]] = None,
 ) -> GeoBox:
     """
     Compute output ``GeoBox``.
@@ -588,6 +589,8 @@ def compute_output_geobox(
     :param tight:
       By default output pixel grid is adjusted to align pixel edges to X/Y axis, suppling
       ``tight=True`` produces unaligned geobox on the output.
+
+    :param round_resolution: ``round_resolution(res: float, units: str) -> float``
 
     :return:
        Similar resolution, axis aligned geobox that fully encloses source one but in a different
@@ -630,6 +633,12 @@ def compute_output_geobox(
 
         # always produces square pixels on output with inverted Y axis
         avg_res = (abs(dst_.resolution.x / sx) + abs(dst_.resolution.y / sy)) / 2
+        if round_resolution is not None:
+            if isinstance(round_resolution, bool):
+                if round_resolution:
+                    avg_res = round(avg_res, 0)
+            else:
+                avg_res = round_resolution(avg_res, dst_crs.units[0])
         res = res_(avg_res)
     else:
         if isinstance(resolution, str):
