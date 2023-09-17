@@ -16,6 +16,7 @@ from .types import XY, MaybeNodata, xy_
 GEOTIFF_TAGS = {
     34264,  # ModelTransformation
     34735,  # GeoKeyDirectory
+    34736,  # GeoDoubleParams
     34737,  # GeoAsciiParams
     33550,  # ModelPixelScale
     33922,  # ModelTiePoint
