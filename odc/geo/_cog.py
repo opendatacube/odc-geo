@@ -45,6 +45,18 @@ from .warp import resampling_s2rio
 
 AxisOrder = Union[Literal["YX"], Literal["YXS"], Literal["SYX"]]
 
+# map compressor name to level name in GDAL
+_GDAL_COMP: Dict[str, str] = {
+    "DEFLATE": "ZLEVEL",
+    "ADOBE_DEFLATE": "ZLEVEL",
+    "ZSTD": "ZSTD_LEVEL",
+    "WEBP": "WEBP_LEVEL",
+    "LERC": "MAX_Z_ERROR",
+    "LERC_DEFLATE": "MAX_Z_ERROR",
+    "LERC_ZSTD": "MAX_Z_ERROR",
+    "JPEG": "JPEG_QUALITY",
+}
+
 
 @dataclass
 class CogMeta:
@@ -650,21 +662,7 @@ def _yaxis_from_shape(
     raise ValueError("Geobox and image shape do not match")
 
 
-def _norm_predictor(predictor: Union[int, bool], dtype: Any) -> int:
-    if isinstance(predictor, int):
-        return predictor
-
-    dtype = np.dtype(dtype)
-    if not predictor:
-        return 1
-    if dtype.kind == "f":
-        return 3
-    if dtype.kind in "ui" and dtype.itemsize <= 4:
-        return 2
-    return 1
-
-
-def make_empty_cog(
+def _make_empty_cog(
     shape: Tuple[int, ...],
     dtype: Any,
     gbox: Optional[GeoBox] = None,
@@ -672,6 +670,7 @@ def make_empty_cog(
     nodata: MaybeNodata = None,
     gdal_metadata: Optional[str] = None,
     compression: Union[str, Unset] = Unset(),
+    compressionargs: Any = None,
     predictor: Union[int, bool, Unset] = Unset(),
     blocksize: Union[int, List[Union[int, Tuple[int, int]]]] = 2048,
     bigtiff: bool = True,
@@ -684,23 +683,18 @@ def make_empty_cog(
         FILETYPE,
         PHOTOMETRIC,
         PLANARCONFIG,
-        TIFF,
         TiffWriter,
+        enumarg,
     )
 
-    if isinstance(compression, Unset):
-        compression = str(kw.pop("compress", "ADOBE_DEFLATE"))
-    compression = compression.upper()
-    compression = {"DEFLATE": "ADOBE_DEFLATE"}.get(compression, compression)
-    _compression = int(COMPRESSION[compression])
-
-    if isinstance(predictor, Unset):
-        if _compression in TIFF.IMAGE_COMPRESSIONS:
-            predictor = 1
-        else:
-            predictor = _norm_predictor(True, dtype)
-    else:
-        predictor = _norm_predictor(predictor, dtype)
+    predictor, compression, compressionargs = _norm_compression_tifffile(
+        dtype,
+        predictor,
+        compression=compression,
+        compressionargs=compressionargs,
+        kw=kw,
+    )
+    _compression = enumarg(COMPRESSION, compression.upper())
 
     if isinstance(blocksize, int):
         blocksize = [blocksize]
@@ -727,6 +721,7 @@ def make_empty_cog(
         "planarconfig": planarconfig,
         "predictor": predictor,
         "compression": _compression,
+        "compressionargs": compressionargs,
         "software": False,
         **kw,
     }
@@ -757,7 +752,14 @@ def make_empty_cog(
     for tsz, idx in zip(_blocks, range(nlevels + 1)):
         tile = _norm_blocksize(tsz)
         meta = CogMeta(
-            ax, im_shape, shape_(tile), nsamples, dtype, _compression, predictor, gbox
+            ax,
+            im_shape,
+            shape_(tile),
+            nsamples,
+            dtype,
+            int(_compression),
+            predictor,
+            gbox,
         )
 
         if idx == 0:
@@ -849,6 +851,7 @@ def compress_tiles(
     meta: CogMeta,
     scale_idx: int = 0,
     sample_idx: int = 0,
+    compressionargs: Any = None,
     **encoder_params,
 ):
     """
@@ -870,8 +873,14 @@ def compress_tiles(
     assert meta.num_planes == 1
     src_ydim = 0  # for now assume Y,X or Y,X,S
 
+    if compressionargs is not None:
+        encoder_params.update(**compressionargs)
+
     encoder = mk_tile_compressor(meta, **encoder_params)
     data = xx.data
+
+    if data.chunksize != meta.chunks:
+        data = data.rechunk(meta.chunks)
 
     assert is_dask_collection(data)
 
@@ -971,18 +980,93 @@ def _update_header(
     return bytes(_bio.getbuffer())
 
 
+def _norm_predictor(predictor: Union[int, bool, None], dtype: Any) -> int:
+    if predictor is False or predictor is None:
+        return 1
+
+    if predictor is True:
+        dtype = np.dtype(dtype)
+        if dtype.kind == "f":
+            return 3
+        if dtype.kind in "ui" and dtype.itemsize <= 4:
+            return 2
+        return 1
+    return predictor
+
+
+def _norm_compression_tifffile(
+    dtype: Any,
+    predictor: Union[bool, None, int, Unset] = Unset(),
+    compression: Union[str, Unset] = Unset(),
+    compressionargs: Any = None,
+    level: Optional[Union[int, float]] = None,
+    kw: Optional[Dict[str, Any]] = None,
+) -> Tuple[int, str, Dict[str, Any]]:
+    if kw is None:
+        kw = {}
+    if isinstance(compression, Unset):
+        compression = kw.pop("compress", "ADOBE_DEFLATE")
+        assert isinstance(compression, str)
+
+    if compressionargs is None:
+        compressionargs = {}
+
+    remap = {k.upper(): k for k in kw}
+
+    def opt(name: str, default=None) -> Any:
+        k = remap.get(name.upper(), None)
+        if k is None:
+            return default
+        return kw.pop(k, default)
+
+    def _gdal_level(compression: str, default=None) -> Any:
+        gdal_level_k = _GDAL_COMP.get(compression, None)
+        if gdal_level_k is None:
+            return default
+        return opt(gdal_level_k, default)
+
+    compression = compression.upper()
+
+    if level is None and "level" not in compressionargs:
+        # GDAL compat
+        level = _gdal_level(compression)
+
+    if level is not None:
+        compressionargs["level"] = level
+
+    if compression == "DEFLATE":
+        compression = "ADOBE_DEFLATE"
+    if compression == "LERC_DEFLATE":
+        compression = "LERC"
+        compressionargs["compression"] = "deflate"
+        if (lvl := _gdal_level("DEFLATE")) is not None:
+            compressionargs["compressionargs"] = {"level": lvl}
+    elif compression == "LERC_ZSTD":
+        compression = "LERC"
+        compressionargs["compression"] = "zstd"
+        if (lvl := _gdal_level("ZSTD")) is not None:
+            compressionargs["compressionargs"] = {"level": lvl}
+
+    if isinstance(predictor, Unset):
+        predictor = compression in ("ADOBE_DEFLATE", "ZSTD", "LZMA")
+
+    predictor = _norm_predictor(predictor, dtype)
+    return (predictor, compression, compressionargs)
+
+
 def save_cog_with_dask(
     xx: xr.DataArray,
     dst: str = "",
     *,
-    client: Any = None,
     compression: Union[str, Unset] = Unset(),
+    compressionargs: Any = None,
+    level: Optional[Union[int, float]] = None,
     predictor: Union[int, bool, Unset] = Unset(),
-    blocksize: Union[int, List[Union[int, Tuple[int, int]]]] = 2048,
+    blocksize: Union[Unset, int, List[Union[int, Tuple[int, int]]]] = Unset(),
     bigtiff: bool = True,
     overview_resampling: Union[int, str] = "nearest",
     verbose: bool = False,
-    encoder_params: Any = None,
+    client: Any = None,
     **kw,
 ):
     # pylint: disable=import-outside-toplevel
@@ -990,20 +1074,28 @@ def save_cog_with_dask(
     from dask import bag, delayed
     from dask.utils import format_time
 
-    if encoder_params is None:
-        encoder_params = {}
-
     # usefull when debugging
     optimize_graph = kw.pop("optimize_graph", True)
 
-    meta, hdr0 = make_empty_cog(
+    # normalize compression and remove GDAL compat options from kw
+    predictor, compression, compressionargs = _norm_compression_tifffile(
+        xx.dtype, predictor, compression, compressionargs, level=level, kw=kw
+    )
+    ydim = xx.odc.ydim
+    data_chunks: Tuple[int, int] = xx.data.chunksize[ydim : ydim + 2]
+    if isinstance(blocksize, Unset):
+        blocksize = [data_chunks, int(max(*data_chunks) // 2)]
+
+    meta, hdr0 = _make_empty_cog(
         xx.shape,
         xx.dtype,
         xx.odc.geobox,
         predictor=predictor,
         compression=compression,
+        compressionargs=compressionargs,
         blocksize=blocksize,
         bigtiff=bigtiff,
+        nodata=xx.odc.nodata,
         **kw,
     )
     hdr0 = bytes(hdr0)
@@ -1012,7 +1104,11 @@ def save_cog_with_dask(
 
     _tiles = []
     for scale_idx, (mm, img) in enumerate(zip(meta.flatten(), layers)):
-        _tiles.append(compress_tiles(img, mm, scale_idx=scale_idx, **encoder_params))
+        _tiles.append(
+            compress_tiles(
+                img, mm, scale_idx=scale_idx, compressionargs=compressionargs
+            )
+        )
 
     hdr_info = bag.concat(
         [t.map(lambda d: (*d["idx"], len(d["data"]))) for t in _tiles[::-1]]

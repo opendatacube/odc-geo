@@ -7,9 +7,10 @@ import pytest
 from odc.geo._cog import (
     CogMeta,
     _compute_cog_spec,
+    _make_empty_cog,
+    _norm_compression_tifffile,
     _num_overviews,
     cog_gbox,
-    make_empty_cog,
 )
 from odc.geo.geobox import GeoBox
 from odc.geo.gridspec import GridSpec
@@ -143,7 +144,12 @@ def test_cog_gbox(gbox: GeoBox, kw):
         ("int16", "deflate", 2),
         ("int16", "zstd", 2),
         ("uint8", "webp", 1),
-        ("float32", Unset(), 3),
+        ("int16", Unset(), 2),
+        ("float32", "zstd", 3),
+        ("float32", "adobe_deflate", 3),
+        ("float32", "lerc", 1),
+        ("float32", "lerc_deflate", 1),
+        ("float32", "lerc_zstd", 1),
     ],
 )
 def test_empty_cog(shape, blocksize, expect_ax, dtype, compression, expect_predictor):
@@ -156,7 +162,7 @@ def test_empty_cog(shape, blocksize, expect_ax, dtype, compression, expect_predi
         gbox = gbox.zoom_to(shape[:2])
         assert gbox.shape == shape[:2]
 
-    meta, mm = make_empty_cog(
+    meta, mm = _make_empty_cog(
         shape,
         dtype,
         gbox=gbox,
@@ -183,8 +189,12 @@ def test_empty_cog(shape, blocksize, expect_ax, dtype, compression, expect_predi
 
     if isinstance(compression, str):
         compression = compression.upper()
-        compression = {"DEFLATE": "ADOBE_DEFLATE"}.get(compression, compression)
-        assert p.compression.name == compression
+        if compression == "DEFLATE":
+            assert p.compression.name == "ADOBE_DEFLATE"
+        elif compression.startswith("LERC_"):
+            assert p.compression.name == "LERC"
+        else:
+            assert p.compression.name == compression
     else:
         # should default to deflate
         assert p.compression == 8
@@ -255,3 +265,10 @@ def test_cog_meta(meta: CogMeta):
     ]:
         with pytest.raises(IndexError):
             _ = meta.flat_tile_idx(bad_idx)
+
+
+def test_norm_compress():
+    predictor, compression, ca = _norm_compression_tifffile("int16")
+    assert compression == "ADOBE_DEFLATE"
+    assert predictor == 2
+    assert ca == {}
