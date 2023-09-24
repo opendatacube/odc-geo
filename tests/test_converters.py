@@ -11,14 +11,8 @@ gpd = pytest.importorskip("geopandas")
 gpd_datasets = pytest.importorskip("geopandas.datasets")
 
 from odc.geo._interop import have
-from odc.geo.converters import (
-    GEOTIFF_TAGS,
-    extract_gcps,
-    from_geopandas,
-    geotiff_metadata,
-    map_crs,
-    rio_geobox,
-)
+from odc.geo.cog._tifffile import GEOTIFF_TAGS, geotiff_metadata
+from odc.geo.converters import extract_gcps, from_geopandas, map_crs, rio_geobox
 from odc.geo.gcp import GCPGeoBox
 from odc.geo.geobox import GeoBox, GeoBoxBase
 
@@ -123,7 +117,7 @@ def test_geotiff_metadata(gbox: GeoBox, nodata, gdal_metadata: Optional[str]):
     assert isinstance(md, dict)
     assert isinstance(geo_tags, list)
     assert len(geo_tags) >= 2
-    tag_codes = set([code for code, *_ in geo_tags])
+    tag_codes = {code for code, *_ in geo_tags}
 
     if nodata is not None:
         assert 42113 in tag_codes

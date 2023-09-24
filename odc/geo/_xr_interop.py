@@ -37,13 +37,12 @@ from .overlap import compute_output_geobox
 from .roi import roi_is_empty
 from .types import Resolution, xy_
 
-
 # pylint: disable=import-outside-toplevel
 # pylint: disable=too-many-lines
 if have.rasterio:
-    from ._cog import to_cog, write_cog
     from ._compress import compress
     from ._map import add_to, explore
+    from .cog import to_cog, write_cog
     from .warp import rio_reproject
 
 XarrayObject = Union[xarray.DataArray, xarray.Dataset]
