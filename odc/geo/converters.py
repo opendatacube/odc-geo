@@ -142,7 +142,7 @@ def geotiff_metadata(
 
     from tifffile import TiffFile
 
-    from ._cog import to_cog
+    from .cog import to_cog
     from .xr import xr_zeros
 
     buf = to_cog(
