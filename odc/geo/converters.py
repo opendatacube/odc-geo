@@ -3,31 +3,13 @@ Interop with other geometry libraries.
 """
 
 import re
-from io import BytesIO
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, List, Tuple, Union
 
-from ._interop import have
 from .crs import CRS, MaybeCRS, Optional, norm_crs
 from .gcp import GCPGeoBox
 from .geobox import GeoBox
 from .geom import Geometry, point
-from .types import XY, MaybeNodata, xy_
-
-GEOTIFF_TAGS = {
-    34264,  # ModelTransformation
-    34735,  # GeoKeyDirectory
-    34736,  # GeoDoubleParams
-    34737,  # GeoAsciiParams
-    33550,  # ModelPixelScale
-    33922,  # ModelTiePoint
-    #
-    42112,  # GDAL_METADATA
-    42113,  # GDAL_NODATA
-    #
-    # probably never used in the wild
-    33920,  # IrasB Transformation Matrix
-    50844,  # RPCCoefficientTag
-}
+from .types import XY, xy_
 
 
 def from_geopandas(series) -> List[Geometry]:
@@ -113,50 +95,3 @@ def rio_geobox(rdr: Any) -> Union[GeoBox, GCPGeoBox]:
         return GCPGeoBox.from_rio(rdr)
 
     return GeoBox.from_rio(rdr)
-
-
-def geotiff_metadata(
-    geobox: GeoBox,
-    nodata: MaybeNodata = None,
-    gdal_metadata: Optional[str] = None,
-) -> Tuple[List[Tuple[int, int, int, Any]], Dict[str, Any]]:
-    """
-    Convert GeoBox to geotiff tags and metadata for :py:mod:`tifffile`.
-
-    .. note::
-
-       Requires :py:mod:`rasterio`, :py:mod:`tifffile` and :py:mod:`xarray`.
-
-
-    :returns:
-       List of TIFF tag tuples suitable for passing to :py:mod:`tifffile` as
-       ``extratags=``, and dictionary representation of GEOTIFF tags.
-
-    """
-    # pylint: disable=import-outside-toplevel
-
-    if not (have.tifffile and have.rasterio):
-        raise RuntimeError(
-            "Please install `tifffile` and `rasterio` to use this method"
-        )
-
-    from tifffile import TiffFile
-
-    from .cog import to_cog
-    from .xr import xr_zeros
-
-    buf = to_cog(
-        xr_zeros(geobox[:2, :2]), nodata=nodata, compress=None, overview_levels=[]
-    )
-    tf = TiffFile(BytesIO(buf), mode="r")
-    assert tf.geotiff_metadata is not None
-    geo_tags: List[Tuple[int, int, int, Any]] = [
-        (t.code, t.dtype.value, t.count, t.value)
-        for t in tf.pages.first.tags.values()
-        if t.code in GEOTIFF_TAGS
-    ]
-
-    if gdal_metadata is not None:
-        geo_tags.append((42112, 2, len(gdal_metadata) + 1, gdal_metadata))
-
-    return geo_tags, tf.geotiff_metadata
