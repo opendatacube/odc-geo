@@ -71,6 +71,7 @@ class CogMeta:
     dtype: Any
     compression: int
     predictor: int
+    compressionargs: Dict[str, Any] = field(default_factory=dict, repr=False)
     gbox: Optional[GeoBox] = None
     overviews: Tuple["CogMeta", ...] = field(default=(), repr=False)
 
@@ -759,7 +760,8 @@ def _make_empty_cog(
             dtype,
             int(_compression),
             predictor,
-            gbox,
+            compressionargs=compressionargs,
+            gbox=gbox,
         )
 
         if idx == 0:
@@ -809,12 +811,10 @@ def _cog_block_compressor(
         except Exception:  # pylint: disable=broad-except
             return b""
 
-    return block.data
+    return bytes(block.data)
 
 
-def mk_tile_compressor(
-    meta: CogMeta, **encoder_params
-) -> Callable[[np.ndarray], bytes]:
+def mk_tile_compressor(meta: CogMeta) -> Callable[[np.ndarray], bytes]:
     """
     Make tile compressor.
 
@@ -838,21 +838,19 @@ def mk_tile_compressor(
         encoder=encoder,
         predictor=predictor,
         axis=axis,
-        **encoder_params,
+        **meta.compressionargs,
     )
 
 
 def _compress_cog_tile(encoder, block, idx):
-    return [{"data": encoder(block), "idx": idx}]
+    return [(idx, encoder(block))]
 
 
-def compress_tiles(
+def _compress_tiles(
     xx: xr.DataArray,
     meta: CogMeta,
     scale_idx: int = 0,
     sample_idx: int = 0,
-    compressionargs: Any = None,
-    **encoder_params,
 ):
     """
     Compress chunks according to cog spec.
@@ -873,10 +871,7 @@ def compress_tiles(
     assert meta.num_planes == 1
     src_ydim = 0  # for now assume Y,X or Y,X,S
 
-    if compressionargs is not None:
-        encoder_params.update(**compressionargs)
-
-    encoder = mk_tile_compressor(meta, **encoder_params)
+    encoder = mk_tile_compressor(meta)
     data = xx.data
 
     if data.chunksize != meta.chunks:
@@ -891,7 +886,7 @@ def compress_tiles(
         meta.chunks,
         meta.predictor,
         meta.compression,
-        encoder_params,
+        meta.compressionargs,
     )
     plane_id = "" if scale_idx == 0 else f"_{scale_idx}"
     plane_id += "" if sample_idx == 0 else f"@{sample_idx}"
@@ -1104,16 +1099,11 @@ def save_cog_with_dask(
 
     _tiles = []
     for scale_idx, (mm, img) in enumerate(zip(meta.flatten(), layers)):
-        _tiles.append(
-            compress_tiles(
-                img, mm, scale_idx=scale_idx, compressionargs=compressionargs
-            )
-        )
+        _tiles.append(_compress_tiles(img, mm, scale_idx=scale_idx))
 
-    hdr_info = bag.concat(
-        [t.map(lambda d: (*d["idx"], len(d["data"]))) for t in _tiles[::-1]]
-    )
-    tile_bytes = bag.concat([t.map(lambda d: d["data"]) for t in _tiles[::-1]])
+    _tiles_merged = bag.concat(_tiles[::-1])
+    hdr_info = _tiles_merged.map(lambda d: (*d[0], len(d[1])))
+    tile_bytes = _tiles_merged.pluck(1)
 
     new_hdr = delayed(_update_header, pure=True)(meta, hdr0, hdr_info)
 
@@ -1122,6 +1112,7 @@ def save_cog_with_dask(
         "meta": meta,
         "hdr0": hdr0,
         "t0": t0,
+        "tiles_merged": _tiles_merged,
     }
 
     if dst == "":
