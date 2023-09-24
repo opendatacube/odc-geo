@@ -4,7 +4,7 @@ from typing import Optional, Tuple
 
 import pytest
 
-from odc.geo._cog import (
+from odc.geo.cog._tifffile import (
     CogMeta,
     _compute_cog_spec,
     _make_empty_cog,
