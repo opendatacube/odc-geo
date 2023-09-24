@@ -38,9 +38,9 @@ from .types import Resolution, xy_
 
 # pylint: disable=import-outside-toplevel
 if have.rasterio:
-    from ._cog import to_cog, write_cog
     from ._compress import compress
     from ._map import add_to
+    from .cog import to_cog, write_cog
     from .warp import rio_reproject
 
 XarrayObject = Union[xarray.DataArray, xarray.Dataset]
