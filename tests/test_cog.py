@@ -4,14 +4,9 @@ from typing import Optional, Tuple
 
 import pytest
 
-from odc.geo.cog._tifffile import (
-    CogMeta,
-    _compute_cog_spec,
-    _make_empty_cog,
-    _norm_compression_tifffile,
-    _num_overviews,
-    cog_gbox,
-)
+from odc.geo.cog import CogMeta, cog_gbox
+from odc.geo.cog._shared import compute_cog_spec, num_overviews
+from odc.geo.cog._tifffile import _make_empty_cog, _norm_compression_tifffile
 from odc.geo.geobox import GeoBox
 from odc.geo.gridspec import GridSpec
 from odc.geo.types import Unset, wh_
@@ -70,9 +65,9 @@ def test_write_cog_ovr():
 )
 def test_num_overviews(block: int, dim: int, n_expect: int):
     if n_expect >= 0:
-        assert _num_overviews(block, dim) == n_expect
+        assert num_overviews(block, dim) == n_expect
     else:
-        n = _num_overviews(block, dim)
+        n = num_overviews(block, dim)
         assert dim // (2**n) <= block
 
 
@@ -89,7 +84,7 @@ def test_cog_spec(
     tshape: Tuple[int, int],
     max_pad: Optional[int],
 ):
-    _shape, _tshape, nlevels = _compute_cog_spec(shape, tshape, max_pad=max_pad)
+    _shape, _tshape, nlevels = compute_cog_spec(shape, tshape, max_pad=max_pad)
     assert _shape[0] >= shape[0]
     assert _shape[1] >= shape[1]
     assert _tshape[0] >= tshape[0]
