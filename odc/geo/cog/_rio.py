@@ -17,9 +17,9 @@ import xarray as xr
 from rasterio.shutil import copy as rio_copy  # pylint: disable=no-name-in-module
 
 from ..geobox import GeoBox
-from ..math import align_up
 from ..types import MaybeNodata, SomeShape, shape_, wh_
 from ..warp import resampling_s2rio
+from ._shared import adjust_blocksize
 
 # pylint: disable=too-many-locals,too-many-branches,too-many-arguments,too-many-statements,too-many-instance-attributes
 
@@ -54,37 +54,14 @@ def check_write_path(fname: Union[Path, str], overwrite: bool) -> Path:
     return fname
 
 
-def _adjust_blocksize(block: int, dim: int = 0) -> int:
-    if 0 < dim < block:
-        return align_up(dim, 16)
-    return align_up(block, 16)
-
-
-def _norm_blocksize(block: Union[int, Tuple[int, int]]) -> Tuple[int, int]:
-    if isinstance(block, int):
-        block = _adjust_blocksize(block)
-        return (block, block)
-
-    b1, b2 = map(_adjust_blocksize, block)
-    return (b1, b2)
-
-
-def _num_overviews(block: int, dim: int) -> int:
-    c = 0
-    while block < dim:
-        dim = dim // 2
-        c += 1
-    return c
-
-
 def _default_cog_opts(
     *, blocksize: int = 512, shape: SomeShape = (0, 0), is_float: bool = False, **other
 ) -> Dict[str, Any]:
     nx, ny = shape_(shape).xy
     return {
         "tiled": True,
-        "blockxsize": _adjust_blocksize(blocksize, nx),
-        "blockysize": _adjust_blocksize(blocksize, ny),
+        "blockxsize": adjust_blocksize(blocksize, nx),
+        "blockysize": adjust_blocksize(blocksize, ny),
         "zlevel": 6,
         "predictor": 3 if is_float else 2,
         "compress": "DEFLATE",
