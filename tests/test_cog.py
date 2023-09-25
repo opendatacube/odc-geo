@@ -6,13 +6,19 @@ import pytest
 
 from odc.geo.cog import CogMeta, cog_gbox
 from odc.geo.cog._shared import compute_cog_spec, num_overviews
-from odc.geo.cog._tifffile import _make_empty_cog, _norm_compression_tifffile
+from odc.geo.cog._tifffile import (
+    GEOTIFF_TAGS,
+    _make_empty_cog,
+    _norm_compression_tifffile,
+    geotiff_metadata,
+)
 from odc.geo.geobox import GeoBox
 from odc.geo.gridspec import GridSpec
 from odc.geo.types import Unset, wh_
 from odc.geo.xr import xr_zeros
 
 gbox_globe = GridSpec.web_tiles(0)[0, 0]
+_gbox = GeoBox.from_bbox((-10, -20, 15, 30), 4326, resolution=1)
 
 
 def test_write_cog():
@@ -267,3 +273,56 @@ def test_norm_compress():
     assert compression == "ADOBE_DEFLATE"
     assert predictor == 2
     assert ca == {}
+
+
+@pytest.mark.parametrize(
+    "gbox",
+    [
+        _gbox,
+        _gbox.to_crs(3857),
+        _gbox.to_crs("ESRI:53010"),
+        _gbox.rotate(10),
+        _gbox.center_pixel.pad(3),
+    ],
+)
+@pytest.mark.parametrize("nodata", [None, float("nan"), 0, -999])
+@pytest.mark.parametrize("gdal_metadata", [None, "<GDALMetadata></GDALMetadata>"])
+def test_geotiff_metadata(gbox: GeoBox, nodata, gdal_metadata: Optional[str]):
+    assert gbox.crs is not None
+
+    geo_tags, md = geotiff_metadata(gbox, nodata=nodata, gdal_metadata=gdal_metadata)
+    assert isinstance(md, dict)
+    assert isinstance(geo_tags, list)
+    assert len(geo_tags) >= 2
+    tag_codes = {code for code, *_ in geo_tags}
+
+    if nodata is not None:
+        assert 42113 in tag_codes
+    if gdal_metadata is not None:
+        assert 42112 in tag_codes
+
+    for code, dtype, count, val in geo_tags:
+        assert code in GEOTIFF_TAGS
+        assert isinstance(dtype, int)
+        assert isinstance(count, int)
+        if count > 0:
+            assert isinstance(val, (tuple, str))
+            if isinstance(val, str):
+                assert len(val) + 1 == count
+            else:
+                assert len(val) == count
+
+    if gbox.axis_aligned:
+        assert "ModelPixelScale" in md
+    else:
+        assert "ModelTransformation" in md
+
+    if gbox.crs.epsg is not None:
+        if gbox.crs.projected:
+            assert md["GTModelTypeGeoKey"] == 1
+            assert md["ProjectedCSTypeGeoKey"] == gbox.crs.epsg
+        else:
+            assert md["GTModelTypeGeoKey"] == 2
+            assert md["GeographicTypeGeoKey"] == gbox.crs.epsg
+    else:
+        assert md["GTModelTypeGeoKey"] == 32767
