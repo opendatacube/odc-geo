@@ -181,10 +181,6 @@ def _cog_block_compressor(
 
 
 def _mk_tile_compressor(meta: CogMeta) -> Callable[[np.ndarray], bytes]:
-    """
-    Make tile compressor.
-
-    """
     # pylint: disable=import-outside-toplevel
     have.check_or_error("tifffile")
     from tifffile import TIFF
@@ -294,7 +290,7 @@ def _pyramids_from_cog_metadata(
     return tuple(out)
 
 
-def _extact_tile_info(
+def _extract_tile_info(
     meta: CogMeta,
     tiles: List[Tuple[int, int, int, int, int]],
     start_offset: int = 0,
@@ -324,7 +320,7 @@ def _update_header(
     # pylint: disable=import-outside-toplevel
     from tifffile import TiffFile
 
-    tile_info = _extact_tile_info(meta, tiles, len(hdr0))
+    tile_info = _extract_tile_info(meta, tiles, len(hdr0))
 
     _bio = BytesIO(hdr0)
     with TiffFile(_bio, mode="r+", name=":mem:") as tr:
@@ -435,6 +431,8 @@ def save_cog_with_dask(
     from dask import bag, delayed
     from dask.utils import format_time
 
+    from ..xr import ODCExtensionDa
+
     # usefull when debugging
     optimize_graph = kw.pop("optimize_graph", True)
 
@@ -442,7 +440,11 @@ def save_cog_with_dask(
     predictor, compression, compressionargs = _norm_compression_tifffile(
         xx.dtype, predictor, compression, compressionargs, level=level, kw=kw
     )
-    ydim = xx.odc.ydim
+    xx_odc = xx.odc
+    assert isinstance(xx_odc, ODCExtensionDa)
+    assert isinstance(xx_odc.geobox, GeoBox) or xx_odc.geobox is None
+
+    ydim = xx_odc.ydim
     data_chunks: Tuple[int, int] = xx.data.chunksize[ydim : ydim + 2]
     if isinstance(blocksize, Unset):
         blocksize = [data_chunks, int(max(*data_chunks) // 2)]
@@ -450,13 +452,13 @@ def save_cog_with_dask(
     meta, hdr0 = _make_empty_cog(
         xx.shape,
         xx.dtype,
-        xx.odc.geobox,
+        xx_odc.geobox,
         predictor=predictor,
         compression=compression,
         compressionargs=compressionargs,
         blocksize=blocksize,
         bigtiff=bigtiff,
-        nodata=xx.odc.nodata,
+        nodata=xx_odc.nodata,
         **kw,
     )
     hdr0 = bytes(hdr0)
