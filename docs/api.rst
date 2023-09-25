@@ -276,5 +276,4 @@ odc.geo.converters
    extract_gcps_raw
    map_crs
    rio_geobox
-   geotiff_metadata
        
