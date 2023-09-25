@@ -116,11 +116,12 @@ def _get_crs_from_attrs(obj: XarrayObject, sdims: Tuple[str, str]) -> Optional[C
         process_datavar(obj)
 
     crs = None
-    if len(crs_set) > 1:
-        warnings.warn("Have several candidates for a CRS")
-
     if len(crs_set) >= 1:
         crs = crs_set.pop()
+
+    if len(crs_set) > 0:
+        if any(other != crs for other in crs_set):
+            warnings.warn("Have several candidates for a CRS")
 
     return crs
 
