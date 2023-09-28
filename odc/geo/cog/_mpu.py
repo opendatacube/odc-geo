@@ -2,13 +2,37 @@
 Multi-part upload as a graph
 """
 from functools import partial
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Protocol, Tuple, Union
 
 from dask import bag as dask_bag
 
 SomeData = Union[bytes, bytearray]
-_5MB = 5 * (1 << 20)
-PartsWriter = Callable[[int, bytearray], Dict[str, Any]]
+
+
+class PartsWriter(Protocol):
+    """Protocol for labeled parts data writer."""
+
+    def __call__(self, part: int, data: SomeData) -> Dict[str, Any]:
+        ...
+
+    def finalise(self, parts: List[Dict[str, Any]]) -> Any:
+        ...
+
+    @property
+    def min_write_sz(self) -> int:
+        ...
+
+    @property
+    def max_write_sz(self) -> int:
+        ...
+
+    @property
+    def min_part(self) -> int:
+        ...
+
+    @property
+    def max_part(self) -> int:
+        ...
 
 
 class MPUChunk:
@@ -38,10 +62,6 @@ class MPUChunk:
         observed: Optional[List[Tuple[int, Any]]] = None,
         is_final: bool = False,
     ) -> None:
-        assert (partId == 0 and write_credits == 0) or (
-            partId >= 1 and write_credits >= 0 and partId + write_credits <= 10_000
-        )
-
         self.nextPartId = partId
         self.write_credits = write_credits
         self.data = bytearray() if data is None else data
@@ -127,34 +147,37 @@ class MPUChunk:
         if extra_data is not None:
             data += extra_data
 
-        def _flush_data(do_write: PartsWriter):
-            part = do_write(self.nextPartId, data)
+        def _flush_data(pw: PartsWriter):
+            assert pw.min_part <= self.nextPartId <= pw.max_part
+
+            part = pw(self.nextPartId, data)
             self.parts.append(part)
             self.data = bytearray()
             self.nextPartId += 1
             self.write_credits -= 1
             return len(data)
 
-        # Have enough write credits
-        # AND (have enough bytes OR it's the last chunk)
-        can_flush = self.write_credits > 0 and (self.is_final or len(data) >= _5MB)
+        def can_flush(pw: PartsWriter):
+            return self.write_credits > 0 and (
+                self.is_final or len(data) >= pw.min_write_sz
+            )
 
         if self.started_write:
             # When starting to write we ensure that there is always enough
             # data and write credits left to flush the remainder
             #
             # User must have provided `write` function
-            assert can_flush is True
 
             if write is None:
                 raise RuntimeError("Flush required but no writer provided")
 
+            assert can_flush(write)
             return _flush_data(write)
 
         # Haven't started writing yet
         # - Flush if possible and writer is provided
         # - OR just move all the data to .left_data section
-        if can_flush and write is not None:
+        if write is not None and can_flush(write):
             return _flush_data(write)
 
         if self.left_data is None:
@@ -165,8 +188,10 @@ class MPUChunk:
         return 0
 
     def maybe_write(self, write: PartsWriter, spill_sz: int) -> int:
-        # if not last section keep 5MB and 1 partId around after flush
-        bytes_to_keep, parts_to_keep = (0, 0) if self.is_final else (_5MB, 1)
+        # if not last section keep 'min_write_sz' and 1 partId around after flush
+        bytes_to_keep, parts_to_keep = (
+            (0, 0) if self.is_final else (write.min_write_sz, 1)
+        )
 
         if self.write_credits - 1 < parts_to_keep:
             return 0

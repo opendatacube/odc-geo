@@ -2,11 +2,50 @@ from hashlib import md5
 from typing import Any, Dict, List, Tuple
 
 import numpy as np
+import pytest
 
-from odc.geo.cog._mpu import MPUChunk, PartsWriter
+from odc.geo.cog._mpu import MPUChunk, SomeData
 
-FakeWriteResult = Tuple[int, bytearray, Dict[str, Any]]
-# pylint: disable=unbalanced-tuple-unpacking
+FakeWriteResult = Tuple[int, SomeData, Dict[str, Any]]
+# pylint: disable=unbalanced-tuple-unpacking,redefined-outer-name
+
+
+class FakeWriter:
+    """
+    Fake multi-part upload writer.
+    """
+
+    def __init__(self) -> None:
+        self._dst: List[FakeWriteResult] = []
+
+    def __call__(self, part: int, data: SomeData) -> Dict[str, Any]:
+        assert 1 <= part <= 10_000
+        ww = {"PartNumber": part, "ETag": f'"{etag(data)}"'}
+        self._dst.append((part, data, ww))
+        return ww
+
+    def finalise(self, parts: List[Dict[str, Any]]) -> None:
+        pass
+
+    @property
+    def min_write_sz(self) -> int:
+        return 5 * (1 << 20)
+
+    @property
+    def max_write_sz(self) -> int:
+        return 5 * (1 << 30)
+
+    @property
+    def min_part(self) -> int:
+        return 1
+
+    @property
+    def max_part(self) -> int:
+        return 10_000
+
+    @property
+    def parts(self) -> List[FakeWriteResult]:
+        return self._dst
 
 
 def etag(data):
@@ -15,16 +54,6 @@ def etag(data):
 
 def _mb(x: float) -> int:
     return int(x * (1 << 20))
-
-
-def mk_fake_parts_writer(dst: List[FakeWriteResult]) -> PartsWriter:
-    def write(part: int, data: bytearray) -> Dict[str, Any]:
-        assert 1 <= part <= 10_000
-        ww = {"PartNumber": part, "ETag": f'"{etag(data)}"'}
-        dst.append((part, data, ww))
-        return ww
-
-    return write
 
 
 def _mk_fake_data(sz: int) -> bytes:
@@ -43,19 +72,21 @@ def _split(data: bytes, offsets=List[int]) -> Tuple[bytes, ...]:
     return tuple(parts)
 
 
-def _data(parts_written: List[FakeWriteResult]) -> bytes:
-    return b"".join(data for _, data, _ in sorted(parts_written, key=lambda x: x[0]))
+def _data(parts: List[FakeWriteResult]) -> bytes:
+    return b"".join(data for _, data, _ in sorted(parts, key=lambda x: x[0]))
 
 
-def _parts(parts_written: List[FakeWriteResult]) -> List[Dict[str, Any]]:
-    return [part for _, _, part in sorted(parts_written, key=lambda x: x[0])]
+def _parts(parts: List[FakeWriteResult]) -> List[Dict[str, Any]]:
+    return [part for _, _, part in sorted(parts, key=lambda x: x[0])]
 
 
-def test_s3_mpu_merge_small() -> None:
+@pytest.fixture(scope="function")
+def write():
+    yield FakeWriter()
+
+
+def test_s3_mpu_merge_small(write: FakeWriter) -> None:
     # Test situation where parts get joined and get written eventually in one chunk
-    parts_written: List[FakeWriteResult] = []
-    write = mk_fake_parts_writer(parts_written)
-
     data = _mk_fake_data(100)
     da, db, dc = _split(data, [10, 20])
 
@@ -95,22 +126,19 @@ def test_s3_mpu_merge_small() -> None:
     assert len(abc.observed) == 3
     assert abc.observed == [(len(da), "a1"), (len(db), "b1"), (len(dc), "c1")]
 
-    assert len(parts_written) == 0
+    assert len(write.parts) == 0
 
     assert abc.final_flush(write) == len(data)
     assert len(abc.parts) == 1
-    assert len(parts_written) == 1
-    pid, _data, part = parts_written[0]
+    assert len(write.parts) == 1
+    pid, _data, part = write.parts[0]
     assert _data == data
     assert pid == a.nextPartId
     assert part["PartNumber"] == pid
     assert abc.parts[0] == part
 
 
-def test_mpu_multi_writes() -> None:
-    parts_written: List[FakeWriteResult] = []
-    write = mk_fake_parts_writer(parts_written)
-
+def test_mpu_multi_writes(write: FakeWriter) -> None:
     data = _mk_fake_data(_mb(20))
     da1, db1, db2, dc1 = _split(
         data,
@@ -145,9 +173,9 @@ def test_mpu_multi_writes() -> None:
     assert c.maybe_write(write, _mb(6)) == 0
 
     # Should flush a
-    assert len(parts_written) == 1
+    assert len(write.parts) == 1
     ab = MPUChunk.merge(a, b, write)
-    assert len(parts_written) == 2
+    assert len(write.parts) == 2
     assert len(ab.parts) == 2
     assert ab.started_write is True
     assert ab.is_final is False
@@ -166,14 +194,11 @@ def test_mpu_multi_writes() -> None:
 
     assert abc.final_flush(write, None) > 0
     assert len(abc.parts) == 3
-    assert _parts(parts_written) == abc.parts
-    assert _data(parts_written) == data
+    assert _parts(write.parts) == abc.parts
+    assert _data(write.parts) == data
 
 
-def test_mpu_left_data() -> None:
-    parts_written: List[FakeWriteResult] = []
-    write = mk_fake_parts_writer(parts_written)
-
+def test_mpu_left_data(write: FakeWriter) -> None:
     data = _mk_fake_data(_mb(3 + 2 + (6 + 5.2)))
     da1, db1, dc1, dc2 = _split(
         data,
@@ -222,14 +247,11 @@ def test_mpu_left_data() -> None:
     assert abc.nextPartId == 202
     assert abc.write_credits == 98
     assert len(abc.parts) == 3
-    assert _data(parts_written) == data
-    assert _parts(parts_written) == abc.parts
+    assert _data(write.parts) == data
+    assert _parts(write.parts) == abc.parts
 
 
-def test_mpu_misc() -> None:
-    parts_written: List[FakeWriteResult] = []
-    write = mk_fake_parts_writer(parts_written)
-
+def test_mpu_misc(write: FakeWriter) -> None:
     a = MPUChunk(1, 10)
     b = MPUChunk(10, 1)
 
@@ -248,11 +270,11 @@ def test_mpu_misc() -> None:
 
     ab = MPUChunk.merge(a, b, write)
     assert ab.started_write is False
-    assert len(parts_written) == 0
+    assert len(write.parts) == 0
     assert ab.nextPartId == 1
     assert ab.write_credits == 11
 
     assert ab.final_flush(write) > 0
     assert len(ab.parts) == 1
-    assert _data(parts_written) == data
-    assert _parts(parts_written) == ab.parts
+    assert _data(write.parts) == data
+    assert _parts(write.parts) == ab.parts
