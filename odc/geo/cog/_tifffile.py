@@ -9,7 +9,7 @@ import itertools
 from functools import partial
 from io import BytesIO
 from time import monotonic
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import xarray as xr
@@ -25,6 +25,9 @@ from ._shared import (
     norm_blocksize,
     yaxis_from_shape,
 )
+
+if TYPE_CHECKING:
+    import dask.bag
 
 # pylint: disable=too-many-locals,too-many-branches,too-many-arguments,too-many-statements,too-many-instance-attributes
 
@@ -205,7 +208,7 @@ def _mk_tile_compressor(meta: CogMeta) -> Callable[[np.ndarray], bytes]:
 
 
 def _compress_cog_tile(encoder, block, idx):
-    return [(idx, encoder(block))]
+    return [(encoder(block), idx)]
 
 
 def _compress_tiles(
@@ -213,11 +216,11 @@ def _compress_tiles(
     meta: CogMeta,
     scale_idx: int = 0,
     sample_idx: int = 0,
-):
+) -> "dask.bag.Bag":
     """
     Compress chunks according to cog spec.
 
-    :returns: Dask bag of dicts with ``{"data": bytes, "idx": (int, int, int, int)}``
+    :returns: Dask bag of tuples ``(data: bytes, idx: (int, int, int, int))}``
     """
     # pylint: disable=import-outside-toplevel
     have.check_or_error("dask")
@@ -469,9 +472,16 @@ def save_cog_with_dask(
     for scale_idx, (mm, img) in enumerate(zip(meta.flatten(), layers)):
         _tiles.append(_compress_tiles(img, mm, scale_idx=scale_idx))
 
+    # Bag[(bytes, (layer: int, sample: int, ty: int, tx: int))]
+    #   in COG order
     _tiles_merged = bag.concat(_tiles[::-1])
-    hdr_info = _tiles_merged.map(lambda d: (*d[0], len(d[1])))
-    tile_bytes = _tiles_merged.pluck(1)
+
+    # Bag[(layer: int, sample: int, ty: int, tx: int, length: int)]
+    #   in COG order
+    hdr_info = _tiles_merged.map(lambda d: (*d[1], len(d[0])))
+
+    # Bag[bytes]
+    tile_bytes = _tiles_merged.pluck(0)
 
     new_hdr = delayed(_update_header, pure=True)(meta, hdr0, hdr_info)
 
