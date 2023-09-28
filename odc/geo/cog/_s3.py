@@ -1,12 +1,12 @@
 """
 S3 utils for COG to S3.
 """
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from cachetools import cached
 from dask import bag as dask_bag
 
-from ._mpu import MPUChunk, PartsWriter
+from ._mpu import MPUChunk, PartsWriter, SomeData
 
 if TYPE_CHECKING:
     from botocore.credentials import ReadOnlyCredentials
@@ -52,19 +52,6 @@ class MultiPartUpload:
             aws_session_token=creds.token,
         )
 
-    def __call__(self, partId: int, data: bytearray) -> Dict[str, Any]:
-        s3 = self.s3_client()
-        assert self.uploadId != ""
-        rr = s3.upload_part(
-            PartNumber=partId,
-            Body=data,
-            Bucket=self.bucket,
-            Key=self.key,
-            UploadId=self.uploadId,
-        )
-        etag = rr["ETag"]
-        return {"PartNumber": partId, "ETag": etag}
-
     def initiate(self) -> str:
         assert self.uploadId == ""
         s3 = self.s3_client()
@@ -73,6 +60,33 @@ class MultiPartUpload:
         uploadId = rr["UploadId"]
         self.uploadId = uploadId
         return uploadId
+
+    def __call__(self, part: int, data: SomeData) -> Dict[str, Any]:
+        s3 = self.s3_client()
+        assert self.uploadId != ""
+        rr = s3.upload_part(
+            PartNumber=part,
+            Body=data,
+            Bucket=self.bucket,
+            Key=self.key,
+            UploadId=self.uploadId,
+        )
+        etag = rr["ETag"]
+        return {"PartNumber": part, "ETag": etag}
+
+    def finalise(self, parts: List[Dict[str, Any]]) -> str:
+        s3 = self.s3_client()
+        rr = s3.complete_multipart_upload(
+            Bucket=self.bucket,
+            Key=self.key,
+            UploadId=self.uploadId,
+            MultipartUpload={"Parts": parts},
+        )
+
+        return rr["ETag"]
+
+    def complete(self, root: MPUChunk) -> str:
+        return self.finalise(root.parts)
 
     @property
     def started(self) -> bool:
@@ -87,17 +101,6 @@ class MultiPartUpload:
         s3.abort_multipart_upload(Bucket=self.bucket, Key=self.key, UploadId=uploadId)
         if uploadId == self.uploadId:
             self.uploadId = ""
-
-    def complete(self, root: MPUChunk) -> str:
-        s3 = self.s3_client()
-        rr = s3.complete_multipart_upload(
-            Bucket=self.bucket,
-            Key=self.key,
-            UploadId=self.uploadId,
-            MultipartUpload={"Parts": root.parts},
-        )
-
-        return rr["ETag"]
 
     def list_active(self):
         s3 = self.s3_client()
@@ -137,3 +140,19 @@ class MultiPartUpload:
             spill_sz=spill_sz,
             write=write,
         )
+
+    @property
+    def min_write_sz(self) -> int:
+        return 5 * (1 << 20)
+
+    @property
+    def max_write_sz(self) -> int:
+        return 5 * (1 << 30)
+
+    @property
+    def min_part(self) -> int:
+        return 1
+
+    @property
+    def max_part(self) -> int:
+        return 10_000
