@@ -8,7 +8,6 @@ Write Cloud Optimized GeoTIFFs from xarrays.
 import itertools
 from functools import partial
 from io import BytesIO
-from time import monotonic
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -17,6 +16,7 @@ import xarray as xr
 from .._interop import have
 from ..geobox import GeoBox
 from ..types import MaybeNodata, Shape2d, Unset, shape_
+from ._s3 import MultiPartUpload, s3_parse_url
 from ._shared import (
     GDAL_COMP,
     GEOTIFF_TAGS,
@@ -315,15 +315,14 @@ def _extract_tile_info(
     return tile_info
 
 
-def _update_header(
-    meta: CogMeta,
-    hdr0: bytes,
-    tiles: List[Tuple[int, int, int, int, int]],
+def _build_hdr(
+    tiles: List[Tuple[int, Tuple[int, int, int, int]]], meta: CogMeta, hdr0: bytes
 ) -> bytes:
     # pylint: disable=import-outside-toplevel
     from tifffile import TiffFile
 
-    tile_info = _extract_tile_info(meta, tiles, len(hdr0))
+    _tiles = [(*idx, sz) for sz, idx in tiles]
+    tile_info = _extract_tile_info(meta, _tiles, len(hdr0))
 
     _bio = BytesIO(hdr0)
     with TiffFile(_bio, mode="r+", name=":mem:") as tr:
@@ -425,19 +424,16 @@ def save_cog_with_dask(
     blocksize: Union[Unset, int, List[Union[int, Tuple[int, int]]]] = Unset(),
     bigtiff: bool = True,
     overview_resampling: Union[int, str] = "nearest",
-    verbose: bool = False,
-    client: Any = None,
+    aws: Optional[Dict[str, Any]] = None,
     **kw,
 ):
     # pylint: disable=import-outside-toplevel
-    t0 = monotonic()
-    from dask import bag, delayed
-    from dask.utils import format_time
+    import dask.bag
 
     from ..xr import ODCExtensionDa
 
-    # usefull when debugging
-    optimize_graph = kw.pop("optimize_graph", True)
+    if aws is None:
+        aws = {}
 
     # normalize compression and remove GDAL compat options from kw
     predictor, compression, compressionargs = _norm_compression_tifffile(
@@ -465,75 +461,46 @@ def save_cog_with_dask(
         **kw,
     )
     hdr0 = bytes(hdr0)
+    mk_header = partial(_build_hdr, meta=meta, hdr0=hdr0)
 
     layers = _pyramids_from_cog_metadata(xx, meta, resampling=overview_resampling)
 
-    _tiles = []
+    _tiles: List["dask.bag.Bag"] = []
     for scale_idx, (mm, img) in enumerate(zip(meta.flatten(), layers)):
-        _tiles.append(_compress_tiles(img, mm, scale_idx=scale_idx))
-
-    # Bag[(bytes, (layer: int, sample: int, ty: int, tx: int))]
-    #   in COG order
-    _tiles_merged = bag.concat(_tiles[::-1])
-
-    # Bag[(layer: int, sample: int, ty: int, tx: int, length: int)]
-    #   in COG order
-    hdr_info = _tiles_merged.map(lambda d: (*d[1], len(d[0])))
-
-    # Bag[bytes]
-    tile_bytes = _tiles_merged.pluck(0)
-
-    new_hdr = delayed(_update_header, pure=True)(meta, hdr0, hdr_info)
-
-    dbg = {
-        "hdr_info": hdr_info,
-        "meta": meta,
-        "hdr0": hdr0,
-        "t0": t0,
-        "tiles_merged": _tiles_merged,
-    }
+        # TODO: SYX order
+        tt = _compress_tiles(img, mm, scale_idx=scale_idx)
+        if tt.npartitions > 20:
+            tt = tt.repartition(npartitions=tt.npartitions // 4)
+        _tiles.append(tt)
 
     if dst == "":
-        return (new_hdr, tile_bytes, dbg)
+        return {
+            "meta": meta,
+            "hdr0": hdr0,
+            "mk_header": mk_header,
+            "tiles": _tiles,
+            "layers": layers,
+        }
 
-    if client is None:
-        return (new_hdr, tile_bytes, dbg)
+    bucket, key = s3_parse_url(dst)
+    if not bucket:
+        raise ValueError("Currently only support output to S3")
 
-    def time_past() -> str:
-        return format_time(monotonic() - t0)
+    upload_params = {
+        k: aws.pop(k) for k in ["writes_per_chunk", "spill_sz"] if k in aws
+    }
+    tiles_write_order = _tiles[::-1]
+    if len(tiles_write_order) > 4:
+        tiles_write_order = [
+            dask.bag.concat(tiles_write_order[:4]),
+            *tiles_write_order[4:],
+        ]
 
-    with open(dst, "wb") as fp:
-        if verbose:
-            print(f"[{time_past()}] Will write to: {dst}")
-            print(f"[{time_past()}] Starting computation on client: {client}]")
-
-        new_hdr, tile_bytes = client.persist(
-            [new_hdr, tile_bytes],
-            optimize_graph=optimize_graph,
-        )
-
-        if verbose:
-            print(f"[{time_past()}] Waiting for Dask to compress to RAM...")
-
-        new_hdr = client.compute(new_hdr, optimize_graph=optimize_graph)
-        new_hdr = new_hdr.result()  # blocks
-
-        if verbose:
-            print(f"[{time_past()}] DONE: compressed data is now in Dask")
-            print(f"... writing tiles to: {dst}")
-
-        fp.write(new_hdr)
-        for fut in tile_bytes.to_delayed():
-            for chunk in fut.compute():
-                fp.write(chunk)
-                if verbose:
-                    print(".", end="")
-        if verbose:
-            print(f"\n[{time_past()}] DONE")
-
-    dbg["t1"] = monotonic()
-    dbg["total_seconds"] = dbg["t1"] - dbg["t0"]
-    return new_hdr, tile_bytes, dbg
+    cleanup = aws.pop("cleanup", False)
+    s3_sink = MultiPartUpload(bucket, key, **aws)
+    if cleanup:
+        s3_sink.cancel("all")
+    return s3_sink.upload(tiles_write_order, mk_header=mk_header, **upload_params)
 
 
 def geotiff_metadata(
