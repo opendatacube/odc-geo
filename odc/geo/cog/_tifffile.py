@@ -131,6 +131,7 @@ def _make_empty_cog(
             predictor,
             compressionargs=compressionargs,
             gbox=gbox,
+            nodata=nodata,
         )
 
         if idx == 0:
@@ -165,12 +166,13 @@ def _cog_block_compressor(
     encoder: Any = None,
     predictor: Any = None,
     axis: int = 1,
+    fill_value: Union[float, int] = 0,
     **kw,
 ) -> bytes:
     assert block.ndim == len(tile_shape)
     if tile_shape != block.shape:
         pad = tuple((0, want - have) for want, have in zip(tile_shape, block.shape))
-        block = np.pad(block, pad, "constant", constant_values=(0,))
+        block = np.pad(block, pad, "constant", constant_values=(fill_value,))
 
     if predictor is not None:
         block = predictor(block, axis=axis)
@@ -197,12 +199,17 @@ def _mk_tile_compressor(meta: CogMeta) -> Callable[[np.ndarray], bytes]:
     if meta.predictor != 1:
         predictor = TIFF.PREDICTORS[meta.predictor]
 
+    fill_value: Union[float, int] = 0
+    if meta.nodata is not None:
+        fill_value = float(meta.nodata) if isinstance(meta.nodata, str) else meta.nodata
+
     return partial(
         _cog_block_compressor,
         tile_shape=tile_shape,
         encoder=encoder,
         predictor=predictor,
         axis=axis,
+        fill_value=fill_value,
         **meta.compressionargs,
     )
 
