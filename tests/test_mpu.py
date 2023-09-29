@@ -111,7 +111,7 @@ def test_s3_mpu_merge_small(write: FakeWriter) -> None:
     assert bc.nextPartId == b.nextPartId
     assert bc.write_credits == (b.write_credits + c.write_credits)
     assert bc.started_write is False
-    assert bc.left_data is None
+    assert bc.left_data == b""
     assert bc.data == (db + dc)
 
     # a + (b + c)
@@ -120,7 +120,7 @@ def test_s3_mpu_merge_small(write: FakeWriter) -> None:
     assert abc.is_final is True
     assert abc.started_write is False
     assert abc.data == data
-    assert abc.left_data is None
+    assert abc.left_data == b""
     assert abc.nextPartId == a.nextPartId
     assert abc.write_credits == (a.write_credits + b.write_credits + c.write_credits)
     assert len(abc.observed) == 3
@@ -128,7 +128,7 @@ def test_s3_mpu_merge_small(write: FakeWriter) -> None:
 
     assert len(write.parts) == 0
 
-    assert abc.final_flush(write) == len(data)
+    assert abc.flush_rhs(write) == len(data)
     assert len(abc.parts) == 1
     assert len(write.parts) == 1
     pid, _data, part = write.parts[0]
@@ -180,7 +180,7 @@ def test_mpu_multi_writes(write: FakeWriter) -> None:
     assert ab.started_write is True
     assert ab.is_final is False
     assert ab.data == (db1 + db2)[-_mb(5) :]
-    assert ab.left_data is None
+    assert ab.left_data == b""
 
     abc = MPUChunk.merge(ab, c, write)
     assert len(abc.parts) == 2
@@ -192,7 +192,7 @@ def test_mpu_multi_writes(write: FakeWriter) -> None:
         (len(dc1), "c1"),
     ]
 
-    assert abc.final_flush(write, None) > 0
+    assert abc.flush_rhs(write, None) > 0
     assert len(abc.parts) == 3
     assert _parts(write.parts) == abc.parts
     assert _data(write.parts) == data
@@ -217,14 +217,14 @@ def test_mpu_left_data(write: FakeWriter) -> None:
     assert c.maybe_write(write, _mb(6)) > 0
     assert c.started_write is True
     assert len(c.parts) == 1
-    assert c.left_data is None
+    assert c.left_data == b""
 
     b.append(db1, "b1")
     a.append(da1, "a1")
 
     bc = MPUChunk.merge(b, c, write)
     assert bc.started_write is True
-    assert bc.left_data is not None
+    assert len(bc.left_data) > 0
     assert bc.nextPartId == 201
     assert bc.write_credits == 99
 
@@ -243,7 +243,7 @@ def test_mpu_left_data(write: FakeWriter) -> None:
         (len(dc2), "c2"),
     ]
 
-    assert abc.final_flush(write) > 0
+    assert abc.flush_rhs(write) > 0
     assert abc.nextPartId == 202
     assert abc.write_credits == 98
     assert len(abc.parts) == 3
@@ -274,7 +274,40 @@ def test_mpu_misc(write: FakeWriter) -> None:
     assert ab.nextPartId == 1
     assert ab.write_credits == 11
 
-    assert ab.final_flush(write) > 0
+    assert ab.flush_rhs(write) > 0
     assert len(ab.parts) == 1
     assert _data(write.parts) == data
     assert _parts(write.parts) == ab.parts
+
+
+def test_lhs_keep(write: FakeWriter) -> None:
+    def mpu(lhs_keep: int, extra_bytes: int, is_final: bool) -> Tuple[MPUChunk, bytes]:
+        a = MPUChunk(10, 100, lhs_keep=lhs_keep, is_final=is_final)
+        a.append(data := _mk_fake_data(lhs_keep + extra_bytes))
+        return a, data
+
+    lhs_keep = write.min_write_sz
+
+    a, data = mpu(lhs_keep, write.min_write_sz // 2, is_final=False)
+    assert a.left_data == b""
+    assert a.data == data
+    assert not a.started_write
+
+    # should move all data .left_data
+    assert a.flush_rhs(write) == 0
+    assert a.data == b""
+    assert a.left_data == data
+
+    a, data = mpu(lhs_keep, write.min_write_sz // 2, is_final=True)
+    assert a.left_data == b""
+    assert a.data == data
+    assert not a.started_write
+
+    # should not spill: not enough due to lhs
+    assert a.maybe_write(write, write.min_write_sz) == 0
+    assert not a.started_write
+
+    assert a.flush_rhs(write) == len(data) - lhs_keep
+    assert a.started_write
+    assert a.data == b""
+    assert a.left_data == data[:lhs_keep]
