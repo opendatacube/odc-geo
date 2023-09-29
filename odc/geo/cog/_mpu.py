@@ -2,9 +2,22 @@
 Multi-part upload as a graph
 """
 from functools import partial
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Protocol, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Protocol,
+    Tuple,
+    Union,
+)
 
-from dask import bag as dask_bag
+if TYPE_CHECKING:
+    import dask.bag
+
 
 SomeData = Union[bytes, bytearray]
 
@@ -40,7 +53,7 @@ class MPUChunk:
     chunk cache and writer
     """
 
-    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-arguments,too-many-instance-attributes
 
     __slots__ = (
         "nextPartId",
@@ -50,6 +63,7 @@ class MPUChunk:
         "parts",
         "observed",
         "is_final",
+        "lhs_keep",
     )
 
     def __init__(
@@ -61,14 +75,18 @@ class MPUChunk:
         parts: Optional[List[Dict[str, Any]]] = None,
         observed: Optional[List[Tuple[int, Any]]] = None,
         is_final: bool = False,
+        lhs_keep: int = 0,
     ) -> None:
         self.nextPartId = partId
         self.write_credits = write_credits
         self.data = bytearray() if data is None else data
-        self.left_data = left_data
+        self.left_data = bytearray() if left_data is None else left_data
         self.parts: List[Dict[str, Any]] = [] if parts is None else parts
         self.observed: List[Tuple[int, Any]] = [] if observed is None else observed
         self.is_final = is_final
+        self.lhs_keep = lhs_keep
+        # if supplying data must also supply observed
+        assert data is None or (observed is not None and len(observed) > 0)
 
     def __dask_tokenize__(self):
         return (
@@ -113,7 +131,7 @@ class MPUChunk:
         if not rhs.started_write:
             # no writes on the right
             # Just append
-            assert rhs.left_data is None
+            assert len(rhs.left_data) == 0
             assert len(rhs.parts) == 0
 
             return MPUChunk(
@@ -124,11 +142,12 @@ class MPUChunk:
                 lhs.parts,
                 lhs.observed + rhs.observed,
                 rhs.is_final,
+                lhs.lhs_keep,
             )
 
         # Flush `lhs.data + rhs.left_data` if we can
         #  or else move it into .left_data
-        lhs.final_flush(write, rhs.left_data)
+        lhs.flush_rhs(write, rhs.left_data)
 
         return MPUChunk(
             rhs.nextPartId,
@@ -138,36 +157,46 @@ class MPUChunk:
             lhs.parts + rhs.parts,
             lhs.observed + rhs.observed,
             rhs.is_final,
+            lhs.lhs_keep,
         )
 
-    def final_flush(
+    def flush_rhs(
         self, write: Optional[PartsWriter], extra_data: Optional[bytearray] = None
     ) -> int:
         data = self.data
-        if extra_data is not None:
+        if extra_data is not None and len(extra_data):
             data += extra_data
 
         def _flush_data(pw: PartsWriter):
             assert pw.min_part <= self.nextPartId <= pw.max_part
 
-            part = pw(self.nextPartId, data)
+            _data = data
+            if not self.started_write and self.lhs_keep > 0:
+                self.left_data = bytearray(_data[: self.lhs_keep])
+                _data = data[self.lhs_keep :]
+
+            part = pw(self.nextPartId, _data)
+
             self.parts.append(part)
             self.data = bytearray()
             self.nextPartId += 1
             self.write_credits -= 1
-            return len(data)
+            return len(_data)
 
         def can_flush(pw: PartsWriter):
-            return self.write_credits > 0 and (
-                self.is_final or len(data) >= pw.min_write_sz
-            )
+            if self.write_credits < 1:
+                return False
+            if self.started_write:
+                return self.is_final or len(data) >= pw.min_write_sz
+            if self.is_final:
+                return len(data) > self.lhs_keep
+            return len(data) - self.lhs_keep >= pw.min_write_sz
 
         if self.started_write:
             # When starting to write we ensure that there is always enough
             # data and write credits left to flush the remainder
             #
             # User must have provided `write` function
-
             if write is None:
                 raise RuntimeError("Flush required but no writer provided")
 
@@ -180,30 +209,74 @@ class MPUChunk:
         if write is not None and can_flush(write):
             return _flush_data(write)
 
-        if self.left_data is None:
+        if self.left_data:
             self.left_data, self.data = data, bytearray()
         else:
             self.left_data, self.data = self.left_data + data, bytearray()
 
         return 0
 
+    def flush(
+        self,
+        write: PartsWriter,
+        leftPartId: Optional[int] = None,
+        finalise: bool = True,
+    ) -> Tuple[int, Any]:
+        rr = None
+        if not self.started_write:
+            assert not self.left_data
+            partId = self.nextPartId if leftPartId is None else leftPartId
+            spill_data = self.data
+            self.parts.append(write(partId, spill_data))
+            self.data = bytearray()
+
+            if finalise:
+                rr = write.finalise(self.parts)
+
+            return len(spill_data), rr
+
+        bytes_written = 0
+        if self.data:
+            self.is_final = True
+            bytes_written = self.flush_rhs(write)
+
+        if self.left_data:
+            assert len(self.left_data) >= write.min_write_sz
+            partId = 1 if leftPartId is None else leftPartId
+            self.parts.insert(0, write(partId, self.left_data))
+            bytes_written += len(self.left_data)
+            self.left_data = bytearray()
+
+        if finalise:
+            rr = write.finalise(self.parts)
+
+        return bytes_written, rr
+
     def maybe_write(self, write: PartsWriter, spill_sz: int) -> int:
         # if not last section keep 'min_write_sz' and 1 partId around after flush
-        bytes_to_keep, parts_to_keep = (
-            (0, 0) if self.is_final else (write.min_write_sz, 1)
-        )
+        rhs_keep, parts_to_keep = (0, 0) if self.is_final else (write.min_write_sz, 1)
+        lhs_keep = 0 if self.started_write else self.lhs_keep
 
         if self.write_credits - 1 < parts_to_keep:
             return 0
 
-        bytes_to_write = len(self.data) - bytes_to_keep
+        bytes_to_write = len(self.data) - rhs_keep - lhs_keep
         if bytes_to_write < spill_sz:
             return 0
 
-        part = write(self.nextPartId, self.data[:bytes_to_write])
+        if lhs_keep == 0:
+            spill_data = self.data[:bytes_to_write]
+            self.data = bytearray(self.data[bytes_to_write:])
+        else:
+            spill_data = self.data[lhs_keep : lhs_keep + bytes_to_write]
+            assert not self.left_data
+            self.left_data = bytearray(self.data[:lhs_keep])
+            self.data = bytearray(self.data[bytes_to_write + lhs_keep :])
 
-        self.parts.append(part)
-        self.data = self.data[bytes_to_write:]
+        assert len(spill_data) == bytes_to_write
+        assert len(spill_data) >= spill_sz
+
+        self.parts.append(write(self.nextPartId, spill_data))
         self.nextPartId += 1
         self.write_credits -= 1
 
@@ -216,34 +289,43 @@ class MPUChunk:
         *,
         writes_per_chunk: int = 1,
         mark_final: bool = False,
+        lhs_keep: int = 0,
     ) -> Iterator["MPUChunk"]:
         for idx in range(n):
             is_final = mark_final and idx == (n - 1)
             yield MPUChunk(
-                partId + idx * writes_per_chunk, writes_per_chunk, is_final=is_final
+                partId + idx * writes_per_chunk,
+                writes_per_chunk,
+                is_final=is_final,
+                lhs_keep=lhs_keep,
             )
 
     @staticmethod
     def from_dask_bag(
         partId: int,
-        chunks: dask_bag.Bag,
+        chunks: "dask.bag.Bag",
         *,
         writes_per_chunk: int = 1,
         mark_final: bool = False,
+        lhs_keep: int = 0,
         write: Optional[PartsWriter] = None,
         spill_sz: int = 0,
-    ) -> dask_bag.Item:
-        mpus = dask_bag.from_sequence(
+    ) -> "dask.bag.Item":
+        # pylint: disable=import-outside-toplevel
+        import dask.bag
+
+        mpus = dask.bag.from_sequence(
             MPUChunk.gen_bunch(
                 partId,
                 chunks.npartitions,
                 writes_per_chunk=writes_per_chunk,
                 mark_final=mark_final,
+                lhs_keep=lhs_keep,
             ),
             npartitions=chunks.npartitions,
         )
 
-        mpus = dask_bag.map_partitions(
+        mpus = dask.bag.map_partitions(
             _mpu_append_chunks_op,
             mpus,
             chunks,
@@ -251,6 +333,40 @@ class MPUChunk:
         )
 
         return mpus.fold(partial(_merge_and_spill_op, write=write, spill_sz=spill_sz))
+
+    @staticmethod
+    def collate_substreams(
+        substreams: List["dask.bag.Item"],
+        *,
+        write: Optional[PartsWriter] = None,
+        spill_sz: int = 0,
+    ) -> "dask.bag.Item":
+        # pylint: disable=import-outside-toplevel
+        import dask.bag
+        from dask import delayed
+
+        assert len(substreams) > 0
+
+        return dask.bag.Item.from_delayed(
+            delayed(_mpu_collate_op)(
+                substreams, pure=False, write=write, spill_sz=spill_sz
+            )
+        )
+
+
+def _mpu_collate_op(
+    substreams: List[MPUChunk],
+    *,
+    write: Optional[PartsWriter] = None,
+    spill_sz: int = 0,
+) -> MPUChunk:
+    assert len(substreams) > 0
+    root, *rest = substreams
+    for rhs in rest:
+        root = MPUChunk.merge(root, rhs, write=write)
+        if write and spill_sz:
+            root.maybe_write(write, spill_sz)
+    return root
 
 
 def _mpu_append_chunks_op(
