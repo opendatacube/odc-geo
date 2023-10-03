@@ -496,6 +496,10 @@ def save_cog_with_dask(
     upload_params = {
         k: aws.pop(k) for k in ["writes_per_chunk", "spill_sz"] if k in aws
     }
+    upload_params[
+        "ContentType"
+    ] = "image/tiff;application=geotiff;profile=cloud-optimized"
+
     tiles_write_order = _tiles[::-1]
     if len(tiles_write_order) > 4:
         tiles_write_order = [
