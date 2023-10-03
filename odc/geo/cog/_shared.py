@@ -102,9 +102,13 @@ class CogMeta:
         ny, nx = self.chunked.yx
         return self.num_planes * ny * nx
 
-    def tidx(self) -> Iterator[Tuple[int, int, int]]:
-        """``[(plane_idx, iy, ix), ...]``"""
-        yield from np.ndindex((self.num_planes, *self.chunked.yx))
+    def tidx(self, sample_idx: Optional[int] = None) -> Iterator[Tuple[int, int, int]]:
+        """``[([sample|plane]_idx, iy, ix), ...]``"""
+        if sample_idx is not None:
+            assert sample_idx < self.num_planes
+            yield from ((sample_idx, y, x) for y, x in np.ndindex(self.chunked.yx))
+        else:
+            yield from np.ndindex((self.num_planes, *self.chunked.yx))
 
     def flat_tile_idx(self, idx: Tuple[int, int, int]) -> int:
         """Convert from sample,iy,ix to flat tile index."""
