@@ -65,11 +65,11 @@ class MultiPartUpload:
             aws_session_token=creds.token,
         )
 
-    def initiate(self) -> str:
+    def initiate(self, **kw) -> str:
         assert self.uploadId == ""
         s3 = self.s3_client()
 
-        rr = s3.create_multipart_upload(Bucket=self.bucket, Key=self.key)
+        rr = s3.create_multipart_upload(Bucket=self.bucket, Key=self.key, **kw)
         uploadId = rr["UploadId"]
         self.uploadId = uploadId
         return uploadId
@@ -149,6 +149,7 @@ class MultiPartUpload:
         mk_footer: Optional[MkFooter] = None,
         writes_per_chunk: int = 1,
         spill_sz: int = 20 * (1 << 20),
+        **kw,
     ) -> "dask.bag.Item":
         if not isinstance(chunks, list):
             data_substream = self._substream(
@@ -158,6 +159,7 @@ class MultiPartUpload:
                 lhs_keep=self.min_write_sz,
                 spill_sz=spill_sz,
                 mark_final=mk_footer is None,
+                **kw,
             )
         else:
             write: Optional[PartsWriter] = self if spill_sz > 0 else None
@@ -171,6 +173,7 @@ class MultiPartUpload:
                     lhs_keep=self.min_write_sz,
                     spill_sz=spill_sz,
                     mark_final=False,
+                    **kw,
                 )
                 dss.append(sub)
                 partId = partId + ch.npartitions * writes_per_chunk
@@ -197,11 +200,12 @@ class MultiPartUpload:
         mark_final: bool = False,
         lhs_keep: int = 5 * (1 << 20),
         spill_sz: int = 20 * (1 << 20),
+        **kw,
     ) -> "dask.bag.Item":
         write: Optional[PartsWriter] = None
         if spill_sz > 0:
             if not self.started:
-                self.initiate()
+                self.initiate(**kw)
             write = self
         return MPUChunk.from_dask_bag(
             partId,
