@@ -310,6 +310,7 @@ class MPUChunk:
         lhs_keep: int = 0,
         write: Optional[PartsWriter] = None,
         spill_sz: int = 0,
+        split_every: int = 4,  # when applying fold take 4 at a time
     ) -> "dask.bag.Item":
         # pylint: disable=import-outside-toplevel
         import dask.bag
@@ -329,10 +330,15 @@ class MPUChunk:
             _mpu_append_chunks_op,
             mpus,
             chunks,
+            write=write,
+            spill_sz=spill_sz,
             token="mpu.append",
         )
 
-        return mpus.fold(partial(_merge_and_spill_op, write=write, spill_sz=spill_sz))
+        return mpus.fold(
+            partial(_merge_and_spill_op, write=write, spill_sz=spill_sz),
+            split_every=split_every,
+        )
 
     @staticmethod
     def collate_substreams(
@@ -370,13 +376,19 @@ def _mpu_collate_op(
 
 
 def _mpu_append_chunks_op(
-    mpus: Iterable[MPUChunk], chunks: Iterable[Tuple[bytes, Any]]
+    mpus: Iterable[MPUChunk],
+    chunks: Iterable[Tuple[bytes, Any]],
+    write: Optional[PartsWriter] = None,
+    spill_sz: int = 0,
 ):
     # expect 1 MPUChunk per partition
     (mpu,) = mpus
     for chunk in chunks:
         data, chunk_id = chunk
         mpu.append(data, chunk_id)
+        if write is not None and spill_sz > 0:
+            mpu.maybe_write(write, spill_sz)
+
     return [mpu]
 
 
