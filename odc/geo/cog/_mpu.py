@@ -225,6 +225,7 @@ class MPUChunk:
         rr = None
         if not self.started_write:
             assert not self.left_data
+            # TODO: special case this code path
             partId = self.nextPartId if leftPartId is None else leftPartId
             spill_data = self.data
             self.parts.append(write(partId, spill_data))

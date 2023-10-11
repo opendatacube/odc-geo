@@ -489,8 +489,9 @@ def save_cog_with_dask(
     bigtiff: bool = True,
     overview_resampling: Union[int, str] = "nearest",
     aws: Optional[Dict[str, Any]] = None,
+    client: Any = None,
     **kw,
-):
+) -> Any:
     # pylint: disable=import-outside-toplevel
     import dask.bag
 
@@ -525,7 +526,6 @@ def save_cog_with_dask(
         **kw,
     )
     hdr0 = bytes(hdr0)
-    mk_header = partial(_build_hdr, meta=meta, hdr0=hdr0)
 
     layers = _pyramids_from_cog_metadata(xx, meta, resampling=overview_resampling)
 
@@ -541,7 +541,6 @@ def save_cog_with_dask(
         return {
             "meta": meta,
             "hdr0": hdr0,
-            "mk_header": mk_header,
             "tiles": _tiles,
             "layers": layers,
         }
@@ -568,7 +567,13 @@ def save_cog_with_dask(
     s3_sink = MultiPartUpload(bucket, key, **aws)
     if cleanup:
         s3_sink.cancel("all")
-    return s3_sink.upload(tiles_write_order, mk_header=mk_header, **upload_params)
+    return s3_sink.upload(
+        tiles_write_order,
+        mk_header=_build_hdr,
+        user_kw={"meta": meta, "hdr0": hdr0},
+        client=client,
+        **upload_params,
+    )
 
 
 def geotiff_metadata(
