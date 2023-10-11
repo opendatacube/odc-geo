@@ -5,12 +5,13 @@ channels:
 dependencies:
   - python =3.10
 
-  # odc-geo dependencies
+  # odc-geo dependencies, optional also
   - pyproj
   - shapely >=2.0.1
   - rasterio
   - xarray
   - numpy
+  - dask
   - cachetools
   - tifffile
 
@@ -30,7 +31,6 @@ dependencies:
   - pytest-cov
   - pytest-timeout
   - geopandas
-  - dask-core
   - folium
   - ipyleaflet
   - matplotlib

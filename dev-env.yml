@@ -4,7 +4,6 @@ channels:
 
 dependencies:
   - python =3.8
-  - pip =20
 
   # odc-geo dependencies
   - pyproj
