@@ -3,8 +3,8 @@ S3 utils for COG to S3.
 """
 from __future__ import annotations
 
-from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
+from threading import Lock
+from typing import TYPE_CHECKING, Any, Optional, Tuple
 
 from cachetools import cached
 
@@ -12,10 +12,28 @@ from ._mpu import MPUChunk, PartsWriter, SomeData
 
 if TYPE_CHECKING:
     import dask.bag
+    import distributed
     from botocore.credentials import ReadOnlyCredentials
 
-MkHeader = Callable[[List[Tuple[int, Any]]], SomeData]
-MkFooter = MkHeader
+_state: dict[str, Any] = {}
+
+
+def _mpu_local_lock(k="mpu_lock") -> Lock:
+    lck = _state.get(k, None)
+    if lck is not None:
+        return lck
+
+    return _state.setdefault("mpu_lock", Lock())
+
+
+def _dask_client() -> "distributed.Client" | None:
+    # pylint: disable=import-outside-toplevel,import-error
+    from distributed import get_client
+
+    try:
+        return get_client()
+    except ValueError:
+        return None
 
 
 def s3_parse_url(url: str) -> Tuple[str, str]:
@@ -26,7 +44,29 @@ def s3_parse_url(url: str) -> Tuple[str, str]:
     return ("", "")
 
 
-class MultiPartUpload:
+class S3Limits:
+    """
+    Common S3 writer settings
+    """
+
+    @property
+    def min_write_sz(self) -> int:
+        return 5 * (1 << 20)
+
+    @property
+    def max_write_sz(self) -> int:
+        return 5 * (1 << 30)
+
+    @property
+    def min_part(self) -> int:
+        return 1
+
+    @property
+    def max_part(self) -> int:
+        return 10_000
+
+
+class MultiPartUpload(S3Limits):
     """
     Dask to S3 dumper.
     """
@@ -74,7 +114,7 @@ class MultiPartUpload:
         self.uploadId = uploadId
         return uploadId
 
-    def __call__(self, part: int, data: SomeData) -> Dict[str, Any]:
+    def write_part(self, part: int, data: SomeData) -> dict[str, Any]:
         s3 = self.s3_client()
         assert self.uploadId != ""
         rr = s3.upload_part(
@@ -91,8 +131,10 @@ class MultiPartUpload:
     def url(self) -> str:
         return f"s3://{self.bucket}/{self.key}"
 
-    def finalise(self, parts: List[Dict[str, Any]]) -> str:
+    def finalise(self, parts: list[dict[str, Any]]) -> str:
         s3 = self.s3_client()
+        assert self.uploadId
+
         rr = s3.complete_multipart_upload(
             Bucket=self.bucket,
             Key=self.key,
@@ -141,16 +183,33 @@ class MultiPartUpload:
             self.uploadId,
         )
 
+    def writer(self, kw, *, client: Any = None) -> PartsWriter:
+        if client is None:
+            client = _dask_client()
+        writer = DelayedS3Writer(self, kw)
+        if client is not None:
+            writer.prep_client(client)
+        return writer
+
+    # pylint: disable=too-many-arguments
     def upload(
         self,
-        chunks: "dask.bag.Bag" | List["dask.bag.Bag"],
+        chunks: "dask.bag.Bag" | list["dask.bag.Bag"],
         *,
-        mk_header: Optional[MkHeader] = None,
-        mk_footer: Optional[MkFooter] = None,
+        mk_header: Any = None,
+        mk_footer: Any = None,
+        user_kw: dict[str, Any] | None = None,
         writes_per_chunk: int = 1,
         spill_sz: int = 20 * (1 << 20),
+        client: Any = None,
         **kw,
     ) -> "dask.bag.Item":
+        # pylint: disable=import-outside-toplevel,too-many-locals
+        from dask.base import tokenize
+        from dask.delayed import delayed
+
+        writer = self.writer(kw, client=client) if spill_sz else None
+
         if not isinstance(chunks, list):
             data_substream = self._substream(
                 2,
@@ -159,21 +218,20 @@ class MultiPartUpload:
                 lhs_keep=self.min_write_sz,
                 spill_sz=spill_sz,
                 mark_final=mk_footer is None,
-                **kw,
+                writer=writer,
             )
         else:
-            write: Optional[PartsWriter] = self if spill_sz > 0 else None
             partId = 2
             dss = []
-            for ch in chunks:
+            for idx, ch in enumerate(chunks):
                 sub = self._substream(
                     partId,
                     ch,
                     writes_per_chunk=writes_per_chunk,
                     lhs_keep=self.min_write_sz,
                     spill_sz=spill_sz,
-                    mark_final=False,
-                    **kw,
+                    mark_final=mk_footer is None and (idx == len(chunks) - 1),
+                    writer=writer,
                 )
                 dss.append(sub)
                 partId = partId + ch.npartitions * writes_per_chunk
@@ -181,14 +239,19 @@ class MultiPartUpload:
 
             data_substream = MPUChunk.collate_substreams(
                 dss,
-                write=write,
+                write=writer,
                 spill_sz=spill_sz,
             )
 
-        return data_substream.apply(
-            partial(
-                _finalizer_dask_op, mpu=self, mk_header=mk_header, mk_footer=mk_footer
-            )
+        tk = tokenize(self, mk_header, mk_footer, user_kw)
+
+        return delayed(_finalizer_dask_op, name=f"s3finalize-{tk}")(
+            data_substream,
+            writer=writer,
+            mk_header=mk_header,
+            mk_footer=mk_footer,
+            user_kw=user_kw,
+            dask_key_name=f"s3finalize-{tk}",
         )
 
     def _substream(
@@ -200,13 +263,8 @@ class MultiPartUpload:
         mark_final: bool = False,
         lhs_keep: int = 5 * (1 << 20),
         spill_sz: int = 20 * (1 << 20),
-        **kw,
+        writer: Optional[PartsWriter] = None,
     ) -> "dask.bag.Item":
-        write: Optional[PartsWriter] = None
-        if spill_sz > 0:
-            if not self.started:
-                self.initiate(**kw)
-            write = self
         return MPUChunk.from_dask_bag(
             partId,
             chunks,
@@ -214,36 +272,124 @@ class MultiPartUpload:
             mark_final=mark_final,
             lhs_keep=lhs_keep,
             spill_sz=spill_sz,
-            write=write,
+            write=writer,
         )
 
-    @property
-    def min_write_sz(self) -> int:
-        return 5 * (1 << 20)
 
-    @property
-    def max_write_sz(self) -> int:
-        return 5 * (1 << 30)
+def _safe_get(v, timeout=0.1):
+    try:
+        return v.get(timeout)
+    except Exception:  # pylint: disable=broad-except
+        return None
 
-    @property
-    def min_part(self) -> int:
-        return 1
 
-    @property
-    def max_part(self) -> int:
-        return 10_000
+class DelayedS3Writer(S3Limits):
+    """
+    Delay multi-part upload creation until first write.
+    """
+
+    # pylint: disable=import-outside-toplevel,import-error
+
+    def __init__(self, mpu: MultiPartUpload, kw: dict[str, Any]):
+        self.mpu = mpu
+        self.kw = kw  # mostly ContentType= kinda thing
+        self._shared_var: Optional["distributed.Variable"] = None
+
+    def prep_client(self, client: "distributed.Client") -> "distributed.Variable":
+        v = self._shared(client)
+        v.set(None)
+        return v
+
+    def cleanup_client(self, client: "distributed.Client") -> None:
+        v = self._shared(client)
+        v.delete()
+
+    def _build_name(self, prefix: str) -> str:
+        from dask.base import tokenize
+
+        return f"{prefix}-{tokenize(self)}"
+
+    def _shared(self, client: "distributed.Client") -> "distributed.Variable":
+        from distributed import Variable
+
+        if self._shared_var is None:
+            self._shared_var = Variable(self._build_name("MPUpload"), client)
+        return self._shared_var
+
+    def _ensure_init(self, final_write: bool = False) -> MultiPartUpload:
+        # pylint: disable=too-many-return-statements
+        mpu = self.mpu
+        if mpu.started:
+            return mpu
+
+        client = _dask_client()
+        if client is None:
+            # Assume running locally with everyone sharing same self.mpu
+            with _mpu_local_lock():
+                if not final_write:
+                    _ = mpu.initiate(**self.kw)
+                return mpu
+
+        from distributed import Lock as DLock
+
+        shared_state = self._shared(client)
+        uploadId = _safe_get(shared_state, 0.1)
+
+        if uploadId is not None:
+            # someone else initialized it
+            mpu.uploadId = uploadId
+            return mpu
+
+        lock = DLock(self._build_name("MPULock"), client)
+        with lock:
+            uploadId = _safe_get(shared_state, 0.1)
+            if uploadId is not None:
+                # someone else initialized it while we were getting a lock
+                mpu.uploadId = uploadId
+                return mpu
+
+            # We are first to Lock
+            # 1. Start upload
+            # 2. Share UploadId with others
+            if not final_write:
+                _ = mpu.initiate(**self.kw)
+                shared_state.set(mpu.uploadId)
+
+        assert mpu.started or final_write
+        return mpu
+
+    def __call__(self, part: int, data: SomeData) -> dict[str, Any]:
+        mpu = self._ensure_init()
+        return mpu.write_part(part, data)
+
+    def finalise(self, parts: list[dict[str, Any]]) -> Any:
+        assert len(parts) > 0
+        mpu = self._ensure_init()
+        etag = mpu.finalise(parts)
+        client = _dask_client()
+        if client:
+            # remove shared variable if running on distributed cluster
+            self.cleanup_client(client)
+        return {"Bucket": mpu.bucket, "Key": mpu.key, "ETag": etag}
+
+    def __dask_tokenize__(self):
+        return ("odc.DelayedS3Writer", self.mpu.bucket, self.mpu.key)
 
 
 def _finalizer_dask_op(
     data_substream: MPUChunk,
     *,
-    mpu: MultiPartUpload,
-    mk_header: Optional[MkHeader] = None,
-    mk_footer: Optional[MkFooter] = None,
+    writer: PartsWriter | None = None,
+    mk_header: Any = None,
+    mk_footer: Any = None,
+    user_kw: dict[str, Any] | None = None,
 ):
+    if user_kw is None:
+        user_kw = {}
+
     _root = data_substream
     hdr_bytes, footer_bytes = [
-        None if op is None else op(data_substream.observed)
+        None if op is None else op(data_substream.observed, **user_kw)
         for op in [mk_header, mk_footer]
     ]
 
@@ -255,8 +401,8 @@ def _finalizer_dask_op(
         hdr.append(hdr_bytes)
         _root = MPUChunk.merge(hdr, _root)
 
-    if not mpu.started:
+    if writer is None:
         return _root
 
-    _, rr = _root.flush(mpu, leftPartId=1, finalise=True)
+    _, rr = _root.flush(writer, leftPartId=1, finalise=True)
     return rr
