@@ -8,12 +8,13 @@ from typing import TYPE_CHECKING, Any, Optional, Tuple
 
 from cachetools import cached
 
-from ._mpu import MPUChunk, PartsWriter, SomeData
+from ._mpu import PartsWriter, SomeData, mpu_write
 
 if TYPE_CHECKING:
     import dask.bag
     import distributed
     from botocore.credentials import ReadOnlyCredentials
+    from dask.delayed import Delayed
 
 _state: dict[str, Any] = {}
 
@@ -203,76 +204,17 @@ class MultiPartUpload(S3Limits):
         spill_sz: int = 20 * (1 << 20),
         client: Any = None,
         **kw,
-    ) -> "dask.bag.Item":
-        # pylint: disable=import-outside-toplevel,too-many-locals
-        from dask.base import tokenize
-        from dask.delayed import delayed
-
-        writer = self.writer(kw, client=client) if spill_sz else None
-
-        if not isinstance(chunks, list):
-            data_substream = self._substream(
-                2,
-                chunks,
-                writes_per_chunk=writes_per_chunk,
-                lhs_keep=self.min_write_sz,
-                spill_sz=spill_sz,
-                mark_final=mk_footer is None,
-                writer=writer,
-            )
-        else:
-            partId = 2
-            dss = []
-            for idx, ch in enumerate(chunks):
-                sub = self._substream(
-                    partId,
-                    ch,
-                    writes_per_chunk=writes_per_chunk,
-                    lhs_keep=self.min_write_sz,
-                    spill_sz=spill_sz,
-                    mark_final=mk_footer is None and (idx == len(chunks) - 1),
-                    writer=writer,
-                )
-                dss.append(sub)
-                partId = partId + ch.npartitions * writes_per_chunk
-                assert partId <= self.max_part
-
-            data_substream = MPUChunk.collate_substreams(
-                dss,
-                write=writer,
-                spill_sz=spill_sz,
-            )
-
-        tk = tokenize(self, mk_header, mk_footer, user_kw)
-
-        return delayed(_finalizer_dask_op, name=f"s3finalize-{tk}")(
-            data_substream,
-            writer=writer,
+    ) -> "Delayed":
+        write = self.writer(kw, client=client) if spill_sz else None
+        return mpu_write(
+            chunks,
+            write,
             mk_header=mk_header,
             mk_footer=mk_footer,
             user_kw=user_kw,
-            dask_key_name=f"s3finalize-{tk}",
-        )
-
-    def _substream(
-        self,
-        partId: int,
-        chunks: "dask.bag.Bag",
-        *,
-        writes_per_chunk: int = 1,
-        mark_final: bool = False,
-        lhs_keep: int = 5 * (1 << 20),
-        spill_sz: int = 20 * (1 << 20),
-        writer: Optional[PartsWriter] = None,
-    ) -> "dask.bag.Item":
-        return MPUChunk.from_dask_bag(
-            partId,
-            chunks,
             writes_per_chunk=writes_per_chunk,
-            mark_final=mark_final,
-            lhs_keep=lhs_keep,
             spill_sz=spill_sz,
-            write=writer,
+            dask_name_prefix="s3finalise",
         )
 
 
@@ -374,35 +316,3 @@ class DelayedS3Writer(S3Limits):
 
     def __dask_tokenize__(self):
         return ("odc.DelayedS3Writer", self.mpu.bucket, self.mpu.key)
-
-
-def _finalizer_dask_op(
-    data_substream: MPUChunk,
-    *,
-    writer: PartsWriter | None = None,
-    mk_header: Any = None,
-    mk_footer: Any = None,
-    user_kw: dict[str, Any] | None = None,
-):
-    if user_kw is None:
-        user_kw = {}
-
-    _root = data_substream
-    hdr_bytes, footer_bytes = [
-        None if op is None else op(data_substream.observed, **user_kw)
-        for op in [mk_header, mk_footer]
-    ]
-
-    if footer_bytes:
-        _root.append(footer_bytes)
-
-    if hdr_bytes:
-        hdr = MPUChunk(1, 1)
-        hdr.append(hdr_bytes)
-        _root = MPUChunk.merge(hdr, _root)
-
-    if writer is None:
-        return _root
-
-    _, rr = _root.flush(writer, leftPartId=1, finalise=True)
-    return rr
