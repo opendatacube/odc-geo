@@ -4,10 +4,10 @@ from typing import Any, Dict, List, Tuple
 import numpy as np
 import pytest
 
-from odc.geo.cog._mpu import MPUChunk, SomeData
+from odc.geo.cog._mpu import MPUChunk, SomeData, mpu_write
 
 FakeWriteResult = Tuple[int, SomeData, Dict[str, Any]]
-# pylint: disable=unbalanced-tuple-unpacking,redefined-outer-name
+# pylint: disable=unbalanced-tuple-unpacking,redefined-outer-name,import-outside-toplevel
 
 
 class FakeWriter:
@@ -15,8 +15,9 @@ class FakeWriter:
     Fake multi-part upload writer.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, **limits) -> None:
         self._dst: List[FakeWriteResult] = []
+        self._limits = limits
 
     def __call__(self, part: int, data: SomeData) -> Dict[str, Any]:
         assert 1 <= part <= 10_000
@@ -24,28 +25,40 @@ class FakeWriter:
         self._dst.append((part, data, ww))
         return ww
 
-    def finalise(self, parts: List[Dict[str, Any]]) -> None:
-        pass
+    def finalise(self, parts: List[Dict[str, Any]]) -> Dict[str, Any]:
+        return {"Parts": parts, "Writer": self}
 
     @property
     def min_write_sz(self) -> int:
-        return 5 * (1 << 20)
+        return self._limits.get("min_write_sz", 5 * (1 << 20))
 
     @property
     def max_write_sz(self) -> int:
-        return 5 * (1 << 30)
+        return self._limits.get("max_write_sz", 5 * (1 << 30))
 
     @property
     def min_part(self) -> int:
-        return 1
+        return self._limits.get("min_part", 1)
 
     @property
     def max_part(self) -> int:
-        return 10_000
+        return self._limits.get("max_part", 10_000)
 
     @property
-    def parts(self) -> List[FakeWriteResult]:
+    def raw_parts(self) -> List[FakeWriteResult]:
         return self._dst
+
+    @property
+    def data(self) -> bytes:
+        return b"".join(data for _, data, _ in sorted(self._dst, key=lambda x: x[0]))
+
+    @property
+    def parts(self) -> List[Dict[str, Any]]:
+        return [part for _, _, part in sorted(self._dst, key=lambda x: x[0])]
+
+    def reset(self) -> "FakeWriter":
+        self._dst = []
+        return self
 
 
 def etag(data):
@@ -72,17 +85,10 @@ def _split(data: bytes, offsets=List[int]) -> Tuple[bytes, ...]:
     return tuple(parts)
 
 
-def _data(parts: List[FakeWriteResult]) -> bytes:
-    return b"".join(data for _, data, _ in sorted(parts, key=lambda x: x[0]))
-
-
-def _parts(parts: List[FakeWriteResult]) -> List[Dict[str, Any]]:
-    return [part for _, _, part in sorted(parts, key=lambda x: x[0])]
-
-
 @pytest.fixture(scope="function")
-def write():
-    yield FakeWriter()
+def write(request):
+    limits = getattr(request, "param", {})
+    yield FakeWriter(**limits)
 
 
 def test_s3_mpu_merge_small(write: FakeWriter) -> None:
@@ -131,7 +137,7 @@ def test_s3_mpu_merge_small(write: FakeWriter) -> None:
     assert abc.flush_rhs(write) == len(data)
     assert len(abc.parts) == 1
     assert len(write.parts) == 1
-    pid, _data, part = write.parts[0]
+    pid, _data, part = write.raw_parts[0]
     assert _data == data
     assert pid == a.nextPartId
     assert part["PartNumber"] == pid
@@ -194,8 +200,8 @@ def test_mpu_multi_writes(write: FakeWriter) -> None:
 
     assert abc.flush_rhs(write, None) > 0
     assert len(abc.parts) == 3
-    assert _parts(write.parts) == abc.parts
-    assert _data(write.parts) == data
+    assert write.parts == abc.parts
+    assert write.data == data
 
 
 def test_mpu_left_data(write: FakeWriter) -> None:
@@ -247,8 +253,8 @@ def test_mpu_left_data(write: FakeWriter) -> None:
     assert abc.nextPartId == 202
     assert abc.write_credits == 98
     assert len(abc.parts) == 3
-    assert _data(write.parts) == data
-    assert _parts(write.parts) == abc.parts
+    assert write.data == data
+    assert write.parts == abc.parts
 
 
 def test_mpu_misc(write: FakeWriter) -> None:
@@ -276,8 +282,19 @@ def test_mpu_misc(write: FakeWriter) -> None:
 
     assert ab.flush_rhs(write) > 0
     assert len(ab.parts) == 1
-    assert _data(write.parts) == data
-    assert _parts(write.parts) == ab.parts
+    assert write.data == data
+    assert write.parts == ab.parts
+
+    assert " final" in repr(
+        MPUChunk(
+            1,
+            1,
+            bytearray(),
+            parts=[{}],
+            observed=[(0, None)],
+            is_final=True,
+        )
+    )
 
 
 def test_lhs_keep(write: FakeWriter) -> None:
@@ -311,3 +328,70 @@ def test_lhs_keep(write: FakeWriter) -> None:
     assert a.started_write
     assert a.data == b""
     assert a.left_data == data[:lhs_keep]
+
+
+@pytest.mark.parametrize("spill_sz", [10, 11, 10_000, 0])
+def test_dask_parts(spill_sz: int):
+    pytest.importorskip("dask")
+    from dask import bag
+    from dask.delayed import Delayed
+
+    write = FakeWriter(min_write_sz=10)
+    assert write.min_write_sz == 10
+    assert spill_sz == 0 or spill_sz >= write.min_write_sz
+
+    data = _mk_fake_data(103)
+    parts = _split(data, [30, 50])
+    parts = [(bb, idx) for idx, bb in enumerate(parts)]
+
+    chunks = bag.from_sequence(parts, npartitions=len(parts))
+
+    FOOTER = b"\n------------\n"
+    HEADER = b"Header\n\n"
+
+    def mk_footer(observed, expected_sz: int = 0):
+        # total sum of observed elements should match data length
+        assert sum(sz for sz, _ in observed) == expected_sz
+        return FOOTER
+
+    def mk_header(observed, expected_sz: int = 0):
+        # total sum of observed elements should match data length
+        assert sum(sz for sz, _ in observed) == expected_sz
+        return HEADER
+
+    # check single bag case with writer
+    rr = mpu_write(chunks, write, spill_sz=spill_sz)
+    assert isinstance(rr, Delayed)
+    rr = rr.compute()
+    assert isinstance(rr, dict)
+    assert rr["Writer"] is write
+    assert rr["Parts"] == write.parts
+    assert write.data == data
+
+    # check substreams + footer + header
+    rr = mpu_write(
+        [chunks] * 3,
+        write=write.reset(),
+        spill_sz=spill_sz,
+        mk_footer=mk_footer,
+        mk_header=mk_header,
+        user_kw={"expected_sz": len(data) * 3},
+    )
+    assert isinstance(rr, Delayed)
+    rr = rr.compute()
+    assert isinstance(rr, dict)
+    assert rr["Writer"] is write
+    assert rr["Parts"] == write.parts
+    assert write.data == b"".join([HEADER, data * 3, FOOTER])
+
+    # check no writer case
+    rr = mpu_write(chunks)
+    assert isinstance(rr, Delayed)
+    rr = rr.compute()
+    assert isinstance(rr, MPUChunk)
+    assert rr.is_final
+    assert rr.lhs_keep == 0
+    assert rr.left_data == bytearray()
+    assert rr.data == data
+    assert rr.started_write is False
+    assert rr.parts == []
