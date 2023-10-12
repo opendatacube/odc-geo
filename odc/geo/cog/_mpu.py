@@ -1,6 +1,8 @@
 """
 Multi-part upload as a graph
 """
+from __future__ import annotations
+
 from functools import partial
 from typing import (
     TYPE_CHECKING,
@@ -17,7 +19,14 @@ from typing import (
 
 if TYPE_CHECKING:
     import dask.bag
+    from dask.delayed import Delayed
 
+__all__ = [
+    "SomeData",
+    "PartsWriter",
+    "MPUChunk",
+    "mpu_write",
+]
 
 SomeData = Union[bytes, bytearray]
 
@@ -209,11 +218,7 @@ class MPUChunk:
         if write is not None and can_flush(write):
             return _flush_data(write)
 
-        if self.left_data:
-            self.left_data, self.data = data, bytearray()
-        else:
-            self.left_data, self.data = self.left_data + data, bytearray()
-
+        self.left_data, self.data = self.left_data + data, bytearray()
         return 0
 
     def flush(
@@ -361,6 +366,67 @@ class MPUChunk:
         )
 
 
+def mpu_write(
+    chunks: "dask.bag.Bag" | list["dask.bag.Bag"],
+    write: PartsWriter | None = None,
+    *,
+    mk_header: Any = None,
+    mk_footer: Any = None,
+    user_kw: dict[str, Any] | None = None,
+    writes_per_chunk: int = 1,
+    spill_sz: int = 20 * (1 << 20),
+    dask_name_prefix="mpufinalise",
+) -> "Delayed":
+    # pylint: disable=import-outside-toplevel,too-many-locals,too-many-arguments
+    from dask.base import tokenize
+    from dask.delayed import delayed
+
+    if not isinstance(chunks, list):
+        chunks = [chunks]
+    if write is None:
+        min_part = 1
+        lhs_keep = 0
+    else:
+        min_part = write.min_part
+        lhs_keep = write.min_write_sz
+
+    partId = min_part + 1
+    dss: list["dask.bag.Item"] = []
+    for idx, ch in enumerate(chunks):
+        sub = MPUChunk.from_dask_bag(
+            partId,
+            ch,
+            writes_per_chunk=writes_per_chunk,
+            lhs_keep=lhs_keep,
+            spill_sz=spill_sz,
+            mark_final=mk_footer is None and (idx == len(chunks) - 1),
+            write=write,
+        )
+        dss.append(sub)
+        partId = partId + ch.npartitions * writes_per_chunk
+
+    if len(dss) == 1:
+        data_substream = dss[0]
+    else:
+        data_substream = MPUChunk.collate_substreams(
+            dss,
+            write=write,
+            spill_sz=spill_sz,
+        )
+
+    tk = tokenize(write, mk_header, mk_footer, user_kw, spill_sz)
+    name = f"{dask_name_prefix}-{tk}"
+
+    return delayed(_finalizer_dask_op, name=name, pure=True)(
+        data_substream,
+        write=write,
+        mk_header=mk_header,
+        mk_footer=mk_footer,
+        user_kw=user_kw,
+        dask_key_name=name,
+    )
+
+
 def _mpu_collate_op(
     substreams: List[MPUChunk],
     *,
@@ -405,3 +471,35 @@ def _merge_and_spill_op(
 
     mm.maybe_write(write, spill_sz)
     return mm
+
+
+def _finalizer_dask_op(
+    data_substream: MPUChunk,
+    *,
+    write: PartsWriter | None = None,
+    mk_header: Any = None,
+    mk_footer: Any = None,
+    user_kw: dict[str, Any] | None = None,
+):
+    if user_kw is None:
+        user_kw = {}
+
+    _root = data_substream
+    hdr_bytes, footer_bytes = [
+        None if op is None else op(data_substream.observed, **user_kw)
+        for op in [mk_header, mk_footer]
+    ]
+
+    if footer_bytes:
+        _root.append(footer_bytes)
+
+    if hdr_bytes:
+        hdr = MPUChunk(1, 1)
+        hdr.append(hdr_bytes)
+        _root = MPUChunk.merge(hdr, _root)
+
+    if write is None:
+        return _root
+
+    _, rr = _root.flush(write, leftPartId=1, finalise=True)
+    return rr
