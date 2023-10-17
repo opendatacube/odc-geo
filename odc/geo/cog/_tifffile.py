@@ -588,6 +588,24 @@ def save_cog_with_dask(
     stats: bool | int = True,
     **kw,
 ) -> Any:
+    """
+    Save cloud optimized geotiff to S3 or file.
+
+    :param xx: Pixels as :py:class:`xarray.DataArray` backed by Dask
+    :param dst: S3 url or a file path on shared storage
+    :param compression: Compression to use, default is ``DEFLATE``
+    :param level: compression "level", depends on chosen compression
+    :param predictor: TIFF predictor setting
+    :param compressionargs: Any other compression arguments
+    :param overview_resampling: Resampling to use for computing overviews
+    :param blocksize: Configure blocksizes for main and overview images
+    :param bigtiff: Generate BigTIFF by default, set to ``False`` to disable
+    :param aws: Configure AWS write access
+    :param client: Dask client
+    :param stats: Set to ``False`` to disable stats computation
+
+    :returns: Dask delayed
+    """
     # pylint: disable=import-outside-toplevel
     import dask.bag
 
