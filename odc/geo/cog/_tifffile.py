@@ -18,6 +18,8 @@ import xarray as xr
 from .._interop import have
 from ..geobox import GeoBox
 from ..types import MaybeNodata, Shape2d, Unset, shape_
+from ._mpu import mpu_write
+from ._mpu_fs import MPUFileSink
 from ._s3 import MultiPartUpload, s3_parse_url
 from ._shared import (
     GDAL_COMP,
@@ -594,6 +596,13 @@ def save_cog_with_dask(
     if aws is None:
         aws = {}
 
+    upload_params = {k: kw.pop(k) for k in ["writes_per_chunk", "spill_sz"] if k in kw}
+    upload_params.update(
+        {k: aws.pop(k) for k in ["writes_per_chunk", "spill_sz"] if k in aws}
+    )
+
+    parts_base = kw.pop("parts_base", None)
+
     # normalize compression and remove GDAL compat options from kw
     predictor, compression, compressionargs = _norm_compression_tifffile(
         xx.dtype, predictor, compression, compressionargs, level=level, kw=kw
@@ -652,23 +661,28 @@ def save_cog_with_dask(
             "_stats": _stats,
         }
 
-    bucket, key = s3_parse_url(dst)
-    if not bucket:
-        raise ValueError("Currently only support output to S3")
-
-    upload_params = {
-        k: aws.pop(k) for k in ["writes_per_chunk", "spill_sz"] if k in aws
-    }
-    upload_params[
-        "ContentType"
-    ] = "image/tiff;application=geotiff;profile=cloud-optimized"
-
     tiles_write_order = _tiles[::-1]
     if len(tiles_write_order) > 4:
         tiles_write_order = [
             dask.bag.concat(tiles_write_order[:4]),
             *tiles_write_order[4:],
         ]
+
+    bucket, key = s3_parse_url(dst)
+    if not bucket:
+        # assume disk output
+        write = MPUFileSink(dst, parts_base=parts_base)
+        return mpu_write(
+            tiles_write_order,
+            write,
+            mk_header=_patch_hdr,
+            user_kw={"meta": meta, "hdr0": hdr0, "stats": _stats},
+            **upload_params,
+        )
+
+    upload_params[
+        "ContentType"
+    ] = "image/tiff;application=geotiff;profile=cloud-optimized"
 
     cleanup = aws.pop("cleanup", False)
     s3_sink = MultiPartUpload(bucket, key, **aws)
