@@ -51,6 +51,20 @@ Interfacing with :py:class:`xarray.DataArray` and :py:class:`xarray.Dataset` cla
    write_cog
    compress
 
+odc.geo.cog
+***********
+
+Cloud Optimized GeoTIFF construction 
+
+.. currentmodule:: odc.geo.cog
+.. autosummary::
+   :toctree: _api/
+
+   save_cog_with_dask
+   cog_gbox
+   to_cog
+   write_cog
+   write_cog_layers
 
 odc.geo.geobox
 **************
