@@ -35,7 +35,7 @@ class MPUFileSink:
 
     @property
     def min_write_sz(self) -> int:
-        return self._limits.get("min_write_sz", 0)
+        return self._limits.get("min_write_sz", 4096)
 
     @property
     def max_write_sz(self) -> int:
