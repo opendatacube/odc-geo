@@ -1,2 +1,2 @@
 """version information only."""
-__version__ = "0.4.2rc0"
+__version__ = "0.4.2rc1"
