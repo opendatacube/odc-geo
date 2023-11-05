@@ -4,6 +4,7 @@ Multi-part upload as a graph
 from __future__ import annotations
 
 from functools import partial
+from uuid import uuid4
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -73,6 +74,7 @@ class MPUChunk:
         "observed",
         "is_final",
         "lhs_keep",
+        "tk",
     )
 
     def __init__(
@@ -85,7 +87,11 @@ class MPUChunk:
         observed: Optional[List[Tuple[int, Any]]] = None,
         is_final: bool = False,
         lhs_keep: int = 0,
+        tk: str | None = None
     ) -> None:
+        if tk is None:
+            tk = uuid4().hex
+
         self.nextPartId = partId
         self.write_credits = write_credits
         self.data = bytearray() if data is None else data
@@ -94,6 +100,7 @@ class MPUChunk:
         self.observed: List[Tuple[int, Any]] = [] if observed is None else observed
         self.is_final = is_final
         self.lhs_keep = lhs_keep
+        self.tk = tk
         # if supplying data must also supply observed
         assert data is None or (observed is not None and len(observed) > 0)
 
@@ -107,6 +114,7 @@ class MPUChunk:
             self.parts,
             self.observed,
             self.is_final,
+            self.tk,
         )
 
     def __repr__(self) -> str:
@@ -152,6 +160,7 @@ class MPUChunk:
                 lhs.observed + rhs.observed,
                 rhs.is_final,
                 lhs.lhs_keep,
+                lhs.tk,
             )
 
         # Flush `lhs.data + rhs.left_data` if we can
@@ -167,6 +176,7 @@ class MPUChunk:
             lhs.observed + rhs.observed,
             rhs.is_final,
             lhs.lhs_keep,
+            lhs.tk,
         )
 
     def flush_rhs(
@@ -296,6 +306,7 @@ class MPUChunk:
         writes_per_chunk: int = 1,
         mark_final: bool = False,
         lhs_keep: int = 0,
+        tk: str | None = None,
     ) -> Iterator["MPUChunk"]:
         for idx in range(n):
             is_final = mark_final and idx == (n - 1)
@@ -304,6 +315,7 @@ class MPUChunk:
                 writes_per_chunk,
                 is_final=is_final,
                 lhs_keep=lhs_keep,
+                tk=tk,
             )
 
     @staticmethod
@@ -320,6 +332,9 @@ class MPUChunk:
     ) -> "dask.bag.Item":
         # pylint: disable=import-outside-toplevel
         import dask.bag
+        from dask.base import tokenize
+
+        tk = tokenize(partId, chunks, writes_per_chunk, lhs_keep, write, spill_sz, split_every)
 
         mpus = dask.bag.from_sequence(
             MPUChunk.gen_bunch(
@@ -328,6 +343,7 @@ class MPUChunk:
                 writes_per_chunk=writes_per_chunk,
                 mark_final=mark_final,
                 lhs_keep=lhs_keep,
+                tk=tk,
             ),
             npartitions=chunks.npartitions,
         )
