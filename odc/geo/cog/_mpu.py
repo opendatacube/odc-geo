@@ -3,6 +3,7 @@ Multi-part upload as a graph
 """
 from __future__ import annotations
 
+from copy import copy
 from functools import partial
 from uuid import uuid4
 from typing import (
@@ -87,7 +88,7 @@ class MPUChunk:
         observed: Optional[List[Tuple[int, Any]]] = None,
         is_final: bool = False,
         lhs_keep: int = 0,
-        tk: str | None = None
+        tk: str | None = None,
     ) -> None:
         if tk is None:
             tk = uuid4().hex
@@ -103,6 +104,19 @@ class MPUChunk:
         self.tk = tk
         # if supplying data must also supply observed
         assert data is None or (observed is not None and len(observed) > 0)
+
+    def clone(self) -> "MPUChunk":
+        return MPUChunk(
+            self.nextPartId,
+            self.write_credits,
+            copy(self.data),
+            copy(self.left_data),
+            copy(self.parts),
+            copy(self.observed),
+            self.is_final,
+            self.lhs_keep,
+            self.tk,
+        )
 
     def __dask_tokenize__(self):
         return (
@@ -155,8 +169,8 @@ class MPUChunk:
                 lhs.nextPartId,
                 lhs.write_credits + rhs.write_credits,
                 lhs.data + rhs.data,
-                lhs.left_data,
-                lhs.parts,
+                copy(lhs.left_data),
+                copy(lhs.parts),
                 lhs.observed + rhs.observed,
                 rhs.is_final,
                 lhs.lhs_keep,
@@ -165,12 +179,13 @@ class MPUChunk:
 
         # Flush `lhs.data + rhs.left_data` if we can
         #  or else move it into .left_data
+        lhs = lhs.clone()
         lhs.flush_rhs(write, rhs.left_data)
 
         return MPUChunk(
             rhs.nextPartId,
             rhs.write_credits,
-            rhs.data,
+            copy(rhs.data),
             lhs.left_data,
             lhs.parts + rhs.parts,
             lhs.observed + rhs.observed,
@@ -334,7 +349,9 @@ class MPUChunk:
         import dask.bag
         from dask.base import tokenize
 
-        tk = tokenize(partId, chunks, writes_per_chunk, lhs_keep, write, spill_sz, split_every)
+        tk = tokenize(
+            partId, chunks, writes_per_chunk, lhs_keep, write, spill_sz, split_every
+        )
 
         mpus = dask.bag.from_sequence(
             MPUChunk.gen_bunch(
