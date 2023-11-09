@@ -309,6 +309,12 @@ def _mk_pixel_coord(
     return xx
 
 
+def _is_spatial_ref(coord) -> bool:
+    return coord.ndim == 0 and (
+        "spatial_ref" in coord.attrs or "crs_wkt" in coord.attrs
+    )
+
+
 def _locate_crs_coords(xx: XarrayObject) -> List[xarray.DataArray]:
     grid_mapping = xx.encoding.get("grid_mapping", None)
     if grid_mapping is None:
@@ -325,12 +331,7 @@ def _locate_crs_coords(xx: XarrayObject) -> List[xarray.DataArray]:
         return [coord]
 
     # Find all dimensionless coordinates with `spatial_ref|crs_wkt` attribute present
-    return [
-        coord
-        for coord in xx.coords.values()
-        if coord.ndim == 0
-        and ("spatial_ref" in coord.attrs or "crs_wkt" in coord.attrs)
-    ]
+    return [coord for coord in xx.coords.values() if _is_spatial_ref(coord)]
 
 
 def _extract_crs(crs_coord: xarray.DataArray) -> Optional[CRS]:
@@ -605,9 +606,17 @@ def _xr_reproject_da(
         attrs.update(nodata=maybe_int(dst_nodata, 1e-6))
 
     # new set of coords (replace x,y dims)
+    # discard all coords that reference spatial dimensions
     sdims = src.odc.spatial_dims
     assert sdims is not None
-    coords = dict((k, v) for k, v in src.coords.items() if k not in sdims)
+    sdims = set(sdims)
+
+    def should_keep(coord):
+        if _is_spatial_ref(coord):
+            return False
+        return sdims.isdisjoint(coord.dims)
+
+    coords = {k: coord for k, coord in src.coords.items() if should_keep(coord)}
     coords.update(xr_coords(dst_geobox))
 
     dims = (*src.dims[:ydim], *dst_geobox.dimensions, *src.dims[ydim + 2 :])
