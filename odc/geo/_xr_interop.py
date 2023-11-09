@@ -657,6 +657,13 @@ class ODCExtension:
         """Query :py:class:`~odc.geo.geobox.GeoBox` or :py:class:`~odc.geo.gcp.GCPGeoBox`."""
         return self._state.geobox
 
+    @property
+    def aspect(self) -> float:
+        gbox = self._state.geobox
+        if gbox is None:
+            return 1
+        return gbox.aspect
+
     def output_geobox(self, crs: SomeCRS, **kw) -> GeoBox:
         """
         Compute geobox of this data in other projection.
