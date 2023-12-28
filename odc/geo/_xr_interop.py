@@ -37,6 +37,7 @@ from .overlap import compute_output_geobox
 from .types import Resolution, xy_
 
 # pylint: disable=import-outside-toplevel
+# pylint: disable=too-many-lines
 if have.rasterio:
     from ._cog import to_cog, write_cog
     from ._compress import compress
@@ -243,6 +244,96 @@ def assign_crs(
             band.encoding.update(grid_mapping=crs_coord_name)
 
     return xx
+
+
+def mask(xx: XrT, poly: Geometry, all_touched: bool = True) -> XrT:
+    """
+    Apply a polygon geometry as a mask, setting all xr.Dataset
+    or xr.DataArray pixels outside the rasterized polygon to ``NaN``.
+
+    :param xx:
+       :py:class:`~xarray.Dataset` or :py:class:`~xarray.DataArray`.
+
+    :param poly:
+       Geometry shape used to mask ``xx``.
+
+    :param all_touched:
+        If ``True``, all pixels touched by ``poly`` will remain unmasked.
+        If ``False``, only pixels whose center is within the polygon or
+        that are selected by Bresenham's line algorithm will remain unmasked.
+
+    :return:
+        A :py:class:`~xarray.Dataset` or :py:class:`~xarray.DataArray`
+        masked by ``poly``.
+    """
+
+    # Reproject `poly` to match `xx`
+    poly = poly.to_crs(crs=xx.odc.crs)
+
+    # Rasterise `poly` into geobox of `xx`
+    rasterized = rasterize(
+        poly=poly,
+        how=xx.odc.geobox,
+        all_touched=all_touched,
+    )
+
+    # Mask data outside rasterized `poly`
+    xx_masked = xx.where(rasterized.data)
+
+    return xx_masked
+
+
+def crop(
+    xx: XrT, poly: Geometry, apply_mask: bool = True, all_touched: bool = True
+) -> XrT:
+    """
+    Crops and optionally mask an xr.Dataset or xr.DataArray (``xx``) to
+    the spatial extent of a geometry (``poly``).
+
+    :param xx:
+       :py:class:`~xarray.Dataset` or :py:class:`~xarray.DataArray`.
+
+    :param poly:
+       Geometry shape used to crop ``xx``.
+
+    :param apply_mask:
+       Whether to mask out pixels outside of the rasterized extent of
+       ``poly`` by setting them to ``NaN``.
+
+    :param all_touched:
+        If ``True``, all pixels touched by ``poly`` will remain unmasked.
+        If ``False``, only pixels whose center is within the polygon or
+        that are selected by Bresenham's line algorithm will remain unmasked.
+
+    :return:
+        A :py:class:`~xarray.Dataset` or :py:class:`~xarray.DataArray`
+        cropped and optionally masked to the spatial extent of ``poly``.
+    """
+    # Reproject `poly` to match `xx`
+    poly = poly.to_crs(crs=xx.odc.crs)
+
+    # Verify that `poly` overlaps with `xx` extent
+    if not poly.intersects(xx.odc.geobox.extent):
+        raise ValueError(
+            "The supplied `poly` must overlap spatially with the extent of `xx`."
+        )
+
+    # Optionally mask data outside rasterized `poly`
+    if apply_mask:
+        xx = mask(xx, poly, all_touched=all_touched)
+
+    # Identify spatial dims and raise error if None
+    sdims = spatial_dims(xx)
+    if sdims is None:
+        raise ValueError("Can't locate spatial dimensions")
+
+    # Crop `xx` to the bounding box of `poly`. First create new geobox
+    # with the same pixel grid as `xx` but enclosing `poly`. Then
+    # calculate slices into `xx` for the intersection between both geoboxes.
+    roi = xx.odc.geobox.overlap_roi(xx.odc.geobox.enclosing(poly))
+    xx_cropped = xx.isel({sdims[0]: roi[0], sdims[1]: roi[1]})
+
+    return xx_cropped
 
 
 def xr_coords(
@@ -683,6 +774,9 @@ class ODCExtension:
             raise ValueError("Not geo registered")
 
         return gbox.map_bounds()
+
+    mask = _wrap_op(mask)
+    crop = _wrap_op(crop)
 
 
 @xarray.register_dataarray_accessor("odc")

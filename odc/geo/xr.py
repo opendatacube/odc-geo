@@ -18,6 +18,8 @@ from ._xr_interop import (
     ODCExtensionDs,
     assign_crs,
     colorize,
+    crop,
+    mask,
     rasterize,
     register_geobox,
     spatial_dims,
@@ -45,6 +47,8 @@ __all__ = [
     "xr_zeros",
     "colorize",
     "to_rgba",
+    "crop",
+    "mask",
 ]
 
 # pylint: disable=import-outside-toplevel,unused-import

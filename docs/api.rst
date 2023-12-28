@@ -20,6 +20,8 @@ Interfacing with :py:class:`xarray.DataArray` and :py:class:`xarray.Dataset` cla
    ODCExtension.spatial_dims
    ODCExtension.crs
    ODCExtension.map_bounds
+   ODCExtension.crop
+   ODCExtension.mask
 
    ODCExtensionDa
    ODCExtensionDa.assign_crs
@@ -50,6 +52,8 @@ Interfacing with :py:class:`xarray.DataArray` and :py:class:`xarray.Dataset` cla
    to_cog
    write_cog
    compress
+   mask
+   crop
 
 
 odc.geo.geobox

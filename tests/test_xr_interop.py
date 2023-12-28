@@ -554,3 +554,133 @@ def test_geobox_0px(geobox: GeoBox, roi: ROI):
     assert xx.odc.geobox == geobox
 
     assert xx[roi].odc.geobox is None
+
+
+@pytest.mark.parametrize(
+    "poly, expected_fail",
+    [
+        (
+            geom.polygon(
+                ((-8, 8), (6, 1), (-4, -6)),
+                crs="EPSG:4326",
+            ),
+            False,  # Fully inside, matching CRS
+        ),
+        (
+            geom.polygon(
+                ((-24, 8), (-10, 1), (-20, -6)),
+                crs="EPSG:4326",
+            ),
+            False,  # Overlapping, matching CRS
+        ),
+        (
+            geom.polygon(
+                ((-40, 8), (-26, 1), (-36, -6)),
+                crs="EPSG:4326",
+            ),
+            True,  # Fully outside, matching CRS
+        ),
+        (
+            geom.polygon(
+                ((-890555, 893463), (667916, 111325), (-445277, -669141)),
+                crs="EPSG:3857",
+            ),
+            False,  # Fully inside, different CRS
+        ),
+        (
+            geom.polygon(
+                ((-2671667, 893463), (-1113194, 111325), (-2226389, -669141)),
+                crs="EPSG:3857",
+            ),
+            False,  # Overlapping, different CRS
+        ),
+        (
+            geom.polygon(
+                ((-4452779, 893463), (-2894306, 111325), (-4007501, -669141)),
+                crs="EPSG:3857",
+            ),
+            True,  # Fully outside, different CRS
+        ),
+    ],
+)
+def test_crop(xx_epsg4326, poly, expected_fail):
+    xx = xx_epsg4326
+
+    # If fail is expected, pass test
+    if expected_fail:
+        with pytest.raises(ValueError):
+            xx_cropped = xx.odc.crop(poly=poly)
+        return
+
+    # Crop with default settings
+    xx_cropped = xx.odc.crop(poly=poly)
+
+    # Verify that cropped data is smaller
+    assert xx_cropped.size <= xx.size
+
+    # Verify that resolution and alignment have not changed
+    np.testing.assert_array_almost_equal(
+        xx.odc.geobox.resolution.xy, xx_cropped.odc.geobox.resolution.xy
+    )
+    np.testing.assert_array_almost_equal(
+        xx.odc.geobox.alignment.xy, xx_cropped.odc.geobox.alignment.xy
+    )
+
+    # Verify that data contains NaN from default masking step
+    assert xx_cropped.isnull().any()
+
+    # Verify that no NaNs exist if masking not applied
+    xx_nomask = xx.odc.crop(poly=poly, apply_mask=False)
+    assert xx_nomask.notnull().all()
+
+    # Verify that cropping also works on datasets
+    xx_ds = xx.to_dataset(name="test")
+    xx_ds_cropped = xx_ds.odc.crop(poly=poly)
+    assert xx_ds_cropped.test.size <= xx_ds.test.size
+    np.testing.assert_array_almost_equal(
+        xx_ds.odc.geobox.resolution.xy, xx_ds_cropped.odc.geobox.resolution.xy
+    )
+    np.testing.assert_array_almost_equal(
+        xx_ds.odc.geobox.alignment.xy, xx_ds_cropped.odc.geobox.alignment.xy
+    )
+
+
+@pytest.mark.parametrize(
+    "poly",
+    [
+        geom.polygon(((-8, 8), (6, 1), (-4, -6)), crs="EPSG:4326"),
+        geom.polygon(
+            ((-890555, 893463), (667916, 111325), (-445277, -669141)), crs="EPSG:3857"
+        ),
+    ],
+)
+def test_mask(xx_epsg4326, poly):
+    # Create test data and replace values with random integers so we can
+    # reliably test that pixel values are the same before and after masking
+    xx = xx_epsg4326
+    xx.values[:] = np.random.randint(0, 10, size=xx.shape)
+
+    # Apply mask
+    xx_masked = xx.odc.mask(poly)
+
+    # Verify that geobox is the same
+    assert xx_masked.odc.geobox == xx.odc.geobox
+
+    # Verify that data contains NaN from default masking step
+    assert xx_masked.isnull().any()
+
+    # Verify that non-masked values are the same as in non-masked dataset
+    masked_pixels = np.isfinite(xx_masked.data)
+    np.testing.assert_array_almost_equal(
+        xx_masked.data[masked_pixels], xx.data[masked_pixels]
+    )
+
+    # Verify that `all_touched=False` produces fewer unmasked pixels
+    xx_notouched = xx.odc.mask(poly, all_touched=False)
+    assert xx_notouched.notnull().sum() < xx_masked.notnull().sum()
+
+    # Verify that masking also works on datasets
+    xx_ds = xx.to_dataset(name="test")
+    xx_ds_masked = xx_ds.odc.mask(poly=poly)
+    assert xx_ds_masked.odc.geobox == xx_ds.odc.geobox
+    assert xx_ds_masked.test.isnull().any()
