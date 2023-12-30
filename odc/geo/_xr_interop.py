@@ -34,7 +34,9 @@ from .geobox import Coordinate, GeoBox
 from .geom import Geometry
 from .math import affine_from_axis, maybe_int, resolution_from_affine
 from .overlap import compute_output_geobox
+from .roi import roi_is_empty
 from .types import Resolution, xy_
+
 
 # pylint: disable=import-outside-toplevel
 # pylint: disable=too-many-lines
@@ -266,10 +268,6 @@ def mask(xx: XrT, poly: Geometry, all_touched: bool = True) -> XrT:
         A :py:class:`~xarray.Dataset` or :py:class:`~xarray.DataArray`
         masked by ``poly``.
     """
-
-    # Reproject `poly` to match `xx`
-    poly = poly.to_crs(crs=xx.odc.crs)
-
     # Rasterise `poly` into geobox of `xx`
     rasterized = rasterize(
         poly=poly,
@@ -279,6 +277,13 @@ def mask(xx: XrT, poly: Geometry, all_touched: bool = True) -> XrT:
 
     # Mask data outside rasterized `poly`
     xx_masked = xx.where(rasterized.data)
+
+    # Remove nodata attribute from arrays
+    if isinstance(xx_masked, xarray.Dataset):
+        for var in xx_masked.data_vars:
+            xx_masked[var].attrs.pop("nodata", None)
+    else:
+        xx_masked.attrs.pop("nodata", None)
 
     return xx_masked
 
@@ -309,29 +314,28 @@ def crop(
         A :py:class:`~xarray.Dataset` or :py:class:`~xarray.DataArray`
         cropped and optionally masked to the spatial extent of ``poly``.
     """
-    # Reproject `poly` to match `xx`
-    poly = poly.to_crs(crs=xx.odc.crs)
+    # Create new geobox with pixel grid of `xx` but enclosing `poly`.
+    poly_geobox = xx.odc.geobox.enclosing(poly)
 
-    # Verify that `poly` overlaps with `xx` extent
-    if not poly.intersects(xx.odc.geobox.extent):
+    # Calculate ROI slices into `xx` for intersection between both geoboxes.
+    roi = xx.odc.geobox.overlap_roi(poly_geobox)
+
+    # Verify that `poly` overlaps with `xx` by checking if the returned
+    # ROI is empty
+    if roi_is_empty(roi):
         raise ValueError(
             "The supplied `poly` must overlap spatially with the extent of `xx`."
         )
 
-    # Optionally mask data outside rasterized `poly`
-    if apply_mask:
-        xx = mask(xx, poly, all_touched=all_touched)
-
-    # Identify spatial dims and raise error if None
+    # Crop spatial dims of `xx` using ROI
     sdims = spatial_dims(xx)
     if sdims is None:
         raise ValueError("Can't locate spatial dimensions")
-
-    # Crop `xx` to the bounding box of `poly`. First create new geobox
-    # with the same pixel grid as `xx` but enclosing `poly`. Then
-    # calculate slices into `xx` for the intersection between both geoboxes.
-    roi = xx.odc.geobox.overlap_roi(xx.odc.geobox.enclosing(poly))
     xx_cropped = xx.isel({sdims[0]: roi[0], sdims[1]: roi[1]})
+
+    # Optionally mask data outside rasterized `poly`
+    if apply_mask:
+        xx_cropped = mask(xx_cropped, poly, all_touched=all_touched)
 
     return xx_cropped
 
