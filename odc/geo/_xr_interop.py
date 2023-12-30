@@ -248,7 +248,9 @@ def assign_crs(
     return xx
 
 
-def mask(xx: XrT, poly: Geometry, all_touched: bool = True) -> XrT:
+def mask(
+    xx: XrT, poly: Geometry, invert: bool = False, all_touched: bool = True
+) -> XrT:
     """
     Apply a polygon geometry as a mask, setting all xr.Dataset
     or xr.DataArray pixels outside the rasterized polygon to ``NaN``.
@@ -257,22 +259,30 @@ def mask(xx: XrT, poly: Geometry, all_touched: bool = True) -> XrT:
        :py:class:`~xarray.Dataset` or :py:class:`~xarray.DataArray`.
 
     :param poly:
-       Geometry shape used to mask ``xx``.
+       A :py:class:`odc.geo.geom.Geometry` polygon used to mask ``xx``.
+
+    :param invert:
+        Whether to invert the mask before applying it to ``xx``. If
+        ``True``, only pixels inside of ``poly`` will be masked.
 
     :param all_touched:
-        If ``True``, all pixels touched by ``poly`` will remain unmasked.
-        If ``False``, only pixels whose center is within the polygon or
-        that are selected by Bresenham's line algorithm will remain unmasked.
+        If ``True``, the rasterize step will burn in all pixels touched
+        by ``poly``. If ``False``, only pixels whose centers are within
+        the polygon or that are selected by Bresenham's line algorithm
+        will be burned in.
 
     :return:
         A :py:class:`~xarray.Dataset` or :py:class:`~xarray.DataArray`
         masked by ``poly``.
+
+    ..seealso:: :py:meth:`odc.geo.xr.rasterize`
     """
     # Rasterise `poly` into geobox of `xx`
     rasterized = rasterize(
         poly=poly,
         how=xx.odc.geobox,
         all_touched=all_touched,
+        value_inside=not invert,
     )
 
     # Mask data outside rasterized `poly`
@@ -292,27 +302,30 @@ def crop(
     xx: XrT, poly: Geometry, apply_mask: bool = True, all_touched: bool = True
 ) -> XrT:
     """
-    Crops and optionally mask an xr.Dataset or xr.DataArray (``xx``) to
-    the spatial extent of a geometry (``poly``).
+    Crops and optionally mask an xr.Dataset or xr.DataArray to the
+    spatial extent of a geometry.
 
     :param xx:
        :py:class:`~xarray.Dataset` or :py:class:`~xarray.DataArray`.
 
     :param poly:
-       Geometry shape used to crop ``xx``.
+       A :py:class:`odc.geo.geom.Geometry` polygon used to crop ``xx``.
 
     :param apply_mask:
        Whether to mask out pixels outside of the rasterized extent of
        ``poly`` by setting them to ``NaN``.
 
     :param all_touched:
-        If ``True``, all pixels touched by ``poly`` will remain unmasked.
-        If ``False``, only pixels whose center is within the polygon or
-        that are selected by Bresenham's line algorithm will remain unmasked.
+        If ``True`` and ``apply_mask=True``, the rasterize step will
+        burn in all pixels touched by ``poly``. If ``False``, only
+        pixels whose centers are within the polygon or that are selected
+        by Bresenham's line algorithm will be burned in.
 
     :return:
         A :py:class:`~xarray.Dataset` or :py:class:`~xarray.DataArray`
         cropped and optionally masked to the spatial extent of ``poly``.
+
+    ..seealso:: :py:meth:`odc.geo.xr.mask`
     """
     # Create new geobox with pixel grid of `xx` but enclosing `poly`.
     poly_geobox = xx.odc.geobox.enclosing(poly)
