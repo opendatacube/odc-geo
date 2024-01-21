@@ -53,7 +53,7 @@ __all__ = [
 
 # pylint: disable=import-outside-toplevel,unused-import
 if have.rasterio:
-    from ._xr_interop import add_to, compress, rio_reproject, to_cog, write_cog
+    from ._xr_interop import add_to, compress, rio_reproject, to_cog, write_cog, explore
 
     __all__.extend(
         [
@@ -62,5 +62,6 @@ if have.rasterio:
             "add_to",
             "rio_reproject",
             "compress",
+            "explore",
         ]
     )

@@ -1,4 +1,4 @@
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Tuple, Dict
 
 import xarray as xr
 
@@ -153,3 +153,141 @@ def add_to(
         return url, bounds
 
     return _add_to(url, bounds, map, name=name, **kw)
+
+
+# pylint: disable=too-many-arguments, protected-access, anomalous-backslash-in-string
+def explore(
+    xx: Any,
+    map: Optional[Any] = None,
+    bands: Optional[Tuple[str, str, str]] = None,
+    vmin: Optional[float] = None,
+    vmax: Optional[float] = None,
+    cmap: Optional[Any] = None,
+    robust: bool = False,
+    tiles: Any = "OpenStreetMap",
+    attr: Optional[str] = None,
+    layer_control: bool = True,
+    resampling: str = "nearest",
+    map_kwds: Optional[Dict[str, Any]] = None,
+    reproject_kwds: Optional[Dict[str, Any]] = None,
+    **kwargs: Any,
+) -> Any:
+    """
+    Plot xarray data on an interactive :py:mod:`folium` leaflet map for
+    rapid data exploration.
+
+    :py:class:`xarray.Dataset` inputs are automatically converted to
+    multi-band RGB plots, while single-band :py:class:`xarray.DataArray`
+    inputs can be plotted using matplotlib colormaps (needs matplotlib
+    installed).
+
+    :param xx:
+        The :py:class:`~xarray.Dataset` or :py:class:`~xarray.DataArray`
+        to plot on the map.
+    :param map:
+        An optional existing :py:mod:`folium` map object to plot into.
+        By default, a new map object will be created.
+    :param bands:
+        Bands used for RGB colours when converting from a
+        :py:class:`~xarray.Dataset` (order should be red, green, blue).
+        By default, the function will attempt to guess bands
+        automatically. Ignored for :py:class:`~xarray.DataArray` inputs.
+    :param vmin:
+        Lower value used for the color stretch.
+    :param vmax:
+        Upper value used for the color stretch.
+    :param cmap:
+        The colormap used to colorise single-band arrays. If not
+        provided, this will default to 'viridis'. Ignored for multi-band
+        inputs.
+    :param robust:
+        If ``True`` (and ``vmin`` and ``vmax`` are absent), the colormap
+        range will be computed based on 2nd and 98th percentiles,
+        minimising the influence of extreme values. Used for single-band
+        arrays only; ignored for multi-band inputs.
+    :param tiles:
+        Map tileset to use for the map basemap. Supports any option
+        supported by :py:mod:`folium`, including "OpenStreetMap",
+        "CartoDB positron", "CartoDB dark_matter" or a custom XYZ URL.
+    :param attr:
+        Map tile attribution; only required if passing custom tile URL.
+    :param layer_control:
+        Whether to add a control to the map to show or hide map layers.
+        If a layer control already exists, this will be skipped.
+    :param resampling:
+        Custom resampling method to use when reprojecting ``xx`` to the
+        map CRS; defaults to "nearest".
+    :param map_kwds:
+        Additional keyword arguments to pass to ``folium.Map()``.
+    :param reproject_kwds:
+        Additional keyword arguments to pass to ``.odc.reproject()``.
+    :param \**kwargs:
+        Additional keyword arguments to pass to ``.odc.add_to()``.
+
+    :return: A :py:mod:`folium` map containing the plotted xarray data.
+    """
+    assert have.folium
+
+    from folium import Map, LayerControl
+
+    # Empty kwargs by default
+    if map_kwds is None:
+        map_kwds = {}
+    if reproject_kwds is None:
+        reproject_kwds = {}
+
+    # Update any supplied kwargs with custom params
+    kwargs.update(cmap=cmap, vmin=vmin, vmax=vmax, robust=robust)
+    map_kwds.update(tiles=tiles, attr=attr)
+    reproject_kwds.update(resampling=resampling)
+
+    # If input is a dataset, convert to an RGBA array
+    if isinstance(xx, xr.Dataset):
+        try:
+            xx = xx.odc.to_rgba(bands=bands, vmin=vmin, vmax=vmax)
+        except ValueError as e:
+            raise ValueError(
+                f"Unable to automatically guess RGB colours ({e}). "
+                f"Manually specify bands to plot using the `bands` "
+                "parameter, e.g. `ds.odc.explore(bands=['a', 'b', 'c'])`"
+            ) from e
+
+    # Squeeze to remove single length dims
+    xx = xx.squeeze()
+
+    # Check if correct number of dimensions and raise error early
+    # to avoid needlessly running expensive reprojection
+    is_2d = not is_rgb(xx) and xx.ndim == 2
+    is_3d_rgba = is_rgb(xx) and xx.ndim == 3
+    if not (is_2d or is_3d_rgba):
+        raise ValueError(
+            "Only 2D single-band (x, y) or 3D multi-band (x, y, band) "
+            "arrays are supported by `.explore()`. Please reduce the "
+            "dimensions in your array, for example by using `.isel()` "
+            "or `.sel()`: `da.isel(time=0).odc.explore()`."
+        )
+
+    # Create folium Map if required
+    if map is None:
+        map = Map(**map_kwds)
+
+    # If necessary, reproject to map CRS
+    _crs = map_crs(map)
+    layer_name = xx.name  # copy out name as it is lost in reprojection
+    if _crs != xx.odc.crs:
+        xx = xx.odc.reproject(_crs, **reproject_kwds)
+
+    # Add data to map
+    xx.odc.add_to(map, name=layer_name, **kwargs)
+
+    # Zoom map to extent of data
+    map.fit_bounds(xx.odc.map_bounds())
+
+    # Add a layer control if requested and not already added
+    layer_control_added = any(
+        isinstance(child, LayerControl) for child in map._children.values()
+    )
+    if layer_control and not layer_control_added:
+        LayerControl().add_to(map)
+
+    return map
