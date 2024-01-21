@@ -62,3 +62,34 @@ def test_add_to_ipyleaflet(ocean_raster: xr.DataArray):
     m = ipyleaflet.Map()
     img_overlay = xx.odc.add_to(m, cmap=cmap, max_size=32, name="xx")
     assert img_overlay is not None
+
+
+@pytest.mark.skipif(have.folium is False, reason="No folium installed")
+def test_explore(ocean_raster: xr.DataArray, ocean_raster_ds: xr.Dataset):
+    import folium
+    from folium.raster_layers import ImageOverlay
+
+    # Test explore on dataset input and verify that output is a folium map
+    # that contains an ImageOverlay layer
+    m = ocean_raster_ds.odc.explore()
+    assert isinstance(m, folium.folium.Map)
+    assert any(isinstance(child, ImageOverlay) for child in m._children.values())
+
+    # Verify that explore fails if bands cannot be guessed
+    with pytest.raises(ValueError):
+        ocean_raster_ds.rename({"red": "band1"}).odc.explore()
+
+    # Verify that error can be avoided using `bands` param
+    ocean_raster_ds.rename({"red": "band1"}).odc.explore(
+        bands=("band1", "green", "blue")
+    )
+
+    # Test explore on data array input and verify that output is a folium
+    # map that contains an ImageOverlay layer
+    m = ocean_raster.odc.explore()
+    assert isinstance(m, folium.folium.Map)
+    assert any(isinstance(child, ImageOverlay) for child in m._children.values())
+
+    # Verify that error is raised if a timeseries is passed
+    with pytest.raises(ValueError):
+        xr.concat([ocean_raster, ocean_raster], dim="time").odc.explore()

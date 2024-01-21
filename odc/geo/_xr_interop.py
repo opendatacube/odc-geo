@@ -43,7 +43,7 @@ from .types import Resolution, xy_
 if have.rasterio:
     from ._cog import to_cog, write_cog
     from ._compress import compress
-    from ._map import add_to
+    from ._map import add_to, explore
     from .warp import rio_reproject
 
 XarrayObject = Union[xarray.DataArray, xarray.Dataset]
@@ -252,8 +252,9 @@ def mask(
     xx: XrT, poly: Geometry, invert: bool = False, all_touched: bool = True
 ) -> XrT:
     """
-    Apply a polygon geometry as a mask, setting all xr.Dataset
-    or xr.DataArray pixels outside the rasterized polygon to ``NaN``.
+    Apply a polygon geometry as a mask, setting all
+    :py:class:`xarray.Dataset` or :py:class:`xarray.DataArray` pixels
+    outside the rasterized polygon to ``NaN``.
 
     :param xx:
        :py:class:`~xarray.Dataset` or :py:class:`~xarray.DataArray`.
@@ -302,8 +303,8 @@ def crop(
     xx: XrT, poly: Geometry, apply_mask: bool = True, all_touched: bool = True
 ) -> XrT:
     """
-    Crops and optionally mask an xr.Dataset or xr.DataArray to the
-    spatial extent of a geometry.
+    Crops and optionally mask an :py:class:`xarray.Dataset` or
+    :py:class:`xarray.DataArray` to the spatial extent of a geometry.
 
     :param xx:
        :py:class:`~xarray.Dataset` or :py:class:`~xarray.DataArray`.
@@ -794,6 +795,9 @@ class ODCExtension:
 
     mask = _wrap_op(mask)
     crop = _wrap_op(crop)
+
+    if have.rasterio:
+        explore = _wrap_op(explore)
 
 
 @xarray.register_dataarray_accessor("odc")

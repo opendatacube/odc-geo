@@ -22,6 +22,7 @@ Interfacing with :py:class:`xarray.DataArray` and :py:class:`xarray.Dataset` cla
    ODCExtension.map_bounds
    ODCExtension.crop
    ODCExtension.mask
+   ODCExtension.explore
 
    ODCExtensionDa
    ODCExtensionDa.assign_crs
