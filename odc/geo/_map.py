@@ -58,6 +58,7 @@ def add_to(
     name: Optional[str] = None,
     fmt: str = "png",
     max_size: int = 4096,
+    resampling: str = "nearest",
     # jpeg options:
     transparent_pixel: Optional[Tuple[int, int, int]] = None,
     # RGB conversion parameters
@@ -70,27 +71,41 @@ def add_to(
     **kw,
 ) -> Any:
     """
-    Add image to a map.
+    Add image to an interactive map.
 
     If map is not supplied, image data url and bounds are returned instead.
 
-    :param xx: array to display
+    :param xx:
+        The :py:class:`~xarray.DataArray` to display
     :param map:
-       Map object, :py:mod:`folium` and :py:mod:`ipyleaflet` are understood, can be ``None``.
+        Map object, :py:mod:`folium` and :py:mod:`ipyleaflet` are
+        understood; can also be ``None`` which will return an image data
+        url and bounds instead.
 
     :param name:
-       The name of the layer as it will appear in :py:mod:`folium` and :py:mod:`ipyleaflet`
-       Layer Controls. The default ``None`` will use the input array name (e.g. ``xx.name``) if it exists.
-    :param fmt: compress image format, defaults to "png", can be "webp", "jpeg" as well.
+        The name of the layer as it will appear in :py:mod:`folium` and
+        :py:mod:`ipyleaflet` Layer Controls. The default ``None`` will
+        use the input array name (e.g. ``xx.name``) if it exists.
+    :param fmt:
+        Compress image format. Defaults to "png"; also supports "webp",
+        "jpeg".
     :param max_size:
-       If longest dimension is bigger than this, shrink it down before compression, defaults to 4096
-    :param transparent_pixel: Replace transparent pixels with this value, needed for "jpeg".
+        If longest dimension is bigger than this, shrink it down before
+        compression; defaults to 4096.
+    :param resampling:
+        Custom resampling method to use when reprojecting ``xx`` to the
+        map CRS; defaults to "nearest".
 
-    :param cmap: If supplied array is not RGB use this colormap to turn it into one
-    :param clip: When converting to RGB clip input values to fit ``cmap``.
+    :param transparent_pixel:
+        Replace transparent pixels with this value, needed for "jpeg".
+
+    :param cmap:
+        If supplied array is not RGB use this colormap to turn it into one.
+    :param clip:
+        When converting to RGB clip input values to fit ``cmap``.
     :param vmin: Used with matplotlib colormaps
     :param vmax: Used with matplotlib colormaps
-    :param robust: Used with matplotlib colormaps, ``vmin=2%,vmax=98%``
+    :param robust: Used with matplotlib colormaps, ``vmin=2%, vmax=98%``
 
     :raises ValueError: when map object is not understood
     :return: ImageLayer that was added to a map
@@ -135,7 +150,7 @@ def add_to(
         gbox = gbox.zoom_to(max_size)
 
     if gbox is not gbox0:
-        xx = xx.odc.reproject(gbox)
+        xx = xx.odc.reproject(gbox, resampling=resampling)
 
     if not is_rgb(xx):
         xx = colorize(xx, cmap=cmap, clip=clip, vmin=vmin, vmax=vmax, robust=robust)
@@ -169,7 +184,6 @@ def explore(
     layer_control: bool = True,
     resampling: str = "nearest",
     map_kwds: Optional[Dict[str, Any]] = None,
-    reproject_kwds: Optional[Dict[str, Any]] = None,
     **kwargs: Any,
 ) -> Any:
     """
@@ -219,66 +233,42 @@ def explore(
         map CRS; defaults to "nearest".
     :param map_kwds:
         Additional keyword arguments to pass to ``folium.Map()``.
-    :param reproject_kwds:
-        Additional keyword arguments to pass to ``.odc.reproject()``.
     :param \**kwargs:
         Additional keyword arguments to pass to ``.odc.add_to()``.
 
     :return: A :py:mod:`folium` map containing the plotted xarray data.
     """
-    assert have.folium
+    if not have.folium:
+        raise ModuleNotFoundError(
+            "'folium' is required but not installed. "
+            "Please install it before using `.explore()`."
+        )
 
     from folium import Map, LayerControl
 
-    # Empty kwargs by default
-    if map_kwds is None:
-        map_kwds = {}
-    if reproject_kwds is None:
-        reproject_kwds = {}
-
     # Update any supplied kwargs with custom params
-    kwargs.update(cmap=cmap, vmin=vmin, vmax=vmax, robust=robust)
+    map_kwds = {} if map_kwds is None else map_kwds
+    kwargs.update(cmap=cmap, vmin=vmin, vmax=vmax, robust=robust, resampling=resampling)
     map_kwds.update(tiles=tiles, attr=attr)
-    reproject_kwds.update(resampling=resampling)
 
     # If input is a dataset, convert to an RGBA array
     if isinstance(xx, xr.Dataset):
-        try:
-            xx = xx.odc.to_rgba(bands=bands, vmin=vmin, vmax=vmax)
-        except ValueError as e:
-            raise ValueError(
-                f"Unable to automatically guess RGB colours ({e}). "
-                f"Manually specify bands to plot using the `bands` "
-                "parameter, e.g. `ds.odc.explore(bands=['a', 'b', 'c'])`"
-            ) from e
-
-    # Squeeze to remove single length dims
-    xx = xx.squeeze()
-
-    # Check if correct number of dimensions and raise error early
-    # to avoid needlessly running expensive reprojection
-    is_2d = not is_rgb(xx) and xx.ndim == 2
-    is_3d_rgba = is_rgb(xx) and xx.ndim == 3
-    if not (is_2d or is_3d_rgba):
-        raise ValueError(
-            "Only 2D single-band (x, y) or 3D multi-band (x, y, band) "
-            "arrays are supported by `.explore()`. Please reduce the "
-            "dimensions in your array, for example by using `.isel()` "
-            "or `.sel()`: `da.isel(time=0).odc.explore()`."
-        )
+        xx = xx.odc.to_rgba(bands=bands, vmin=vmin, vmax=vmax)
 
     # Create folium Map if required
     if map is None:
         map = Map(**map_kwds)
 
-    # If necessary, reproject to map CRS
-    _crs = map_crs(map)
-    layer_name = xx.name  # copy out name as it is lost in reprojection
-    if _crs != xx.odc.crs:
-        xx = xx.odc.reproject(_crs, **reproject_kwds)
-
-    # Add data to map
-    xx.odc.add_to(map, name=layer_name, **kwargs)
+    # Add to map and raise a friendly error if data has unsuitable dims
+    try:
+        xx.odc.add_to(map, **kwargs)
+    except ValueError as e:
+        raise ValueError(
+            "Only 2D single-band (x, y) or 3D multi-band (x, y, band) "
+            "arrays are supported by `.explore()`. Please reduce the "
+            "dimensions in your array, for example by using `.isel()` "
+            "or `.sel()`: `da.isel(time=0).odc.explore()`."
+        ) from e
 
     # Zoom map to extent of data
     map.fit_bounds(xx.odc.map_bounds())

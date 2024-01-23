@@ -105,7 +105,14 @@ def to_rgba(
     assert isinstance(ds, xr.Dataset)
 
     if bands is None:
-        bands = _guess_rgb_names(list(ds.data_vars))
+        try:
+            bands = _guess_rgb_names(list(ds.data_vars))
+        except ValueError as e:
+            raise ValueError(
+                f"Unable to automatically guess RGB colours ({e}). "
+                f"Manually specify red, green and blue bands using the "
+                f"`bands` parameter."
+            ) from e
 
     is_dask = is_dask_collection(ds)
     if vmin is None:
@@ -114,7 +121,7 @@ def to_rgba(
 
     if vmax is None:
         if is_dask:
-            raise ValueError("Must specify clamp for Dask inputs")
+            raise ValueError("Must specify clamp for Dask inputs (e.g. vmax, vmin)")
         _vmin, vmax = _auto_guess_clamp(ds[list(bands)])
         vmin = _vmin if vmin is None else vmin
 
