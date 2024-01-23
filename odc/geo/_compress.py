@@ -19,6 +19,17 @@ _fmt_info = {
 }
 
 
+def _verify_can_compress(xx: xr.DataArray):
+    """Returns error if array dimensions are not suitable for compress"""
+    if xx.ndim > 2:
+        xx = xx.squeeze()
+
+    if xx.ndim not in (2, 3):
+        raise ValueError(
+            f"Expected a 2 or 3 dimensional array; got {xx.ndim} dimensions {xx.dims}."
+        )
+
+
 def _compress_image(im: np.ndarray, driver="PNG", **opts) -> bytes:
     if im.ndim > 2:
         im = np.squeeze(im)
@@ -26,11 +37,9 @@ def _compress_image(im: np.ndarray, driver="PNG", **opts) -> bytes:
     if im.ndim == 3:
         h, w, nc = im.shape
         bands = np.transpose(im, axes=(2, 0, 1))  # Y,X,B -> B,Y,X
-    elif im.ndim == 2:
+    else:
         (h, w), nc = im.shape, 1
         bands = im.reshape(nc, h, w)
-    else:
-        raise ValueError(f"Expect 2 or 3 dimensional array got: {im.ndim}")
 
     rio_opts = {
         "width": w,
@@ -76,6 +85,9 @@ def compress(
       Pixel value to use for transparent pixels, useful for jpeg output.
 
     """
+    # Raise error early if xx has unsuitable dims
+    _verify_can_compress(xx)
+
     fmt = "png"
     opts = {}
     if len(args) >= 1:
