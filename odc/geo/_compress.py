@@ -37,9 +37,13 @@ def _compress_image(im: np.ndarray, driver="PNG", **opts) -> bytes:
     if im.ndim == 3:
         h, w, nc = im.shape
         bands = np.transpose(im, axes=(2, 0, 1))  # Y,X,B -> B,Y,X
-    else:
+    elif im.ndim == 2:
         (h, w), nc = im.shape, 1
         bands = im.reshape(nc, h, w)
+    else:
+        raise ValueError(
+            f"Expected a 2 or 3 dimensional array; got {im.ndim} dimensions."
+        )
 
     rio_opts = {
         "width": w,
