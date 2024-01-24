@@ -1,9 +1,9 @@
-name: odc-geo-tests-py38
+name: odc-geo-tests-py310
 channels:
   - conda-forge
 
 dependencies:
-  - python =3.8
+  - python =3.10
 
   # odc-geo dependencies
   - pyproj
@@ -34,6 +34,7 @@ dependencies:
   - ipyleaflet
   - matplotlib
   - ipykernel
+  - ipython
   - rioxarray
 
   # for docs
