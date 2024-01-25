@@ -1,10 +1,11 @@
 import itertools
 from io import BytesIO
+from pathlib import Path
 from typing import Optional, Tuple
 
 import pytest
 
-from odc.geo.cog import CogMeta, cog_gbox
+from odc.geo.cog import CogMeta, cog_gbox, save_cog_with_dask
 from odc.geo.cog._shared import compute_cog_spec, num_overviews
 from odc.geo.cog._tifffile import (
     GEOTIFF_TAGS,
@@ -20,11 +21,16 @@ from odc.geo.xr import xr_zeros
 gbox_globe = GridSpec.web_tiles(0)[0, 0]
 _gbox = GeoBox.from_bbox((-10, -20, 15, 30), 4326, resolution=1)
 
+# pylint: disable=redefined-outer-name
 
-def test_write_cog():
+
+@pytest.fixture
+def gbox():
     gs = GridSpec.web_tiles(2)
-    gbox = gs[2, 1]
+    return gs[2, 1]
 
+
+def test_write_cog(gbox: GeoBox):
     img = xr_zeros(gbox, dtype="uint16")
     assert img.odc.geobox == gbox
 
@@ -43,10 +49,7 @@ def test_write_cog():
     assert len(img_bytes) == len(img_bytes2)
 
 
-def test_write_cog_ovr():
-    gs = GridSpec.web_tiles(2)
-    gbox = gs[2, 1]
-
+def test_write_cog_ovr(gbox: GeoBox):
     img = xr_zeros(gbox, dtype="uint16")
     assert img.odc.geobox == gbox
     ovrs = [img[::2, ::2], img[::4, ::4]]
@@ -326,3 +329,37 @@ def test_geotiff_metadata(gbox: GeoBox, nodata, gdal_metadata: Optional[str]):
             assert md["GeographicTypeGeoKey"] == gbox.crs.epsg
     else:
         assert md["GTModelTypeGeoKey"] == 32767
+
+
+@pytest.mark.parametrize("dtype", ["int16", "float32"])
+def test_cog_with_dask_smoke_test(gbox: GeoBox, tmp_path: Path, dtype):
+    gbox = gbox.zoom_to(1024)
+    assert gbox.shape == (1024, 1024)
+    n = 512
+    nodata = -9999
+
+    fname = str(tmp_path / "cog.tif")
+    img = xr_zeros(gbox, dtype, chunks=(n, n), nodata=nodata)
+    fut = save_cog_with_dask(img, fname, compression="deflate", level=2)
+    assert fut is not None
+    rr = fut.compute()
+    assert str(rr) == fname
+
+    # YXS
+    img = img.odc.colorize()
+    assert img.ndim == 3
+    assert img.odc.ydim == 0
+
+    fname = str(tmp_path / "cog-rgba.tif")
+    fut = save_cog_with_dask(img, fname, compression="deflate", level=2)
+    rr = fut.compute()
+    assert str(rr) == fname
+
+    # SYX
+    img = xr_zeros(gbox, dtype, chunks=(1, n, n), time=["2000", "2001"])
+    assert img.ndim == 3
+    assert img.odc.ydim == 1
+    fname = str(tmp_path / "cog-syx.tif")
+    fut = save_cog_with_dask(img, fname, compression="deflate", level=2)
+    rr = fut.compute()
+    assert str(rr) == fname
