@@ -131,7 +131,7 @@ def _make_empty_cog(
     bigtiff: bool = True,
     **kw,
 ) -> Tuple[CogMeta, memoryview]:
-    # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel,import-error
     have.check_or_error("tifffile", "rasterio", "xarray")
     from tifffile import (
         COMPRESSION,
@@ -308,7 +308,7 @@ def _cog_block_compressor_syx(
 def _mk_tile_compressor(
     meta: CogMeta, sample_idx: int = 0
 ) -> Callable[[np.ndarray], bytes]:
-    # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel,import-error
     have.check_or_error("tifffile")
     from tifffile import TIFF
 
@@ -416,7 +416,7 @@ def _compress_tiles(
             return (src_data_name, 0, y, x)
         return (src_data_name, s, y, x)
 
-    dsk = {}
+    dsk: Any = {}
     for i, (s, y, x) in enumerate(meta.tidx(sample_idx)):
         block = block_name(s, y, x)
         dsk[name, i] = (_compress_cog_tile, encoder, block, quote((scale_idx, s, y, x)))
@@ -470,8 +470,8 @@ def _patch_hdr(
     hdr0: bytes,
     stats: Optional[list[dict[str, float]]] = None,
 ) -> bytes:
-    # pylint: disable=import-outside-toplevel
-    from tifffile import TiffFile
+    # pylint: disable=import-outside-toplevel,import-error
+    from tifffile import TiffFile, TiffPage
 
     _tiles = [(*idx, sz) for sz, idx in tiles]
     tile_info = _extract_tile_info(meta, _tiles, 0)
@@ -480,7 +480,7 @@ def _patch_hdr(
     with TiffFile(_bio, mode="r+", name=":mem:") as tr:
         assert len(tile_info) == len(tr.pages)
         if stats is not None:
-            md_tag = tr.pages[0].tags.get(42112, None)
+            md_tag = tr.pages.first.tags.get(42112, None)
             assert md_tag is not None
             gdal_metadata = _render_gdal_metadata(stats, precision=6)
             md_tag.overwrite(gdal_metadata)
@@ -490,6 +490,7 @@ def _patch_hdr(
         # 324 -- offsets
         # 325 -- byte counts
         for info, page in zip(tile_info, tr.pages):
+            assert isinstance(page, TiffPage)
             tags = page.tags
             offsets, lengths = info
             tags[324].overwrite([off + hdr_sz for off in offsets])
@@ -733,7 +734,7 @@ def geotiff_metadata(
        ``extratags=``, and dictionary representation of GEOTIFF tags.
 
     """
-    # pylint: disable=import-outside-toplevel
+    # pylint: disable=import-outside-toplevel,import-error
 
     if not (have.tifffile and have.rasterio):
         raise RuntimeError(
@@ -750,8 +751,14 @@ def geotiff_metadata(
     )
     tf = TiffFile(BytesIO(buf), mode="r")
     assert tf.geotiff_metadata is not None
+
+    def _dtype_as_int(dtype) -> int:
+        if isinstance(dtype, int):
+            return dtype
+        return dtype.value
+
     geo_tags: List[Tuple[int, int, int, Any]] = [
-        (t.code, t.dtype.value, t.count, t.value)
+        (t.code, _dtype_as_int(t.dtype), t.count, t.value)
         for t in tf.pages.first.tags.values()
         if t.code in GEOTIFF_TAGS
     ]
