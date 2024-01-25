@@ -13,6 +13,11 @@ from .roi import VariableSizedTiles, roi_intersect3, roi_normalise, roi_shape
 from .types import Chunks2d
 
 
+def _find_common_type(array_types, scalar_types):
+    # TODO: don't use find_common_type as it's being removed from numpy
+    return np.find_common_type(array_types, scalar_types)
+
+
 class BlockAssembler:
     """
     Construct contigous 2+ dim array from incomplete set of YX blocks.
@@ -28,7 +33,7 @@ class BlockAssembler:
         self._dtype = (
             np.dtype("float32")
             if len(blocks) == 0
-            else np.find_common_type((b.dtype for b in blocks.values()), [])
+            else _find_common_type([b.dtype for b in blocks.values()], [])
         )
         self._axis = axis
         self._blocks = blocks
@@ -121,7 +126,7 @@ class BlockAssembler:
             dtype = self._dtype
             if fill_value is not None:
                 # possibly upgrade to float based on fill_value
-                dtype = np.find_common_type([dtype], [np.min_scalar_type(fill_value)])
+                dtype = _find_common_type([dtype], [np.min_scalar_type(fill_value)])
         else:
             dtype = np.dtype(dtype)
 
