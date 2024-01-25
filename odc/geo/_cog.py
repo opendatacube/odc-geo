@@ -122,7 +122,7 @@ def _write_cog(
         elif pix.shape[-2:] != geobox.shape:
             raise ValueError("GeoBox shape does not match image shape")
 
-        nbands, h, w = pix.shape
+        nbands, h, w = pix.shape  # type: ignore
         band = tuple(i for i in range(1, nbands + 1))
     else:
         raise ValueError("Need 2d or 3d ndarray on input")

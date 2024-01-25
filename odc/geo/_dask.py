@@ -104,7 +104,7 @@ def _dask_rio_reproject(
 
     tk = uuid4().hex
     name = f"{name}-{tk}"
-    dsk: Dict[Any, Any] = {}
+    dsk: Any = {}
 
     proc = partial(
         _do_chunked_reproject,
