@@ -35,7 +35,7 @@ def _compress_image(im: np.ndarray, driver="PNG", **opts) -> bytes:
         im = np.squeeze(im)
 
     if im.ndim == 3:
-        h, w, nc = im.shape
+        h, w, nc = im.shape  # type: ignore
         bands = np.transpose(im, axes=(2, 0, 1))  # Y,X,B -> B,Y,X
     elif im.ndim == 2:
         (h, w), nc = im.shape, 1
