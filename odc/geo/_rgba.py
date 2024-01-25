@@ -288,7 +288,7 @@ def colorize(
             x.data,
             _cmap,
             name=f"colorize-{tokenize(x, _cmap, clip, vmin, vmax, robust)}",
-            dtype=cmap_dtype,
+            meta=np.ndarray((), cmap_dtype),
             chunks=(*x.chunks, (nc,)),
             new_axis=[x.data.ndim],
         )
