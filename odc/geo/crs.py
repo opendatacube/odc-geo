@@ -213,8 +213,12 @@ class CRS:
             return "degrees_north", "degrees_east"
 
         if self.projected:
-            x, y = self._crs.axis_info
-            return x.unit_name, y.unit_name
+            _dir_renames = {"north": "y", "south": "y", "east": "x", "west": "x"}
+            units = {
+                _dir_renames.get(ax.direction, ax.direction): ax.unit_name
+                for ax in self._crs.axis_info
+            }
+            return units.get("y", ""), units.get("x", "")
 
         raise ValueError("Neither projected nor geographic")  # pragma: no cover
 
