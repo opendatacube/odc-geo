@@ -590,12 +590,12 @@ def save_cog_with_dask(
     **kw,
 ) -> Any:
     """
-    Save cloud optimized geotiff to S3 or file.
+    Save a Cloud Optimized GeoTIFF to S3 or file with Dask.
 
     :param xx: Pixels as :py:class:`xarray.DataArray` backed by Dask
     :param dst: S3 url or a file path on shared storage
     :param compression: Compression to use, default is ``DEFLATE``
-    :param level: compression "level", depends on chosen compression
+    :param level: Compression "level", depends on chosen compression
     :param predictor: TIFF predictor setting
     :param compressionargs: Any other compression arguments
     :param overview_resampling: Resampling to use for computing overviews
