@@ -283,3 +283,48 @@ def test_crs_utm(x, expected_epsg):
 
     with pytest.raises(ValueError):
         _ = CRS.utm(x, datum_name="no such datum")
+
+
+def test_crs_units_issue_120():
+    compound_crs_wkt = """COMPOUNDCRS["GDA94 / MGA zone 50 + Instantaneous Water Level Height",
+    PROJCRS["GDA94 / MGA zone 50",
+        BASEGEOGCRS["GDA94",
+            DATUM["Geocentric Datum of Australia 1994",
+                ELLIPSOID["GRS 1980",6378137,298.257222101,
+                    LENGTHUNIT["metre",1]]],
+            PRIMEM["Greenwich",0,
+                ANGLEUNIT["degree",0.0174532925199433]],
+            ID["EPSG",4283]],
+        CONVERSION["UTM zone 50S",
+            METHOD["Transverse Mercator",
+                ID["EPSG",9807]],
+            PARAMETER["Latitude of natural origin",0,
+                ANGLEUNIT["degree",0.0174532925199433],
+                ID["EPSG",8801]],
+            PARAMETER["Longitude of natural origin",117,
+                ANGLEUNIT["degree",0.0174532925199433],
+                ID["EPSG",8802]],
+            PARAMETER["Scale factor at natural origin",0.9996,
+                SCALEUNIT["unity",1],
+                ID["EPSG",8805]],
+            PARAMETER["False easting",500000,
+                LENGTHUNIT["metre",1],
+                ID["EPSG",8806]],
+            PARAMETER["False northing",10000000,
+                LENGTHUNIT["metre",1],
+                ID["EPSG",8807]]],
+        CS[Cartesian,2],
+            AXIS["easting",east,
+                ORDER[1],
+                LENGTHUNIT["metre",1]],
+            AXIS["northing",north,
+                ORDER[2],
+                LENGTHUNIT["metre",1]],
+        ID["EPSG",28350]],
+    VERTCRS["Instantaneous Water Level Height",
+        VDATUM["Instantaneous Water Level"],
+        CS[vertical,1],
+            AXIS["up",up,
+                LENGTHUNIT["metre",1]],
+        ID["EPSG",5829]]]"""
+    assert CRS(compound_crs_wkt).units == ("metre", "metre")
