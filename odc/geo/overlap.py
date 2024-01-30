@@ -11,7 +11,7 @@ from affine import Affine
 
 from .crs import SomeCRS
 from .gcp import GCPGeoBox
-from .geobox import GeoBox, GeoBoxBase, gbox_boundary
+from .geobox import GeoBox, GeoboxAnchor, GeoBoxBase, gbox_boundary
 from .math import (
     affine_from_pts,
     decompose_rws,
@@ -31,7 +31,7 @@ from .roi import (
     roi_is_empty,
     scaled_up_roi,
 )
-from .types import XY, SomeResolution, SomeShape, res_, shape_, xy_
+from .types import XY, AnchorEnum, SomeResolution, SomeShape, res_, shape_, xy_
 
 
 class PointTransform(Protocol):
@@ -563,14 +563,17 @@ def compute_output_geobox(
     crs: SomeCRS,
     *,
     resolution: Union[SomeResolution, Literal["auto", "fit", "same"]] = "auto",
+    shape: Union[SomeShape, int, None] = None,
     tight: bool = False,
+    anchor: GeoboxAnchor = AnchorEnum.EDGE,
+    tol: float = 0.01,
     round_resolution: Union[None, bool, Callable[[float, str], float]] = None,
 ) -> GeoBox:
     """
     Compute output ``GeoBox``.
 
-    Find best fitting, axis aligned GeoBox in a different coordinate reference given source
-    ``GeoBox`` on input.
+    Find best fitting, axis aligned GeoBox in a different coordinate reference
+    given source ``GeoBox`` on input.
 
     :param gbox:
        Source geobox.
@@ -582,21 +585,37 @@ def compute_output_geobox(
 
        * "same" use exactly the same resolution as src
        * "fit" use center pixel to determine scale change between the two
-       * | "auto" is to use the same resolution on the output if CRS units are the same
-         |  between the source and destination and otherwise use "fit"
+       * | "auto" is to use the same resolution on the output if CRS units are
+         | the same between the source and destination and otherwise use "fit"
+       * Ignored if ``shape=`` is supplied
        * Else resolution in the units of the output crs
 
-    :param tight:
-      By default output pixel grid is adjusted to align pixel edges to X/Y axis, suppling
-      ``tight=True`` produces unaligned geobox on the output.
+    :param shape:
+      Span that many pixels, if it's a single number then span that many pixels
+      along the longest dimension, other dimension will be computed to maintain
+      roughly square pixels. Takes precedence over ``resolution=`` parameter.
 
-    :param round_resolution: ``round_resolution(res: float, units: str) -> float``
+    :param tight:
+      By default output pixel grid is adjusted to align pixel edges to X/Y axis,
+      suppling ``tight=True`` produces unaligned geobox on the output.
+
+    :param anchor:
+      Control pixel snapping, default is to snap pixel edge to ``X=0,Y=0``.
+      Ignored when ``tight=True`` is supplied.
+
+    :param tol:
+       Fraction of the output pixel that can be ignored, defaults to 1/100.
+       Bounding box of the output geobox is allowed to be smaller by that amount
+       than transformed footprint of the original.
+
+    :param round_resolution:
+      ``round_resolution(res: float, units: str) -> float``
 
     :return:
-       Similar resolution, axis aligned geobox that fully encloses source one but in a different
-       projection.
+       Similar resolution, axis aligned geobox that fully encloses source one
+       but in a different projection.
     """
-    # pylint: disable=too-many-locals
+    # pylint: disable=too-many-locals,too-many-arguments
     src_crs = gbox.crs
     assert src_crs is not None
 
@@ -613,7 +632,9 @@ def compute_output_geobox(
 
     same_units = src_crs.units == dst_crs.units
 
-    if resolution == "same":
+    if shape is not None:
+        res: Optional[SomeResolution] = None
+    elif resolution == "same":
         res = gbox.resolution
     elif resolution == "auto" and same_units:
         res = gbox.resolution
@@ -648,4 +669,12 @@ def compute_output_geobox(
 
         res = res_(resolution)
 
-    return GeoBox.from_bbox(bbox, dst_crs, resolution=res, tight=tight)
+    return GeoBox.from_bbox(
+        bbox,
+        dst_crs,
+        shape=shape,
+        resolution=res,
+        tight=tight,
+        anchor=anchor,
+        tol=tol,
+    )

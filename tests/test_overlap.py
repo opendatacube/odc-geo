@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from affine import Affine
 
-from odc.geo import CRS, geom, res_, resyx_, wh_, xy_
+from odc.geo import CRS, AnchorEnum, geom, res_, resyx_, wh_, xy_
 from odc.geo.geobox import GeoBox, scaled_down_geobox
 from odc.geo.gridspec import GridSpec
 from odc.geo.math import affine_from_pts, decompose_rws, is_affine_st, stack_xy
@@ -486,6 +486,15 @@ def test_compute_output_geobox():
     assert dst.geographic_extent.contains(src.geographic_extent)
     npix_change = (src.shape[0] * src.shape[1]) / (dst.shape[0] * dst.shape[1])
     assert 0.8 < npix_change < 1.1
+
+    # check anchor= having effect
+    assert compute_output_geobox(
+        src, 4326, anchor=AnchorEnum.CENTER
+    ) != compute_output_geobox(src, 4326, anchor=AnchorEnum.EDGE)
+
+    # check shape= having effect
+    assert compute_output_geobox(src, 4326, shape=(10, 20)).shape == (10, 20)
+    assert max(compute_output_geobox(src, 4326, shape=100, tight=True).shape) == 100
 
     # go back from 4326
     _src = dst
