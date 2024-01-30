@@ -306,7 +306,7 @@ jobs:
       - name: Deploy to Netlify
         id: netlify
         if: github.event_name == 'pull_request'
-        uses: nwtgck/actions-netlify@v1.2
+        uses: nwtgck/actions-netlify@v2
         with:
           production-branch: "main"
           publish-dir: "docs/_build/html"
