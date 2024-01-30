@@ -11,6 +11,7 @@
 from ._version import __version__
 
 from .types import (
+    AnchorEnum,
     XY,
     Index2d,
     Shape2d,
@@ -46,6 +47,7 @@ from .geom import (
 
 __all__ = [
     "__version__",
+    "AnchorEnum",
     "XY",
     "Index2d",
     "Shape2d",

@@ -6,7 +6,6 @@ import importlib
 import itertools
 import math
 from collections import OrderedDict, namedtuple
-from enum import Enum
 from typing import (
     Callable,
     Dict,
@@ -48,6 +47,7 @@ from .roi import (
 from .types import (
     ROI,
     XY,
+    AnchorEnum,
     Chunks2d,
     MaybeInt,
     NormalizedROI,
@@ -63,22 +63,6 @@ from .types import (
     shape_,
     xy_,
 )
-
-
-class AnchorEnum(Enum):
-    """
-    Defines which way to snap geobox pixel grid.
-    """
-
-    EDGE = 0
-    """Snap pixel edges to multiples of pixel size."""
-
-    CENTER = 1
-    """Snap pixel centers to multiples of pixel size."""
-
-    FLOATING = 2
-    """Turn off pixel snapping."""
-
 
 GeoboxAnchor = Union[AnchorEnum, XY[float]]
 

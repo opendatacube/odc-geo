@@ -6,7 +6,6 @@ GeoBox
    :toctree: _api/
 
    GeoBox
-   AnchorEnum
    GeoBox.from_geopolygon
    GeoBox.from_bbox
    GeoBox.affine
