@@ -717,7 +717,10 @@ class GeoBox(GeoBoxBase):
         crs: SomeCRS,
         *,
         resolution: Literal["auto", "fit", "same"] = "auto",
+        shape: Union[SomeShape, int, None] = None,
         tight: bool = False,
+        anchor: GeoboxAnchor = AnchorEnum.EDGE,
+        tol: float = 0.01,
         round_resolution: Union[None, bool, Callable[[float, str], float]] = None,
     ) -> "GeoBox":
         """
@@ -733,15 +736,32 @@ class GeoBox(GeoBoxBase):
            * | "auto" is to use the same resolution on the output if CRS units are the same
              |  between the source and destination and otherwise use "fit"
 
+        :param shape:
+          Span that many pixels, if it's a single number then span that many pixels
+          along the longest dimension, other dimension will be computed to maintain
+          roughly square pixels. Takes precedence over ``resolution=`` parameter.
+
         :param tight:
-          By default output pixel grid is adjusted to align pixel edges to X/Y axis, suppling
-          ``tight=True`` produces unaligned geobox on the output.
+          By default output pixel grid is adjusted to align pixel edges to X/Y
+          axis, suppling ``tight=True`` produces unaligned geobox on the output.
+
+        :param anchor:
+            Control pixel snapping, default is to snap pixel edge to
+            ``X=0,Y=0``. Ignored when ``tight=True`` is supplied.
+
+        :param tol:
+            Fraction of the output pixel that can be ignored, defaults to 1/100.
+            Bounding box of the output geobox is allowed to be smaller by that
+            amount than transformed footprint of the original.
+
+        :param round_resolution:
+          ``round_resolution(res: float, units: str) -> float``
 
         :return:
-           Similar resolution, axis aligned geobox that fully encloses this one but in a different
-           projection.
+           Similar resolution, axis aligned geobox that fully encloses this one
+           but in a different projection.
         """
-        # pylint: disable=import-outside-toplevel
+        # pylint: disable=import-outside-toplevel,too-many-arguments
         # can't be up-top due to circular imports issues
         from .overlap import compute_output_geobox
 
@@ -749,8 +769,11 @@ class GeoBox(GeoBoxBase):
             self,
             crs,
             resolution=resolution,
+            shape=shape,
             tight=tight,
+            anchor=anchor,
             round_resolution=round_resolution,
+            tol=tol,
         )
 
     def __str__(self):
