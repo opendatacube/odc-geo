@@ -175,6 +175,7 @@ Basic types used for unambigous specification of X/Y values.
    Resolution
    Shape2d
    Index2d
+   AnchorEnum
 
    xy_
    yx_

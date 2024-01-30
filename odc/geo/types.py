@@ -1,4 +1,5 @@
 """Basic types."""
+from enum import Enum
 from typing import (
     Callable,
     Generic,
@@ -456,6 +457,21 @@ NormalizedROI = Tuple[NormalizedSlice, NormalizedSlice]
 OutlineMode = Union[
     Literal["native"], Literal["pixel"], Literal["geo"], Literal["auto"]
 ]
+
+
+class AnchorEnum(Enum):
+    """
+    Defines which way to snap geobox pixel grid.
+    """
+
+    EDGE = 0
+    """Snap pixel edges to multiples of pixel size."""
+
+    CENTER = 1
+    """Snap pixel centers to multiples of pixel size."""
+
+    FLOATING = 2
+    """Turn off pixel snapping."""
 
 
 class _Func2Map(Mapping[TK, TV]):
