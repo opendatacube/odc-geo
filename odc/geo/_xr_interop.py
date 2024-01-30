@@ -275,7 +275,7 @@ def mask(
         A :py:class:`~xarray.Dataset` or :py:class:`~xarray.DataArray`
         masked by ``poly``.
 
-    ..seealso:: :py:meth:`odc.geo.xr.rasterize`
+    .. seealso:: :py:meth:`odc.geo.xr.rasterize`
     """
     # Rasterise `poly` into geobox of `xx`
     rasterized = rasterize(
@@ -325,7 +325,7 @@ def crop(
         A :py:class:`~xarray.Dataset` or :py:class:`~xarray.DataArray`
         cropped and optionally masked to the spatial extent of ``poly``.
 
-    ..seealso:: :py:meth:`odc.geo.xr.mask`
+    .. seealso:: :py:meth:`odc.geo.xr.mask`
     """
     # Create new geobox with pixel grid of `xx` but enclosing `poly`.
     poly_geobox = xx.odc.geobox.enclosing(poly)
@@ -589,9 +589,7 @@ def xr_reproject(
 
     This method uses :py:mod:`rasterio`.
 
-    ..seealso::
-
-       :py:meth:`odc.geo.overlap.compute_output_geobox`
+    .. seealso:: :py:meth:`odc.geo.overlap.compute_output_geobox`
 
     """
     if isinstance(src, xarray.DataArray):
@@ -791,7 +789,7 @@ class ODCExtension:
         """
         Compute geobox of this data in other projection.
 
-        ..seealso:: :py:meth:`odc.geo.overlap.compute_output_geobox`
+        .. seealso:: :py:meth:`odc.geo.overlap.compute_output_geobox`
         """
         gbox = self.geobox
         if gbox is None:
