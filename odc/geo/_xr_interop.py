@@ -588,6 +588,11 @@ def xr_reproject(
     Reproject raster to different projection/resolution.
 
     This method uses :py:mod:`rasterio`.
+
+    ..seealso::
+
+       :py:meth:`odc.geo.overlap.compute_output_geobox`
+
     """
     if isinstance(src, xarray.DataArray):
         return _xr_reproject_da(
@@ -596,6 +601,15 @@ def xr_reproject(
     return _xr_reproject_ds(
         src, how, resampling=resampling, dst_nodata=dst_nodata, **kw
     )
+
+
+def _extract_output_geobox_params(kw):
+    # NOTE: modifies input, removes keys
+    out = {}
+    for k in ("tight", "anchor", "resolution", "shape", "tol", "round_resolution"):
+        if k in kw:
+            out[k] = kw.pop(k)
+    return out
 
 
 def _xr_reproject_ds(
@@ -615,10 +629,12 @@ def _xr_reproject_ds(
     if src.odc.geobox is None:
         raise ValueError("Can not reproject non-georegistered array.")
 
+    kw_gbox = _extract_output_geobox_params(kw)
+
     if isinstance(how, GeoBox):
         dst_geobox = how
     else:
-        dst_geobox = src.odc.output_geobox(how)
+        dst_geobox = src.odc.output_geobox(how, **kw_gbox)
 
     def _maybe_reproject(dv: xarray.DataArray):
         if dv.odc.geobox is None:
@@ -659,13 +675,12 @@ def _xr_reproject_da(
     if src_gbox is None or src_gbox.crs is None:
         raise ValueError("Can not reproject non-georegistered array.")
 
-    resolution = kw.pop("resolution", "auto")
-    tight = kw.pop("tight", False)
+    kw_gbox = _extract_output_geobox_params(kw)
 
     if isinstance(how, GeoBox):
         dst_geobox = how
     else:
-        dst_geobox = src.odc.output_geobox(how, resolution=resolution, tight=tight)
+        dst_geobox = src.odc.output_geobox(how, **kw_gbox)
 
     # compute destination shape by replacing spatial dimensions shape
     ydim = src.odc.ydim
