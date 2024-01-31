@@ -15,6 +15,7 @@ from typing import (
     Dict,
     Hashable,
     List,
+    Literal,
     Optional,
     Set,
     Tuple,
@@ -30,12 +31,12 @@ from ._interop import have, is_dask_collection
 from ._rgba import colorize, to_rgba
 from .crs import CRS, CRSError, SomeCRS, norm_crs_or_error
 from .gcp import GCPGeoBox, GCPMapping
-from .geobox import Coordinate, GeoBox
+from .geobox import Coordinate, GeoBox, GeoboxAnchor
 from .geom import Geometry
 from .math import affine_from_axis, maybe_int, resolution_from_affine
 from .overlap import compute_output_geobox
 from .roi import roi_is_empty
-from .types import Resolution, xy_
+from .types import AnchorEnum, Resolution, SomeResolution, SomeShape, xy_
 
 # pylint: disable=import-outside-toplevel
 # pylint: disable=too-many-lines
@@ -582,16 +583,61 @@ def xr_reproject(
     *,
     resampling: Union[str, int] = "nearest",
     dst_nodata: Optional[float] = None,
+    resolution: Union[SomeResolution, Literal["auto", "fit", "same"]] = "auto",
+    shape: Union[SomeShape, int, None] = None,
+    tight: bool = False,
+    anchor: GeoboxAnchor = AnchorEnum.EDGE,
+    tol: float = 0.01,
+    round_resolution: Union[None, bool, Callable[[float, str], float]] = None,
     **kw,
 ) -> XrT:
     """
     Reproject raster to different projection/resolution.
+
+    :param resolution:
+
+       * "same" use exactly the same resolution as src
+       * "fit" use center pixel to determine scale change between the two
+       * | "auto" is to use the same resolution on the output if CRS units are
+         | the same between the source and destination and otherwise use "fit"
+       * Ignored if ``shape=`` is supplied
+       * Else resolution in the units of the output crs
+
+    :param shape:
+      Span that many pixels, if it's a single number then span that many pixels
+      along the longest dimension, other dimension will be computed to maintain
+      roughly square pixels. Takes precedence over ``resolution=`` parameter.
+
+    :param tight:
+      By default output pixel grid is adjusted to align pixel edges to X/Y axis,
+      suppling ``tight=True`` produces unaligned geobox on the output.
+
+    :param anchor:
+      Control pixel snapping, default is to snap pixel edge to ``X=0,Y=0``.
+      Ignored when ``tight=True`` is supplied.
+
+    :param tol:
+       Fraction of the output pixel that can be ignored, defaults to 1/100.
+       Bounding box of the output geobox is allowed to be smaller by that amount
+       than transformed footprint of the original.
+
+    :param round_resolution:
+      ``round_resolution(res: float, units: str) -> float``
 
     This method uses :py:mod:`rasterio`.
 
     .. seealso:: :py:meth:`odc.geo.overlap.compute_output_geobox`
 
     """
+    kw = {
+        "shape": shape,
+        "resolution": resolution,
+        "tight": tight,
+        "anchor": anchor,
+        "tol": tol,
+        "round_resolution": round_resolution,
+        **kw,
+    }
     if isinstance(src, xarray.DataArray):
         return _xr_reproject_da(
             src, how, resampling=resampling, dst_nodata=dst_nodata, **kw
@@ -656,11 +702,6 @@ def _xr_reproject_da(
     dst_nodata: Optional[float] = None,
     **kw,
 ) -> xarray.DataArray:
-    """
-    Reproject raster to different projection/resolution.
-
-    This method uses :py:mod:`rasterio`.
-    """
     # pylint: disable=too-many-locals
     assert isinstance(src, xarray.DataArray)
 
@@ -810,6 +851,7 @@ class ODCExtension:
 
     if have.rasterio:
         explore = _wrap_op(explore)
+        reproject = _wrap_op(xr_reproject)
 
 
 @xarray.register_dataarray_accessor("odc")
@@ -863,7 +905,6 @@ class ODCExtensionDa(ODCExtension):
         write_cog = _wrap_op(write_cog)
         to_cog = _wrap_op(to_cog)
         compress = _wrap_op(compress)
-        reproject = _wrap_op(_xr_reproject_da)
         add_to = _wrap_op(add_to)
 
 
@@ -894,9 +935,6 @@ class ODCExtensionDs(ODCExtension):
         vmax: Optional[float] = None,
     ) -> xarray.DataArray:
         return to_rgba(self._xx, bands=bands, vmin=vmin, vmax=vmax)
-
-    if have.rasterio:
-        reproject = _wrap_op(_xr_reproject_ds)
 
 
 ODCExtensionDs.to_rgba.__doc__ = to_rgba.__doc__
