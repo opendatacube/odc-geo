@@ -413,12 +413,44 @@ def test_from_bbox():
     ) == GeoBox.from_bbox(bbox, shape=shape, tight=True)
 
     assert GeoBox.from_bbox(
+        bbox, shape=shape, anchor=AnchorEnum.FLOATING
+    ) == GeoBox.from_bbox(bbox, shape=shape, anchor="floating")
+
+    assert GeoBox.from_bbox(
         bbox, shape=shape, anchor=AnchorEnum.EDGE
     ) == GeoBox.from_bbox(bbox, shape=shape, anchor=xy_(0, 0))
 
     assert GeoBox.from_bbox(
+        bbox, shape=shape, anchor=AnchorEnum.EDGE
+    ) != GeoBox.from_bbox(bbox, shape=shape, anchor=xy_(0.3, 0))
+
+    assert GeoBox.from_bbox(bbox, shape=shape, anchor=0.3) == GeoBox.from_bbox(
+        bbox, shape=shape, anchor=xy_(0.3, 0.3)
+    )
+
+    assert GeoBox.from_bbox(
+        bbox, shape=shape, anchor=AnchorEnum.EDGE
+    ) == GeoBox.from_bbox(bbox, shape=shape, anchor=0)
+
+    assert GeoBox.from_bbox(
+        bbox, shape=shape, anchor=AnchorEnum.EDGE
+    ) == GeoBox.from_bbox(bbox, shape=shape)
+
+    assert GeoBox.from_bbox(
         bbox, shape=shape, anchor=AnchorEnum.CENTER
     ) == GeoBox.from_bbox(bbox, shape=shape, anchor=xy_(0.5, 0.5))
+
+    assert GeoBox.from_bbox(
+        bbox, shape=shape, anchor=AnchorEnum.CENTER
+    ) == GeoBox.from_bbox(bbox, shape=shape, anchor=0.5)
+
+    assert GeoBox.from_bbox(
+        bbox, shape=shape, anchor=AnchorEnum.CENTER
+    ) == GeoBox.from_bbox(bbox, shape=shape, anchor="center")
+
+    assert GeoBox.from_bbox(
+        bbox, shape=shape, anchor=AnchorEnum.CENTER
+    ) == GeoBox.from_bbox(bbox, shape=shape, anchor="centre")
 
     assert GeoBox.from_bbox((1, 40, 2, 43), "utm", shape=(12, 12)).crs == "epsg:32631"
 
