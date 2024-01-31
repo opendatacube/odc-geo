@@ -64,10 +64,38 @@ from .types import (
     xy_,
 )
 
-GeoboxAnchor = Union[AnchorEnum, XY[float]]
+GeoboxAnchor = Union[
+    AnchorEnum,
+    XY[float],
+    float,
+    Literal["center"],
+    Literal["centre"],
+    Literal["edge"],
+    Literal["floating"],
+]
 
 # pylint: disable=invalid-name,too-many-public-methods,too-many-lines
 Coordinate = namedtuple("Coordinate", ("values", "units", "resolution"))
+
+
+def _norm_anchor(anchor: GeoboxAnchor) -> Union[AnchorEnum, XY[float]]:
+    if isinstance(anchor, AnchorEnum):
+        return anchor
+    if isinstance(anchor, (float, int)):
+        if anchor == 0:
+            return AnchorEnum.EDGE
+        if anchor == 0.5:
+            return AnchorEnum.CENTER
+        return xy_(float(anchor), float(anchor))
+    if isinstance(anchor, XY):
+        return anchor
+
+    return {
+        "center": AnchorEnum.CENTER,
+        "centre": AnchorEnum.CENTER,
+        "edge": AnchorEnum.EDGE,
+        "floating": AnchorEnum.FLOATING,
+    }[anchor]
 
 
 class GeoBoxBase:
@@ -444,6 +472,7 @@ class GeoBox(GeoBoxBase):
         """
         # pylint: disable=too-many-locals, too-many-branches
 
+        anchor = _norm_anchor(anchor)
         _snap: Optional[XY[float]] = None
 
         if tight:
