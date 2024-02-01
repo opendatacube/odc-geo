@@ -36,7 +36,7 @@ from .geom import Geometry
 from .math import affine_from_axis, maybe_int, resolution_from_affine
 from .overlap import compute_output_geobox
 from .roi import roi_is_empty
-from .types import AnchorEnum, Resolution, SomeResolution, SomeShape, xy_
+from .types import Resolution, SomeResolution, SomeShape, xy_
 
 # pylint: disable=import-outside-toplevel
 # pylint: disable=too-many-lines
@@ -586,7 +586,7 @@ def xr_reproject(
     resolution: Union[SomeResolution, Literal["auto", "fit", "same"]] = "auto",
     shape: Union[SomeShape, int, None] = None,
     tight: bool = False,
-    anchor: GeoboxAnchor = AnchorEnum.EDGE,
+    anchor: GeoboxAnchor = "default",
     tol: float = 0.01,
     round_resolution: Union[None, bool, Callable[[float, str], float]] = None,
     **kw,
