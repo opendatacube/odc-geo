@@ -72,6 +72,7 @@ GeoboxAnchor = Union[
     Literal["centre"],
     Literal["edge"],
     Literal["floating"],
+    Literal["default"],
 ]
 
 # pylint: disable=invalid-name,too-many-public-methods,too-many-lines
@@ -95,6 +96,7 @@ def _norm_anchor(anchor: GeoboxAnchor) -> Union[AnchorEnum, XY[float]]:
         "centre": AnchorEnum.CENTER,
         "edge": AnchorEnum.EDGE,
         "floating": AnchorEnum.FLOATING,
+        "default": AnchorEnum.EDGE,
     }[anchor]
 
 
@@ -447,7 +449,7 @@ class GeoBox(GeoBoxBase):
         tight: bool = False,
         shape: Union[SomeShape, int, None] = None,
         resolution: Optional[SomeResolution] = None,
-        anchor: GeoboxAnchor = AnchorEnum.EDGE,
+        anchor: GeoboxAnchor = "default",
         tol: float = 0.01,
     ) -> "GeoBox":
         """
@@ -544,7 +546,7 @@ class GeoBox(GeoBoxBase):
         *,
         shape: Union[SomeShape, int, None] = None,
         tight: bool = False,
-        anchor: GeoboxAnchor = AnchorEnum.EDGE,
+        anchor: GeoboxAnchor = "default",
         tol: float = 0.01,
     ) -> "GeoBox":
         """
@@ -748,7 +750,7 @@ class GeoBox(GeoBoxBase):
         resolution: Literal["auto", "fit", "same"] = "auto",
         shape: Union[SomeShape, int, None] = None,
         tight: bool = False,
-        anchor: GeoboxAnchor = AnchorEnum.EDGE,
+        anchor: GeoboxAnchor = "default",
         tol: float = 0.01,
         round_resolution: Union[None, bool, Callable[[float, str], float]] = None,
     ) -> "GeoBox":

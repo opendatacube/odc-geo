@@ -31,7 +31,7 @@ from .roi import (
     roi_is_empty,
     scaled_up_roi,
 )
-from .types import XY, AnchorEnum, SomeResolution, SomeShape, res_, shape_, xy_
+from .types import XY, SomeResolution, SomeShape, res_, shape_, xy_
 
 
 class PointTransform(Protocol):
@@ -565,7 +565,7 @@ def compute_output_geobox(
     resolution: Union[SomeResolution, Literal["auto", "fit", "same"]] = "auto",
     shape: Union[SomeShape, int, None] = None,
     tight: bool = False,
-    anchor: GeoboxAnchor = AnchorEnum.EDGE,
+    anchor: GeoboxAnchor = "default",
     tol: float = 0.01,
     round_resolution: Union[None, bool, Callable[[float, str], float]] = None,
 ) -> GeoBox:
@@ -619,6 +619,7 @@ def compute_output_geobox(
     src_crs = gbox.crs
     assert src_crs is not None
 
+    # figure out "true" dts_crs (handles "utm" -> actual CRS)
     bbox = gbox.footprint(crs, buffer=0.9, npoints=100).boundingbox
     dst_crs = bbox.crs
     assert dst_crs is not None
@@ -626,6 +627,8 @@ def compute_output_geobox(
     if (
         dst_crs == src_crs
         and resolution in ("auto", "same")
+        and shape is None
+        and anchor == "default"
         and isinstance(gbox, GeoBox)
     ):
         return gbox
