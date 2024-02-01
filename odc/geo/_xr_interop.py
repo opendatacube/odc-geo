@@ -594,6 +594,23 @@ def xr_reproject(
     """
     Reproject raster to different projection/resolution.
 
+    :param src:
+      :py:class:`~xarray.Dataset` or :py:class:`~xarray.DataArray` to reproject.
+
+    :param how:
+      How to reproject the raster. Can be a GeoBox or a CRS (e.g. CRS object or
+      an "ESPG:XXXX" string/integer). If a CRS is provided, the output pixel
+      grid can be customised further via ``resolution``, ``shape``, ``tight``,
+      ``anchor``, ``tol``, ``round_resolution``.
+
+    :param resampling:
+      Resampling method to use when reprojecting the raster. Defaults to
+      "nearest", also supports "average", "bilinear", "cubic", "cubic_spline",
+      "lanczos", "mode", "gauss", "max", "min", "med", "q1", "q3".
+
+    :param dst_nodata:
+      Set a custom nodata value for the output resampled raster.
+
     :param resolution:
 
        * "same" use exactly the same resolution as src
