@@ -18,6 +18,7 @@ GeoBox
    GeoBox.flipx
    GeoBox.flipy
    GeoBox.extent
+   GeoBox.explore
    GeoBox.footprint
    GeoBox.boundingbox
    GeoBox.map_bounds
