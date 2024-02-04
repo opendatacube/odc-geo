@@ -423,6 +423,7 @@ class GeoBoxBase:
             n, padding=padding, with_edges=with_edges, offset=offset
         )
 
+    # pylint: disable=redefined-builtin, anomalous-backslash-in-string
     def explore(
         self,
         map: Optional[Any] = None,
