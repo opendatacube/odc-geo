@@ -203,6 +203,7 @@ class BoundingBox(Sequence[float]):
         (x0, y0), _, (x1, y1) = self.polygon.exterior.to_crs("epsg:4326").points[:3]
         return (y0, x0), (y1, x1)
 
+    # pylint: disable=redefined-builtin, anomalous-backslash-in-string
     def explore(
         self,
         map: Optional[Any] = None,
@@ -808,6 +809,7 @@ class Geometry(SupportsCoords[float]):
         for g in ops.split(self.geom, splitter.geom).geoms:
             yield Geometry(g, self.crs)
 
+    # pylint: disable=import-outside-toplevel, redefined-builtin, anomalous-backslash-in-string
     def explore(
         self,
         map: Optional[Any] = None,
