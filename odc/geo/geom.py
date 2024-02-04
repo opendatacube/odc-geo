@@ -28,6 +28,7 @@ from pyproj.aoi import AreaOfInterest
 from shapely import geometry, ops
 from shapely.geometry import base
 
+from ._interop import have
 from .crs import CRS, CRSMismatchError, MaybeCRS, SomeCRS, norm_crs, norm_crs_or_error
 from .math import edge_index, quasi_random_r2
 from .types import SomeShape, SupportsCoords, Unset, shape_
@@ -201,6 +202,38 @@ class BoundingBox(Sequence[float]):
             return (y0, x0), (y1, x1)
         (x0, y0), _, (x1, y1) = self.polygon.exterior.to_crs("epsg:4326").points[:3]
         return (y0, x0), (y1, x1)
+
+    def explore(
+        self,
+        map: Optional[Any] = None,
+        tiles: Any = "OpenStreetMap",
+        attr: Optional[str] = None,
+        map_kwds: Optional[Dict[str, Any]] = None,
+        **kwargs,
+    ):
+        """
+        Plot BoundingBox on an interactive :py:mod:`folium` leaflet map
+        for rapid data exploration.
+
+        :param map:
+            An optional existing :py:mod:`folium` map object to plot into.
+            By default, a new map object will be created.
+        :param tiles:
+            Map tileset to use for the map basemap. Supports any option
+            supported by :py:mod:`folium`, including "OpenStreetMap",
+            "CartoDB positron", "CartoDB dark_matter" or a custom XYZ URL.
+        :param attr:
+            Map tile attribution; only required if passing custom tile URL.
+        :param map_kwds:
+            Additional keyword arguments to pass to ``folium.Map()``.
+        :param \**kwargs:
+            Additional keyword arguments to pass to ``folium.GeoJson``.
+
+        :return: A :py:mod:`folium` map containing the plotted BoundingBox.
+        """
+        return self.polygon.explore(
+            map=map, tiles=tiles, attr=attr, map_kwds=map_kwds, **kwargs
+        )
 
     @property
     def polygon(self) -> "Geometry":
@@ -774,6 +807,59 @@ class Geometry(SupportsCoords[float]):
 
         for g in ops.split(self.geom, splitter.geom).geoms:
             yield Geometry(g, self.crs)
+
+    def explore(
+        self,
+        map: Optional[Any] = None,
+        tiles: Any = "OpenStreetMap",
+        attr: Optional[str] = None,
+        map_kwds: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
+    ) -> Any:
+        """
+        Plot Geometry on an interactive :py:mod:`folium` leaflet map
+        for rapid data exploration.
+
+        :param map:
+            An optional existing :py:mod:`folium` map object to plot into.
+            By default, a new map object will be created.
+        :param tiles:
+            Map tileset to use for the map basemap. Supports any option
+            supported by :py:mod:`folium`, including "OpenStreetMap",
+            "CartoDB positron", "CartoDB dark_matter" or a custom XYZ URL.
+        :param attr:
+            Map tile attribution; only required if passing custom tile URL.
+        :param map_kwds:
+            Additional keyword arguments to pass to ``folium.Map()``.
+        :param \**kwargs:
+            Additional keyword arguments to pass to ``folium.GeoJson``.
+
+        :return: A :py:mod:`folium` map containing the plotted Geometry.
+        """
+        if not have.folium:
+            raise ModuleNotFoundError(
+                "'folium' is required but not installed. "
+                "Please install it before using `.explore()`."
+            )
+
+        from folium import Map, GeoJson
+
+        # Create folium Map if required
+        map_kwds = {} if map_kwds is None else map_kwds
+        if map is None:
+            map = Map(tiles=tiles, attr=attr, **map_kwds)
+
+        # Create layer and add to map
+        geojson = GeoJson(
+            data=self.geojson(),
+            **kwargs,
+        )
+        geojson.add_to(map)
+
+        # Zoom map to extent of data
+        map.fit_bounds(self.boundingbox.map_bounds())
+
+        return map
 
     @property
     def geoms(self) -> Iterator["Geometry"]:

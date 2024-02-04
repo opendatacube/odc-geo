@@ -116,7 +116,9 @@ Shapely geometry classes with CRS information attached.
    Geometry
    Geometry.to_crs
    Geometry.geojson
+   Geometry.explore
    BoundingBox
+   BoundingBox.explore
    BoundingBox.from_xy
    BoundingBox.from_points
    BoundingBox.from_transform

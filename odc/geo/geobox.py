@@ -7,6 +7,7 @@ import itertools
 import math
 from collections import OrderedDict, namedtuple
 from typing import (
+    Any,
     Callable,
     Dict,
     Iterator,
@@ -421,6 +422,54 @@ class GeoBoxBase:
         return BoundingBox(0, 0, nx, ny, None).qr2sample(
             n, padding=padding, with_edges=with_edges, offset=offset
         )
+
+    def explore(
+        self,
+        map: Optional[Any] = None,
+        grid_lines: bool = True,
+        tiles: Any = "OpenStreetMap",
+        attr: Optional[str] = None,
+        map_kwds: Optional[Dict[str, Any]] = None,
+        **kwargs: Any,
+    ) -> Any:
+        """
+        Plot a visual representation of the GeoBox's extent on an
+        interactive :py:mod:`folium` leaflet map.
+
+        :param map:
+            An optional existing :py:mod:`folium` map object to plot into.
+            By default, a new map object will be created.
+        :param: grid_lines:
+            Whether to plot pixel edge aligned grid lines over the GeoBox
+            extent.
+        :param tiles:
+            Map tileset to use for the map basemap. Supports any option
+            supported by :py:mod:`folium`, including "OpenStreetMap",
+            "CartoDB positron", "CartoDB dark_matter" or a custom XYZ URL.
+        :param attr:
+            Map tile attribution; only required if passing custom tile URL.
+        :param map_kwds:
+            Additional keyword arguments to pass to ``folium.Map()``.
+        :param \**kwargs:
+            Additional keyword arguments to pass to ``folium.GeoJson``.
+
+        :return: A :py:mod:`folium` map containing the plotted GeoBox.
+        """
+        # Add outline to map
+        map = self.outline(mode="geo", notch=0.0).explore(
+            map=map, tiles=tiles, attr=attr, map_kwds=map_kwds, **kwargs
+        )
+
+        # Optionally overlay grid lines
+        if grid_lines:
+            self.grid_lines(mode="geo").explore(
+                map=map,
+                style_function=lambda feature: {
+                    "weight": 1,
+                    "fillOpacity": 0.3,
+                },
+            )
+        return map
 
     def __getitem__(self, roi) -> "GeoBoxBase":
         raise NotImplementedError()
