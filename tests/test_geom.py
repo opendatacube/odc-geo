@@ -10,6 +10,7 @@ import pytest
 from affine import Affine
 from pytest import approx
 
+from odc.geo._interop import have
 from odc.geo import CRS, CRSMismatchError, geom, wh_
 from odc.geo.geobox import GeoBox, _round_to_res
 from odc.geo.geom import (
@@ -63,7 +64,8 @@ def test_props():
 
     box1copy = geom.box(10, 10, 30, 30, crs=crs)
     assert box1 == box1copy
-    assert box1.convex_hull == box1copy  # NOTE: this might fail because of point order
+    # NOTE: this might fail because of point order
+    assert box1.convex_hull == box1copy
 
     box2 = geom.box(20, 10, 40, 30, crs=crs)
     assert box1 != box2
@@ -933,8 +935,11 @@ def test_deprecation_warnings():
 
 
 def test_filter():
-    _keep = lambda x, y: True
-    _drop = lambda x, y: False
+    def _keep(x, y):
+        return True
+
+    def _drop(x, y):
+        return False
 
     pt = geom.point(1, 2, epsg4326)
     poly = geom.box(1, 2, 3, 4, epsg4326)
@@ -1008,3 +1013,48 @@ def test_triangulate(crs):
     assert gg.is_valid
     assert geoms[0].geom_type == "LineString"
     assert (gg - bbox.polygon).is_empty
+
+
+@pytest.mark.skipif(have.folium is False, reason="No folium installed")
+@pytest.mark.parametrize(
+    "geom_json",
+    [
+        {"type": "Point", "coordinates": (130, -35)},
+        {"type": "LineString", "coordinates": [(110, -40), (150, -30)]},
+        {
+            "type": "Polygon",
+            "coordinates": [
+                ((110, -40), (110, -30), (150, -30), (150, -40), (110, -40))
+            ],
+        },
+        {
+            "type": "MultiPolygon",
+            "coordinates": [
+                [[[174, 52], [174, 53], [175, 53], [174, 52]]],
+                [[[168, 54], [167, 55], [167, 54], [168, 54]]],
+            ],
+        },
+    ],
+)
+def test_explore_geom(geom_json):
+    from folium import Map, GeoJson
+
+    # Create Geometry
+    geometry = geom.Geometry(geom_json, "EPSG:4326")
+
+    # Test explore on dataset input and verify that output is a folium map
+    # that contains a GeoJson layer
+    m = geometry.explore()
+    assert isinstance(m, Map)
+    assert any(isinstance(child, GeoJson) for child in m._children.values())
+
+    # Convert to a projected CRS and re-test
+    m = geometry.to_crs("EPSG:3577").explore()
+    assert isinstance(m, Map)
+    assert any(isinstance(child, GeoJson) for child in m._children.values())
+
+    # Verify that passing a custom map works correctly
+    m_external = Map()
+    geometry.explore(map=m_external)
+    assert isinstance(m_external, Map)
+    assert any(isinstance(child, GeoJson) for child in m_external._children.values())
