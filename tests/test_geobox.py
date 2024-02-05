@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 from affine import Affine
 
+from odc.geo._interop import have
 from odc.geo import CRS, geom, ixy_, resxy_, resyx_, wh_, xy_
 from odc.geo.geobox import (
     AnchorEnum,
@@ -651,3 +652,36 @@ def test_crop(gbox, shape):
     assert gbox.crop(shape).crs == gbox.crs
     assert gbox.crop(shape)[:1, :1] == gbox[:1, :1]
     assert gbox.crop(shape) == gbox.expand(shape)
+
+
+@pytest.mark.skipif(have.folium is False, reason="No folium installed")
+@pytest.mark.parametrize(
+    "geobox",
+    [
+        GeoBox.from_bbox((-10, -2, 5, 4), "epsg:4326", tight=True, resolution=0.2),
+        GeoBox.from_bbox((-10, -2, 5, 4), "epsg:3857", tight=True, resolution=1),
+        GeoBox.from_bbox(
+            (-10, -2, 5, 4), "epsg:3857", tight=True, resolution=resxy_(1, 2)
+        ),
+    ],
+)
+def test_explore_geobox(geobox):
+    from folium import Map, GeoJson
+
+    # Test explore on dataset input and verify that output is a folium map
+    # that contains a GeoJson layer
+    m = geobox.explore()
+    assert isinstance(m, Map)
+    assert sum(isinstance(child, GeoJson) for child in m._children.values()) == 2
+
+    # Test that we can turn off gridlines
+    m = geobox.explore(grid_lines=False)
+    assert sum(isinstance(child, GeoJson) for child in m._children.values()) == 1
+
+    # Verify that passing a custom map works correctly
+    m_external = Map()
+    geobox.explore(map=m_external)
+    assert isinstance(m_external, Map)
+    assert (
+        sum(isinstance(child, GeoJson) for child in m_external._children.values()) == 2
+    )

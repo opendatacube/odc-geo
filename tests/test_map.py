@@ -65,7 +65,7 @@ def test_add_to_ipyleaflet(ocean_raster: xr.DataArray):
 
 
 @pytest.mark.skipif(have.folium is False, reason="No folium installed")
-def test_explore(ocean_raster: xr.DataArray, ocean_raster_ds: xr.Dataset):
+def test_explore_xr(ocean_raster: xr.DataArray, ocean_raster_ds: xr.Dataset):
     import folium
     from folium.raster_layers import ImageOverlay
 
