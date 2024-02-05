@@ -207,7 +207,6 @@ class BoundingBox(Sequence[float]):
     def explore(
         self,
         map: Optional[Any] = None,
-        densify: bool = True,
         tiles: Any = "OpenStreetMap",
         attr: Optional[str] = None,
         map_kwds: Optional[Dict[str, Any]] = None,
@@ -220,11 +219,6 @@ class BoundingBox(Sequence[float]):
         :param map:
             An optional existing :py:mod:`folium` map object to plot into.
             By default, a new map object will be created.
-        :param: densify:
-            Whether to increase the resolution of the BoundingBox by
-            adding additional points along each side. Required for
-            correctly representing the shape of the BoundingBox after
-            reprojection.
         :param tiles:
             Map tileset to use for the map basemap. Supports any option
             supported by :py:mod:`folium`, including "OpenStreetMap",
@@ -240,7 +234,6 @@ class BoundingBox(Sequence[float]):
         """
         return self.polygon.explore(
             map=map,
-            densify=densify,
             tiles=tiles,
             attr=attr,
             map_kwds=map_kwds,
@@ -824,7 +817,6 @@ class Geometry(SupportsCoords[float]):
     def explore(
         self,
         map: Optional[Any] = None,
-        densify: bool = True,
         tiles: Any = "OpenStreetMap",
         attr: Optional[str] = None,
         map_kwds: Optional[Dict[str, Any]] = None,
@@ -837,10 +829,6 @@ class Geometry(SupportsCoords[float]):
         :param map:
             An optional existing :py:mod:`folium` map object to plot into.
             By default, a new map object will be created.
-        :param: densify:
-            Whether to increase the resolution of the Geometry by adding
-            additional points along each side. Required for correctly
-            representing the shape of the geometry after reprojection.
         :param tiles:
             Map tileset to use for the map basemap. Supports any option
             supported by :py:mod:`folium`, including "OpenStreetMap",
@@ -867,19 +855,15 @@ class Geometry(SupportsCoords[float]):
         if map is None:
             map = Map(tiles=tiles, attr=attr, **map_kwds)
 
-        # Optionally densify
-        if densify:
-            # Approximately 100 points per side
-            bbox = self.boundingbox
-            res = max(bbox.span_x, bbox.span_y) / 100
-            self = self.segmented(resolution=res)
+        # Convert to GeoJSON with resolution based on approx 100
+        # points per side for proper plotting/reprojection
+        bbox = self.boundingbox
+        res = max(bbox.span_x, bbox.span_y) / 100
+        geojson = self.geojson(resolution=res)
 
         # Create layer and add to map
-        geojson = GeoJson(
-            data=self.geojson(),
-            **kwargs,
-        )
-        geojson.add_to(map)
+        layer = GeoJson(data=geojson, **kwargs)
+        layer.add_to(map)
 
         # Zoom map to extent of data
         map.fit_bounds(self.boundingbox.map_bounds())
