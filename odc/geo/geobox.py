@@ -423,7 +423,6 @@ class GeoBoxBase:
             n, padding=padding, with_edges=with_edges, offset=offset
         )
 
-    # pylint: disable=redefined-builtin, anomalous-backslash-in-string
     def explore(
         self,
         map: Optional[Any] = None,
@@ -451,11 +450,13 @@ class GeoBoxBase:
             Map tile attribution; only required if passing custom tile URL.
         :param map_kwds:
             Additional keyword arguments to pass to ``folium.Map()``.
-        :param \**kwargs:
+        :param kwargs:
             Additional keyword arguments to pass to ``folium.GeoJson``.
 
         :return: A :py:mod:`folium` map containing the plotted GeoBox.
         """
+        # pylint: disable=redefined-builtin
+
         # Add outline to map
         map = self.outline(mode="geo", notch=0.0).explore(
             map=map, tiles=tiles, attr=attr, map_kwds=map_kwds, **kwargs

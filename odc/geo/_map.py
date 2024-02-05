@@ -170,7 +170,6 @@ def add_to(
     return _add_to(url, bounds, map, name=name, **kw)
 
 
-# pylint: disable=too-many-arguments, protected-access, anomalous-backslash-in-string
 def explore(
     xx: Any,
     map: Optional[Any] = None,
@@ -233,11 +232,13 @@ def explore(
         map CRS; defaults to "nearest".
     :param map_kwds:
         Additional keyword arguments to pass to ``folium.Map()``.
-    :param \**kwargs:
+    :param kwargs:
         Additional keyword arguments to pass to ``.odc.add_to()``.
 
     :return: A :py:mod:`folium` map containing the plotted xarray data.
     """
+    # pylint: disable=too-many-arguments, protected-access
+
     if not have.folium:
         raise ModuleNotFoundError(
             "'folium' is required but not installed. "
