@@ -203,7 +203,6 @@ class BoundingBox(Sequence[float]):
         (x0, y0), _, (x1, y1) = self.polygon.exterior.to_crs("epsg:4326").points[:3]
         return (y0, x0), (y1, x1)
 
-    # pylint: disable=redefined-builtin, anomalous-backslash-in-string
     def explore(
         self,
         map: Optional[Any] = None,
@@ -227,11 +226,12 @@ class BoundingBox(Sequence[float]):
             Map tile attribution; only required if passing custom tile URL.
         :param map_kwds:
             Additional keyword arguments to pass to ``folium.Map()``.
-        :param \**kwargs:
+        :param kwargs:
             Additional keyword arguments to pass to ``folium.GeoJson``.
 
         :return: A :py:mod:`folium` map containing the plotted BoundingBox.
         """
+        # pylint: disable=redefined-builtin
         return self.polygon.explore(
             map=map,
             tiles=tiles,
@@ -813,7 +813,6 @@ class Geometry(SupportsCoords[float]):
         for g in ops.split(self.geom, splitter.geom).geoms:
             yield Geometry(g, self.crs)
 
-    # pylint: disable=import-outside-toplevel, redefined-builtin, anomalous-backslash-in-string
     def explore(
         self,
         map: Optional[Any] = None,
@@ -837,11 +836,13 @@ class Geometry(SupportsCoords[float]):
             Map tile attribution; only required if passing custom tile URL.
         :param map_kwds:
             Additional keyword arguments to pass to ``folium.Map()``.
-        :param \**kwargs:
+        :param kwargs:
             Additional keyword arguments to pass to ``folium.GeoJson``.
 
         :return: A :py:mod:`folium` map containing the plotted Geometry.
         """
+        # pylint: disable=import-outside-toplevel, redefined-builtin
+
         if not have.folium:
             raise ModuleNotFoundError(
                 "'folium' is required but not installed. "
