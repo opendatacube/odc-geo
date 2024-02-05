@@ -449,7 +449,7 @@ class GeoBoxBase:
         :param attr:
             Map tile attribution; only required if passing custom tile URL.
         :param map_kwds:
-            Additional keyword arguments to pass to ``folium.Map()``.
+            Additional keyword arguments to pass to :py:class:`folium.Map`.
         :param kwargs:
             Additional keyword arguments to pass to :py:class:`folium.GeoJson`.
 

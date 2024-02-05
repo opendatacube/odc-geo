@@ -225,9 +225,9 @@ class BoundingBox(Sequence[float]):
         :param attr:
             Map tile attribution; only required if passing custom tile URL.
         :param map_kwds:
-            Additional keyword arguments to pass to ``folium.Map()``.
+            Additional keyword arguments to pass to :py:class:`folium.Map`.
         :param kwargs:
-            Additional keyword arguments to pass to ``folium.GeoJson``.
+            Additional keyword arguments to pass to :py:class:`folium.GeoJson`.
 
         :return: A :py:mod:`folium` map containing the plotted BoundingBox.
         """
@@ -835,9 +835,9 @@ class Geometry(SupportsCoords[float]):
         :param attr:
             Map tile attribution; only required if passing custom tile URL.
         :param map_kwds:
-            Additional keyword arguments to pass to ``folium.Map()``.
+            Additional keyword arguments to pass to :py:class:`folium.Map`.
         :param kwargs:
-            Additional keyword arguments to pass to ``folium.GeoJson``.
+            Additional keyword arguments to pass to :py:class:`folium.GeoJson`.
 
         :return: A :py:mod:`folium` map containing the plotted Geometry.
         """

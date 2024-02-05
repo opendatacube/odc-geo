@@ -231,7 +231,7 @@ def explore(
         Custom resampling method to use when reprojecting ``xx`` to the
         map CRS; defaults to "nearest".
     :param map_kwds:
-        Additional keyword arguments to pass to ``folium.Map()``.
+        Additional keyword arguments to pass to :py:class:`folium.Map`.
     :param kwargs:
         Additional keyword arguments to pass to ``.odc.add_to()``.
 
