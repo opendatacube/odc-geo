@@ -456,15 +456,17 @@ class GeoBoxBase:
 
         :return: A :py:mod:`folium` map containing the plotted GeoBox.
         """
-        # Add outline to map
+        # Add outline to map. No need for additional densification as
+        # `.outline` and `.grid_lines` already perform this
         map = self.outline(mode="geo", notch=0.0).explore(
-            map=map, tiles=tiles, attr=attr, map_kwds=map_kwds, **kwargs
+            map=map, densify=False, tiles=tiles, attr=attr, map_kwds=map_kwds, **kwargs
         )
 
         # Optionally overlay grid lines
         if grid_lines:
             self.grid_lines(mode="geo").explore(
                 map=map,
+                densify=False,
                 style_function=lambda feature: {
                     "weight": 1,
                     "fillOpacity": 0.3,
