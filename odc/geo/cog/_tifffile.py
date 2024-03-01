@@ -699,9 +699,9 @@ def save_cog_with_dask(
             **upload_params,
         )
 
-    upload_params[
-        "ContentType"
-    ] = "image/tiff;application=geotiff;profile=cloud-optimized"
+    upload_params["ContentType"] = (
+        "image/tiff;application=geotiff;profile=cloud-optimized"
+    )
 
     cleanup = aws.pop("cleanup", False)
     s3_sink = MultiPartUpload(bucket, key, **aws)

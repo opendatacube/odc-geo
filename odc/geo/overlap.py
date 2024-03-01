@@ -39,16 +39,13 @@ class PointTransform(Protocol):
     Invertible point transform.
     """
 
-    def __call__(self, pts: Sequence[XY[float]]) -> Sequence[XY[float]]:
-        ...
+    def __call__(self, pts: Sequence[XY[float]]) -> Sequence[XY[float]]: ...
 
     @property
-    def back(self) -> "PointTransform":
-        ...
+    def back(self) -> "PointTransform": ...
 
     @property
-    def linear(self) -> Optional[Affine]:
-        ...
+    def linear(self) -> Optional[Affine]: ...
 
 
 class LinearPointTransform:

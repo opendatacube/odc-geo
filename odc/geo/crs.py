@@ -34,8 +34,7 @@ EPSG_UNSET = 0
 class CRSLike(Protocol):
     """CRS Like object."""
 
-    def to_wkt(self, *args, **kw) -> str:
-        ...
+    def to_wkt(self, *args, **kw) -> str: ...
 
 
 _crs_cache: Dict[Hashable, Tuple[_CRS, str, Optional[int]]] = {}

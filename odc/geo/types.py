@@ -1,4 +1,5 @@
 """Basic types."""
+
 from enum import Enum
 from typing import (
     Callable,
@@ -240,8 +241,7 @@ class SupportsCoords(Protocol[T]):
     """
 
     @property
-    def coords(self) -> List[Tuple[T, T]]:
-        ...
+    def coords(self) -> List[Tuple[T, T]]: ...
 
 
 # fmt: off

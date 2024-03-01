@@ -1,6 +1,7 @@
 """
 MPU file sink
 """
+
 from __future__ import annotations
 
 import mmap
