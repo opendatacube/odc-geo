@@ -1,6 +1,7 @@
 """
 Multi-part upload as a graph
 """
+
 from __future__ import annotations
 
 from functools import partial
@@ -34,27 +35,21 @@ SomeData = Union[bytes, bytearray]
 class PartsWriter(Protocol):
     """Protocol for labeled parts data writer."""
 
-    def __call__(self, part: int, data: SomeData) -> Dict[str, Any]:
-        ...
+    def __call__(self, part: int, data: SomeData) -> Dict[str, Any]: ...
 
-    def finalise(self, parts: List[Dict[str, Any]]) -> Any:
-        ...
+    def finalise(self, parts: List[Dict[str, Any]]) -> Any: ...
 
     @property
-    def min_write_sz(self) -> int:
-        ...
+    def min_write_sz(self) -> int: ...
 
     @property
-    def max_write_sz(self) -> int:
-        ...
+    def max_write_sz(self) -> int: ...
 
     @property
-    def min_part(self) -> int:
-        ...
+    def min_part(self) -> int: ...
 
     @property
-    def max_part(self) -> int:
-        ...
+    def max_part(self) -> int: ...
 
 
 class MPUChunk:

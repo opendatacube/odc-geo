@@ -1,6 +1,7 @@
 """
 S3 utils for COG to S3.
 """
+
 from __future__ import annotations
 
 from threading import Lock

@@ -1,5 +1,6 @@
 """ Helpers for dealing with RGB(A) images.
 """
+
 import functools
 from typing import Any, List, Optional, Tuple
 
