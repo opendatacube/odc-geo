@@ -122,6 +122,11 @@ class GeoBoxBase:
         self._extent: Optional[Geometry] = None
         self._lazy_ui = None
 
+        if self.shape.x < 0 or self.shape.y < 0:
+            raise ValueError(
+                f"Got shape {self._shape.yx!r}: negative sizes are not allowed."
+            )
+
     @property
     def width(self) -> int:
         """Width in pixels (nx)."""
@@ -576,6 +581,17 @@ class GeoBox(GeoBoxBase):
 
         shape = shape_(shape)
         nx, ny = shape.wh
+
+        if nx == 0 or ny == 0:
+            raise ValueError(
+                f"Got zero size in ({nx}, {ny}): cannot calculate resolution."
+            )
+
+        if nx < 0 or ny < 0:
+            raise ValueError(
+                f"Got negative size in ({nx}, {ny}): negative dimensions are not allowed."
+            )
+
         rx = bbox.span_x / nx
         ry = -bbox.span_y / ny
 

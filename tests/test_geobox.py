@@ -685,3 +685,22 @@ def test_explore_geobox(geobox):
     assert (
         sum(isinstance(child, GeoJson) for child in m_external._children.values()) == 2
     )
+
+
+@pytest.mark.parametrize(
+    ("shape", "allowed"),
+    [
+        pytest.param((100, 100), True, id="positive xy: normal"),
+        pytest.param((0, 100), False, id="zero x: can't calculate resolution"),
+        pytest.param((100, 0), False, id="zero y: can't calculate resolution"),
+        pytest.param((-100, 100), False, id="negative x: not allowed"),
+        pytest.param((100, -100), False, id="negative y: not allowed"),
+        pytest.param((-100, -100), False, id="both negative: not allowed"),
+    ],
+)
+def test_shape(shape, allowed):
+    if allowed:
+        GeoBox.from_bbox((-3, -4, 3, 4), epsg4326, shape=shape)
+    else:
+        with pytest.raises(ValueError):
+            GeoBox.from_bbox((-3, -4, 3, 4), epsg4326, shape=shape)
