@@ -11,6 +11,7 @@ import itertools
 from functools import partial
 from io import BytesIO
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from xml.sax.saxutils import escape as xml_escape
 
 import numpy as np
 import xarray as xr
@@ -571,6 +572,30 @@ def _norm_compression_tifffile(
 
     predictor = _norm_predictor(predictor, dtype)
     return (predictor, compression, compressionargs)
+
+
+def _gdal_sample_description(sample: int, description: str) -> str:
+    """Make XML line of GDAL metadata.
+
+    :param band: Sample / band number in data array.
+    :param description: Band name in data array.
+
+    :return: GDAL XML metadata line to place in TIFF file.
+    """
+    # GDAL does double escaping; see frmts/gtiff/geotiff.cpp.
+    # We also double escape to maximize compatibility with tools expecting GDAL-generated metadata.
+    double_escaped_description = xml_escape(xml_escape(description))
+    return f'<Item name="DESCRIPTION" sample="{sample}" role="description">{double_escaped_description}</Item>'
+
+
+def _gdal_sample_descriptions(xx: xr.DataArray) -> List[str]:
+    """Translate ``long_name`` attribute (if present) to GDAL sample description metadata.
+
+    :param xx: Pixels as :py:class:`xarray.DataArray` backed by Dask
+
+    :return: List of GDAL XML metadata lines to place in TIFF file.
+    """
+    return [_gdal_sample_description(sample, description) for sample, description in enumerate(xx.attrs.get("long_name", []))]
 
 
 def save_cog_with_dask(

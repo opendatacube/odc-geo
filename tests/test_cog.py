@@ -9,6 +9,8 @@ from odc.geo.cog import CogMeta, cog_gbox, save_cog_with_dask
 from odc.geo.cog._shared import compute_cog_spec, num_overviews
 from odc.geo.cog._tifffile import (
     GEOTIFF_TAGS,
+    _gdal_sample_description,
+    _gdal_sample_descriptions,
     _make_empty_cog,
     _norm_compression_tifffile,
     geotiff_metadata,
@@ -331,6 +333,47 @@ def test_geotiff_metadata(gbox: GeoBox, nodata, gdal_metadata: Optional[str]):
         assert md["GTModelTypeGeoKey"] == 32767
 
 
+@pytest.mark.parametrize(
+    ("sample", "description", "expected"),
+    [
+        (0, "easy", '<Item name="DESCRIPTION" sample="0" role="description">easy</Item>'),
+        (1, "<", '<Item name="DESCRIPTION" sample="1" role="description">&amp;lt;</Item>'),
+        (2, ">", '<Item name="DESCRIPTION" sample="2" role="description">&amp;gt;</Item>'),
+        (3, "&", '<Item name="DESCRIPTION" sample="3" role="description">&amp;amp;</Item>'),
+        (4, "& <a>", '<Item name="DESCRIPTION" sample="4" role="description">&amp;amp; &amp;lt;a&amp;gt;</Item>'),
+    ],
+)
+def test_gdal_sample_description(sample: int, description: str, expected: str):
+    assert _gdal_sample_description(sample, description) == expected
+
+
+def test_gdal_sample_descriptions(gbox: GeoBox, tmp_path: Path):
+    gbox = gbox.zoom_to(1024)
+    dtype = "float32"
+    n = 512
+    nodata = -9999
+
+    img = xr_zeros(gbox, dtype, chunks=(n, n), nodata=nodata)
+    img.attrs["long_name"] = []
+
+    assert _gdal_sample_descriptions(img) == []
+
+    img.attrs["long_name"] = ["first band"]
+    assert _gdal_sample_descriptions(img) == [
+        '<Item name="DESCRIPTION" sample="0" role="description">first band</Item>',
+    ]
+
+    img = img.odc.colorize()
+    assert img.ndim == 3
+
+    img.attrs["long_name"] = ["red", "green", "blue"]
+    assert _gdal_sample_descriptions(img) == [
+        '<Item name="DESCRIPTION" sample="0" role="description">red</Item>',
+        '<Item name="DESCRIPTION" sample="1" role="description">green</Item>',
+        '<Item name="DESCRIPTION" sample="2" role="description">blue</Item>',
+    ]
+
+
 @pytest.mark.parametrize("dtype", ["int16", "float32"])
 def test_cog_with_dask_smoke_test(gbox: GeoBox, tmp_path: Path, dtype):
     gbox = gbox.zoom_to(1024)
@@ -363,3 +406,5 @@ def test_cog_with_dask_smoke_test(gbox: GeoBox, tmp_path: Path, dtype):
     fut = save_cog_with_dask(img, fname, compression="deflate", level=2)
     rr = fut.compute()
     assert str(rr) == fname
+
+
