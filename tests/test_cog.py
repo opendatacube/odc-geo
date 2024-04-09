@@ -336,11 +336,31 @@ def test_geotiff_metadata(gbox: GeoBox, nodata, gdal_metadata: Optional[str]):
 @pytest.mark.parametrize(
     ("sample", "description", "expected"),
     [
-        (0, "easy", '<Item name="DESCRIPTION" sample="0" role="description">easy</Item>'),
-        (1, "<", '<Item name="DESCRIPTION" sample="1" role="description">&amp;lt;</Item>'),
-        (2, ">", '<Item name="DESCRIPTION" sample="2" role="description">&amp;gt;</Item>'),
-        (3, "&", '<Item name="DESCRIPTION" sample="3" role="description">&amp;amp;</Item>'),
-        (4, "& <a>", '<Item name="DESCRIPTION" sample="4" role="description">&amp;amp; &amp;lt;a&amp;gt;</Item>'),
+        (
+            0,
+            "easy",
+            '<Item name="DESCRIPTION" sample="0" role="description">easy</Item>',
+        ),
+        (
+            1,
+            "<",
+            '<Item name="DESCRIPTION" sample="1" role="description">&amp;lt;</Item>',
+        ),
+        (
+            2,
+            ">",
+            '<Item name="DESCRIPTION" sample="2" role="description">&amp;gt;</Item>',
+        ),
+        (
+            3,
+            "&",
+            '<Item name="DESCRIPTION" sample="3" role="description">&amp;amp;</Item>',
+        ),
+        (
+            4,
+            "& <a>",
+            '<Item name="DESCRIPTION" sample="4" role="description">&amp;amp; &amp;lt;a&amp;gt;</Item>',
+        ),
     ],
 )
 def test_gdal_sample_description(sample: int, description: str, expected: str):
@@ -407,4 +427,9 @@ def test_cog_with_dask_smoke_test(gbox: GeoBox, tmp_path: Path, dtype):
     rr = fut.compute()
     assert str(rr) == fname
 
-
+    # Band names
+    img.attrs["long_name"] = ["red", "green", "blue"]
+    fname = str(tmp_path / "cog-bandnames.tif")
+    fut = save_cog_with_dask(img, fname, compression="deflate", level=2)
+    rr = fut.compute()
+    assert str(rr) == fname

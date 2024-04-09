@@ -44,6 +44,7 @@ def _render_gdal_metadata(
     precision: int = 10,
     pad: int = 0,
     eol: str = "",
+    gdal_metadata_extra: Optional[List[str]] = None,
 ) -> str:
     def _item(sample: int, stats: dict[str, float]) -> str:
         return eol.join(
@@ -56,7 +57,12 @@ def _render_gdal_metadata(
     if isinstance(band_stats, dict):
         band_stats = [band_stats]
 
-    body = eol.join([_item(sample, stats) for sample, stats in enumerate(band_stats)])
+    gdal_metadata_extra = [] if gdal_metadata_extra is None else gdal_metadata_extra
+
+    body = eol.join(
+        [_item(sample, stats) for sample, stats in enumerate(band_stats)]
+        + gdal_metadata_extra
+    )
     return eol.join(["<GDALMetadata>", body, "</GDALMetadata>"])
 
 
@@ -470,6 +476,7 @@ def _patch_hdr(
     meta: CogMeta,
     hdr0: bytes,
     stats: Optional[list[dict[str, float]]] = None,
+    gdal_metadata_extra: Optional[List[str]] = None,
 ) -> bytes:
     # pylint: disable=import-outside-toplevel,import-error
     from tifffile import TiffFile, TiffPage
@@ -483,7 +490,9 @@ def _patch_hdr(
         if stats is not None:
             md_tag = tr.pages.first.tags.get(42112, None)
             assert md_tag is not None
-            gdal_metadata = _render_gdal_metadata(stats, precision=6)
+            gdal_metadata = _render_gdal_metadata(
+                stats, precision=6, gdal_metadata_extra=gdal_metadata_extra
+            )
             md_tag.overwrite(gdal_metadata)
 
         hdr_sz = len(_bio.getbuffer())
@@ -595,7 +604,10 @@ def _gdal_sample_descriptions(xx: xr.DataArray) -> List[str]:
 
     :return: List of GDAL XML metadata lines to place in TIFF file.
     """
-    return [_gdal_sample_description(sample, description) for sample, description in enumerate(xx.attrs.get("long_name", []))]
+    return [
+        _gdal_sample_description(sample, description)
+        for sample, description in enumerate(xx.attrs.get("long_name", []))
+    ]
 
 
 def save_cog_with_dask(
@@ -660,7 +672,9 @@ def save_cog_with_dask(
     if isinstance(blocksize, Unset):
         blocksize = [data_chunks, int(max(*data_chunks) // 2)]
 
-    gdal_metadata = None if stats is False else ""
+    sample_descriptions_metadata = _gdal_sample_descriptions(xx)
+    no_metadata = (stats is False) and not sample_descriptions_metadata
+    gdal_metadata = None if no_metadata else ""
 
     meta, hdr0 = _make_empty_cog(
         xx.shape,
@@ -720,7 +734,12 @@ def save_cog_with_dask(
             tiles_write_order,
             write,
             mk_header=_patch_hdr,
-            user_kw={"meta": meta, "hdr0": hdr0, "stats": _stats},
+            user_kw={
+                "meta": meta,
+                "hdr0": hdr0,
+                "stats": _stats,
+                "gdal_metadata_extra": sample_descriptions_metadata,
+            },
             **upload_params,
         )
 
@@ -735,7 +754,12 @@ def save_cog_with_dask(
     return s3_sink.upload(
         tiles_write_order,
         mk_header=_patch_hdr,
-        user_kw={"meta": meta, "hdr0": hdr0, "stats": _stats},
+        user_kw={
+            "meta": meta,
+            "hdr0": hdr0,
+            "stats": _stats,
+            "gdal_metadata_extra": sample_descriptions_metadata,
+        },
         client=client,
         **upload_params,
     )
