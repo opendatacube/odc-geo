@@ -487,7 +487,7 @@ def _patch_hdr(
     _bio = BytesIO(hdr0)
     with TiffFile(_bio, mode="r+", name=":mem:") as tr:
         assert len(tile_info) == len(tr.pages)
-        if stats is not None:
+        if stats is not None or gdal_metadata_extra:
             md_tag = tr.pages.first.tags.get(42112, None)
             assert md_tag is not None
             gdal_metadata = _render_gdal_metadata(
@@ -600,7 +600,7 @@ def _gdal_sample_description(sample: int, description: str) -> str:
 def _gdal_sample_descriptions(xx: xr.DataArray) -> List[str]:
     """Translate ``long_name`` attribute (if present) to GDAL sample description metadata.
 
-    :param xx: Pixels as :py:class:`xarray.DataArray` backed by Dask
+    :param xx: Pixels as :py:class:`xarray.DataArray`
 
     :return: List of GDAL XML metadata lines to place in TIFF file.
     """
