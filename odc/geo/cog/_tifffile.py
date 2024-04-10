@@ -87,20 +87,8 @@ def _stats_from_layer(
 
     axis = (yaxis, yaxis + 1)
     npix = pix.shape[yaxis] * pix.shape[yaxis + 1]
-    if nodata is not None:
-        dd = da.ma.masked_equal(pix, nodata)
-        return unwrap(
-            {
-                "minimum": dd.min(axis=axis),
-                "maximum": dd.max(axis=axis),
-                "mean": dd.mean(axis=axis),
-                "stddev": dd.std(axis=axis),
-                "valid_percent": da.isfinite(dd).sum(axis=axis) * (100 / npix),
-            },
-            pix.ndim,
-        )
 
-    if pix.dtype.kind == "f":
+    if nodata is None or np.isnan(nodata):
         dd = pix
         return unwrap(
             {
@@ -113,7 +101,8 @@ def _stats_from_layer(
             pix.ndim,
         )
 
-    dd = pix
+    # Exclude both nodata and invalid (e.g. NaN) values from statistics computation
+    dd = da.ma.masked_where((pix == nodata) | ~(np.isfinite(pix)), pix)
     return unwrap(
         {
             "minimum": dd.min(axis=axis),

@@ -3,7 +3,9 @@ from io import BytesIO
 from pathlib import Path
 from typing import Optional, Tuple
 
+import numpy as np
 import pytest
+from dask import array as da
 
 from odc.geo.cog import CogMeta, cog_gbox, save_cog_with_dask
 from odc.geo.cog._shared import compute_cog_spec, num_overviews
@@ -14,6 +16,7 @@ from odc.geo.cog._tifffile import (
     _gdal_sample_descriptions,
     _make_empty_cog,
     _norm_compression_tifffile,
+    _stats_from_layer,
     geotiff_metadata,
 )
 from odc.geo.geobox import GeoBox
@@ -450,3 +453,57 @@ def test_cog_with_dask_smoke_test(gbox: GeoBox, tmp_path: Path, dtype):
     fname = str(tmp_path / "cog-bandnames-incorrect.tif")
     with pytest.raises(ValueError):
         save_cog_with_dask(img, fname, compression="deflate", level=2)
+
+
+@pytest.mark.parametrize(
+    ("array", "nodata", "minimum", "maximum", "mean", "stddev", "valid_percent"),
+    [
+        pytest.param([[1, 1], [1, 1]], None, 1, 1, 1, 0, 100, id="basic int"),
+        pytest.param(
+            [[1.0, 1.0], [1.0, 1.0]], None, 1.0, 1.0, 1.0, 0.0, 100, id="basic float"
+        ),
+        pytest.param([[1, 0], [0, 1]], 0, 1, 1, 1, 0, 50, id="int with numeric nodata"),
+        pytest.param(
+            [[1.0, 0.0], [0.0, 1.0]], 0, 1, 1, 1, 0, 50, id="float with numeric nodata"
+        ),
+        pytest.param(
+            [[1.0, np.nan], [np.nan, 1.0]],
+            None,
+            1,
+            1,
+            1,
+            0,
+            50,
+            id="float with nan, None nodata",
+        ),
+        pytest.param(
+            [[1.0, np.nan], [np.nan, 1.0]],
+            np.nan,
+            1,
+            1,
+            1,
+            0,
+            50,
+            id="float with nan, nan nodata",
+        ),
+        pytest.param(
+            [[1.0, np.nan], [0, 1.0]],
+            0,
+            1,
+            1,
+            1,
+            0,
+            50,
+            id="float with nan, numeric nodata",
+        ),
+    ],
+)
+def test_stats_from_layer(array, nodata, minimum, maximum, mean, stddev, valid_percent):
+    x = da.from_array(array)
+    stats = _stats_from_layer(x, nodata).compute()[0]
+
+    assert stats["minimum"] == minimum
+    assert stats["maximum"] == minimum
+    assert stats["mean"] == mean
+    assert stats["stddev"] == stddev
+    assert stats["valid_percent"] == valid_percent
