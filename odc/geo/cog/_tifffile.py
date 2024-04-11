@@ -597,16 +597,23 @@ def _gdal_sample_description(sample: int, description: str) -> str:
     return f'<Item name="DESCRIPTION" sample="{sample}" role="description">{double_escaped_description}</Item>'
 
 
-def _gdal_sample_descriptions(xx: xr.DataArray) -> List[str]:
-    """Translate ``long_name`` attribute (if present) to GDAL sample description metadata.
+def _band_names(xx: xr.DataArray) -> List[str]:
+    if "band" in xx.coords and xx.coords["band"].dtype.type is np.str_:
+        return list(xx["band"].values)
+    if "long_name" in xx.attrs:
+        long_name = xx.attrs["long_name"]
+        return [long_name] if isinstance(long_name, str) else long_name
+    return []
 
-    :param xx: Pixels as :py:class:`xarray.DataArray`
+
+def _gdal_sample_descriptions(descriptions: List[str]) -> List[str]:
+    """Convert band names to GDAL sample descriptions.
 
     :return: List of GDAL XML metadata lines to place in TIFF file.
     """
     return [
         _gdal_sample_description(sample, description)
-        for sample, description in enumerate(xx.attrs.get("long_name", []))
+        for sample, description in enumerate(descriptions)
     ]
 
 
@@ -672,8 +679,9 @@ def save_cog_with_dask(
     if isinstance(blocksize, Unset):
         blocksize = [data_chunks, int(max(*data_chunks) // 2)]
 
-    sample_descriptions_metadata = _gdal_sample_descriptions(xx)
-    no_metadata = (stats is False) and not sample_descriptions_metadata
+    band_names = _band_names(xx)
+    sample_descriptions_metadata = _gdal_sample_descriptions(band_names)
+    no_metadata = (stats is False) and not band_names
     gdal_metadata = None if no_metadata else ""
 
     meta, hdr0 = _make_empty_cog(
@@ -690,6 +698,11 @@ def save_cog_with_dask(
         **kw,
     )
     hdr0 = bytes(hdr0)
+
+    if band_names and len(band_names) != meta.nsamples:
+        raise ValueError(
+            f"Found {len(band_names)} band names ({band_names}) but there are {meta.nsamples} bands."
+        )
 
     layers = _pyramids_from_cog_metadata(xx, meta, resampling=overview_resampling)
 

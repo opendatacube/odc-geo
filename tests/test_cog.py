@@ -9,6 +9,7 @@ from odc.geo.cog import CogMeta, cog_gbox, save_cog_with_dask
 from odc.geo.cog._shared import compute_cog_spec, num_overviews
 from odc.geo.cog._tifffile import (
     GEOTIFF_TAGS,
+    _band_names,
     _gdal_sample_description,
     _gdal_sample_descriptions,
     _make_empty_cog,
@@ -367,7 +368,15 @@ def test_gdal_sample_description(sample: int, description: str, expected: str):
     assert _gdal_sample_description(sample, description) == expected
 
 
-def test_gdal_sample_descriptions(gbox: GeoBox, tmp_path: Path):
+def test_gdal_sample_descriptions():
+    assert _gdal_sample_descriptions(["red", "green", "blue"]) == [
+        '<Item name="DESCRIPTION" sample="0" role="description">red</Item>',
+        '<Item name="DESCRIPTION" sample="1" role="description">green</Item>',
+        '<Item name="DESCRIPTION" sample="2" role="description">blue</Item>',
+    ]
+
+
+def test_band_names(gbox: GeoBox):
     gbox = gbox.zoom_to(1024)
     dtype = "float32"
     n = 512
@@ -376,22 +385,24 @@ def test_gdal_sample_descriptions(gbox: GeoBox, tmp_path: Path):
     img = xr_zeros(gbox, dtype, chunks=(n, n), nodata=nodata)
     img.attrs["long_name"] = []
 
-    assert _gdal_sample_descriptions(img) == []
+    assert _band_names(img) == []
+
+    img.attrs["long_name"] = "first band"
+    assert _band_names(img) == ["first band"]
 
     img.attrs["long_name"] = ["first band"]
-    assert _gdal_sample_descriptions(img) == [
-        '<Item name="DESCRIPTION" sample="0" role="description">first band</Item>',
-    ]
+    assert _band_names(img) == ["first band"]
 
     img = img.odc.colorize()
     assert img.ndim == 3
 
-    img.attrs["long_name"] = ["red", "green", "blue"]
-    assert _gdal_sample_descriptions(img) == [
-        '<Item name="DESCRIPTION" sample="0" role="description">red</Item>',
-        '<Item name="DESCRIPTION" sample="1" role="description">green</Item>',
-        '<Item name="DESCRIPTION" sample="2" role="description">blue</Item>',
-    ]
+    # Obtain descriptions from strings in "band" coordinate
+    assert _band_names(img) == ["r", "g", "b", "a"]
+
+    # Obtain descriptions from "long_names" attribute
+    img["band"] = [0, 1, 2, 3]
+    img.attrs["long_name"] = ["red", "green", "blue", "alpha"]
+    assert _band_names(img) == ["red", "green", "blue", "alpha"]
 
 
 @pytest.mark.parametrize("dtype", ["int16", "float32"])
@@ -428,8 +439,14 @@ def test_cog_with_dask_smoke_test(gbox: GeoBox, tmp_path: Path, dtype):
     assert str(rr) == fname
 
     # Band names
-    img.attrs["long_name"] = ["red", "green", "blue"]
+    img.attrs["long_name"] = ["2000", "2001"]
     fname = str(tmp_path / "cog-bandnames.tif")
     fut = save_cog_with_dask(img, fname, compression="deflate", level=2)
     rr = fut.compute()
     assert str(rr) == fname
+
+    # Incorrect number of band names
+    img.attrs["long_name"] = ["red", "green", "blue"]
+    fname = str(tmp_path / "cog-bandnames-incorrect.tif")
+    with pytest.raises(ValueError):
+        save_cog_with_dask(img, fname, compression="deflate", level=2)
