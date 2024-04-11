@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
 
 def _render_gdal_metadata(
-    band_stats: list[dict[str, float]] | dict[str, float],
+    band_stats: list[dict[str, float]] | dict[str, float] | None,
     precision: int = 10,
     pad: int = 0,
     eol: str = "",
@@ -54,6 +54,8 @@ def _render_gdal_metadata(
             ]
         )
 
+    if band_stats is None:
+        band_stats = []
     if isinstance(band_stats, dict):
         band_stats = [band_stats]
 
