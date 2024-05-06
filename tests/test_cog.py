@@ -543,12 +543,15 @@ def test_cog_with_dask_smoke_test(gbox: GeoBox, tmp_path: Path, dtype):
             id="float with nan, nan nodata",
         ),
         pytest.param(
-            [[1.0, np.nan], [0, 1.0]],
+            [
+                [1.0, np.nan],
+                [0.0, 9.0],
+            ],
             0,
             1,
-            1,
-            1,
-            0,
+            9.0,
+            5.0,
+            4.0,
             50,
             id="float with nan, numeric nodata",
         ),
@@ -559,7 +562,7 @@ def test_stats_from_layer(array, nodata, minimum, maximum, mean, stddev, valid_p
     stats = _stats_from_layer(x, nodata).compute()[0]
 
     assert stats["minimum"] == minimum
-    assert stats["maximum"] == minimum
+    assert stats["maximum"] == maximum
     assert stats["mean"] == mean
     assert stats["stddev"] == stddev
     assert stats["valid_percent"] == valid_percent
