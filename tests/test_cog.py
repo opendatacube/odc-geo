@@ -5,6 +5,10 @@ from typing import Optional, Tuple
 
 import numpy as np
 import pytest
+
+_ = pytest.importorskip("tifffile")
+_ = pytest.importorskip("rasterio")
+
 from dask import array as da
 from rasterio import MemoryFile
 from rasterio import open as rio_open
