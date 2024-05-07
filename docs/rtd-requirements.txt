@@ -2,16 +2,17 @@
 # odc-geo dependencies
 pyproj
 shapely
-rasterio==1.3.6
+rasterio
 xarray
 numpy
 cachetools
 tifffile
+imagecodecs
 
 # optional dependencies used in docs
 folium
 matplotlib
-dask[array]
+dask[array,distributed]
 
 ## for docs
 sphinx
@@ -20,5 +21,3 @@ sphinx-autodoc-typehints
 jupyter_sphinx
 geopandas
 ipykernel
-# work-around for rtd build issues
-urllib3<2
