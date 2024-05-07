@@ -9,6 +9,7 @@ GeoBox
    GeoBox.from_geopolygon
    GeoBox.from_bbox
    GeoBox.affine
+   GeoBox.anchor
    GeoBox.boundary
    GeoBox.buffered
    GeoBox.coordinates

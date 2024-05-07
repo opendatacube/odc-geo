@@ -2,6 +2,8 @@
 #
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
+from __future__ import annotations
+
 import importlib
 import itertools
 import math
@@ -28,6 +30,7 @@ from .crs import CRS, MaybeCRS, SomeCRS, norm_crs
 from .geom import BoundingBox, Geometry, bbox_intersection, bbox_union
 from .math import (
     clamp,
+    extract_anchor,
     is_affine_st,
     is_almost_int,
     maybe_zero,
@@ -195,9 +198,23 @@ class GeoBoxBase:
         Alignment of pixel boundaries in CRS units.
 
         This is usally ``(0,0)``.
+
+        .. seealso:: :py:meth:`~odc.geo.geobox.GeoBoxBase.anchor`
         """
+        # TODO: deprecate alignment method
         rx, _, tx, _, ry, ty, *_ = self._affine
         return xy_(tx % abs(rx), ty % abs(ry))
+
+    @property
+    def anchor(self) -> XY[float] | AnchorEnum:
+        """
+        Anchor point in pixel coordinates.
+
+        This is only valid for linear sources.
+        """
+        if not self.linear:
+            return AnchorEnum.FLOATING
+        return extract_anchor(self._affine)
 
     @property
     def linear(self) -> bool:

@@ -6,7 +6,7 @@ import pytest
 
 from odc.geo import geom
 from odc.geo.gcp import GCPGeoBox, GCPMapping
-from odc.geo.geobox import GeoBox
+from odc.geo.geobox import AnchorEnum, GeoBox
 from odc.geo.xr import xr_zeros
 
 rasterio = pytest.importorskip("rasterio")
@@ -104,6 +104,8 @@ def test_gcp_geobox_basics(au_gcp_geobox: GCPGeoBox):
     p1, p2 = gbox_.map_bounds()
     assert p1 == pytest.approx((-44.50301336231415, 109.39806656168265))
     assert p2 == pytest.approx((-9.47177497427409, 157.04711254391185))
+
+    assert gbox.anchor == AnchorEnum.FLOATING
 
 
 def test_gcp_geobox_xr(au_gcp_geobox: GCPGeoBox):

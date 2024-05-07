@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 from affine import Affine
 
-from odc.geo._interop import have
 from odc.geo import CRS, geom, ixy_, resxy_, resyx_, wh_, xy_
+from odc.geo._interop import have
 from odc.geo.geobox import (
     AnchorEnum,
     GeoBox,
@@ -666,7 +666,7 @@ def test_crop(gbox, shape):
     ],
 )
 def test_explore_geobox(geobox):
-    from folium import Map, GeoJson
+    from folium import GeoJson, Map
 
     # Test explore on dataset input and verify that output is a folium map
     # that contains a GeoJson layer
@@ -704,3 +704,34 @@ def test_shape(shape, allowed):
     else:
         with pytest.raises(ValueError):
             GeoBox.from_bbox((-3, -4, 3, 4), epsg4326, shape=shape)
+
+
+@pytest.mark.parametrize(
+    "gbox, expected_anchor",
+    [
+        (
+            GeoBox.from_bbox((3, 4, 5, 7), epsg4326, resolution=0.25, anchor="edge"),
+            AnchorEnum.EDGE,
+        ),
+        (
+            GeoBox.from_bbox((-3, -4, 5, 7), epsg4326, resolution=0.25),
+            AnchorEnum.EDGE,
+        ),
+        (
+            GeoBox.from_bbox(
+                (-3, -4, 5, 7), epsg4326, resolution=0.25, anchor="center"
+            ),
+            AnchorEnum.CENTER,
+        ),
+        (
+            GeoBox.from_bbox((35, 40, 50, 70), epsg3857, resolution=10, tight=True),
+            xy_(0.5, 0.0),
+        ),
+        (
+            GeoBox.from_bbox((-31, 40, 50, 72), epsg3857, resolution=10, tight=True),
+            xy_(0.1, 0.2),
+        ),
+    ],
+)
+def test_geobox_anchor(gbox, expected_anchor):
+    assert gbox.anchor == expected_anchor

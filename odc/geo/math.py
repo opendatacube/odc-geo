@@ -7,6 +7,8 @@ Various mathy helpers.
 
 Minimal dependencies in this module.
 """
+from __future__ import annotations
+
 from math import ceil, floor, fmod, isfinite, log2
 from typing import (
     Any,
@@ -24,7 +26,17 @@ import numpy as np
 from affine import Affine
 from numpy.polynomial.polynomial import polygrid2d, polyval2d
 
-from .types import XY, Resolution, SomeResolution, SomeShape, res_, resxy_, shape_, xy_
+from .types import (
+    XY,
+    AnchorEnum,
+    Resolution,
+    SomeResolution,
+    SomeShape,
+    res_,
+    resxy_,
+    shape_,
+    xy_,
+)
 
 AffineX = TypeVar("AffineX", np.ndarray, Affine)
 
@@ -795,3 +807,18 @@ class Poly2d:
         cc = np.vstack([cc, np.asarray([0, 0])]).reshape(2, 2, 2)
 
         return Poly2d(cc, Ain)
+
+
+def extract_anchor(pix2wld: Affine, tol: float = 1e-3) -> AnchorEnum | XY[float]:
+    def _anchor(px: float, tol: float) -> float:
+        _, x = split_float(px)  # x in (-0.5, +0.5)
+        x = (1 + x) if x < 0 else x  # x in [0, 1)
+        x = snap_scale(maybe_zero(x, tol), tol)
+        return 0 if x >= 1 else x
+
+    anchor = tuple(_anchor(px, tol) for px in (~pix2wld) * (0, 0))
+    if anchor == (0, 0):
+        return AnchorEnum.EDGE
+    if anchor == (0.5, 0.5):
+        return AnchorEnum.CENTER
+    return xy_(anchor)
