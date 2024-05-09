@@ -26,6 +26,7 @@ Interfacing with :py:class:`xarray.DataArray` and :py:class:`xarray.Dataset` cla
 
    ODCExtensionDa
    ODCExtensionDa.assign_crs
+   ODCExtensionDa.reload
    ODCExtensionDa.write_cog
    ODCExtensionDa.to_cog
    ODCExtensionDa.reproject
@@ -38,6 +39,7 @@ Interfacing with :py:class:`xarray.DataArray` and :py:class:`xarray.Dataset` cla
 
    ODCExtensionDs
    ODCExtensionDs.to_rgba
+   ODCExtensionDs.reload
 
    assign_crs
    rasterize

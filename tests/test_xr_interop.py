@@ -507,6 +507,25 @@ def test_extract_transform(geobox, bad_geo_transform: str):
 
 
 @pytest.mark.parametrize("geobox", TEST_GEOBOXES_SMALL_AXIS_ALIGNED)
+def test_reload(geobox):
+    xx = xr_zeros(geobox, dtype="int16")
+    assert xx.odc.geobox == geobox
+    assert xx.odc.reload() is xx
+    assert xx.odc.geobox == geobox
+
+    ds = xx.to_dataset(name="test")
+    assert ds.odc.geobox == geobox
+    assert ds.odc.reload() is ds
+    assert ds.odc.geobox == geobox
+
+    # change coords in-place
+    coord = xx[list(xx.coords)[0]]
+    coord.data[:] += 0.337
+    assert xx.odc.reload() is xx
+    assert xx.odc.geobox != geobox
+
+
+@pytest.mark.parametrize("geobox", TEST_GEOBOXES_SMALL_AXIS_ALIGNED)
 @pytest.mark.parametrize(
     "roi",
     [

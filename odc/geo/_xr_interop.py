@@ -904,6 +904,11 @@ class ODCExtensionDa(ODCExtension):
     def uncached(self) -> "ODCExtensionDa":
         return ODCExtensionDa(self._xx)
 
+    def reload(self) -> xarray.DataArray:
+        """Reload geospatial state info in-place."""
+        self._state = _locate_geo_info(self._xx)
+        return self._xx
+
     @property
     def ydim(self) -> int:
         """Index of the Y dimension."""
@@ -953,6 +958,11 @@ class ODCExtensionDs(ODCExtension):
     def __init__(self, ds: xarray.Dataset):
         ODCExtension.__init__(self, _locate_geo_info(ds))
         self._xx = ds
+
+    def reload(self) -> xarray.Dataset:
+        """Reload geospatial state info in-place."""
+        self._state = _locate_geo_info(self._xx)
+        return self._xx
 
     @property
     def uncached(self) -> "ODCExtensionDs":
