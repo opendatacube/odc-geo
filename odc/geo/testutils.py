@@ -11,7 +11,7 @@ from affine import Affine
 from . import CRS
 from .geobox import GeoBox
 from .gridspec import GridSpec
-from .math import apply_affine, maybe_int
+from .math import apply_affine, approx_equal_affine
 
 # pylint: disable=invalid-name,
 
@@ -227,11 +227,6 @@ def daskify(xx, **kw):
         coords=xx.coords,
         attrs=xx.attrs,
     )
-
-
-def approx_equal_affine(a: Affine, b: Affine, tol: float = 1e-6) -> bool:
-    sx, z1, tx, z2, sy, ty = map(lambda v: maybe_int(v, tol), (~a * b)[:6])
-    return (sx, z1, tx, z2, sy, ty) == (1, 0, 0, 0, 1, 0)
 
 
 def approx_equal_geobox(a: GeoBox, b: GeoBox, tol: float = 1e-6) -> bool:

@@ -240,18 +240,26 @@ def data_resolution_and_offset(
 
     :returns: ``(resolution, offset)``
     """
+    if not isinstance(data, np.ndarray):
+        data = data.values
+
     if data.size < 2:
         if data.size < 1:
             raise ValueError("Can't calculate resolution for empty data")
         if fallback_resolution is None:
             raise ValueError("Can't calculate resolution with data size < 2")
         res = fallback_resolution
-    else:
-        _res = (data[data.size - 1] - data[0]) / (data.size - 1.0)
-        res = _res.item()
+        off = data[0] - 0.5 * res
+        return res, float(off)
 
-    off = data[0] - 0.5 * res
-    return res, off.item()
+    x0, x1 = map(float, data[:2])
+
+    # x0 = 0*s + t + s/2
+    # x1 = 1*s + t + s/2
+    ####################
+    # s   = x1 - x0
+    # 2*t = 3*x0 - x1
+    return x1 - x0, (3 * x0 - x1) / 2
 
 
 def affine_from_axis(
@@ -301,7 +309,7 @@ def affine_from_axis(
     xres, xoff = data_resolution_and_offset(xx, frx)
     yres, yoff = data_resolution_and_offset(yy, fry)
 
-    return Affine.translation(xoff, yoff) * Affine.scale(xres, yres)
+    return Affine(xres, 0.0, xoff, 0.0, yres, yoff)
 
 
 def apply_affine(
@@ -359,6 +367,14 @@ def is_affine_st(A: Affine, tol: float = 1e-10) -> bool:
     (_, wx, _, wy, _, _, *_) = A
 
     return abs(wx) < tol and abs(wy) < tol
+
+
+def approx_equal_affine(a: Affine, b: Affine, tol: float = 1e-6) -> bool:
+    """
+    Check if two affine matrices are approximately equal.
+    """
+    sx, z1, tx, z2, sy, ty = map(lambda v: maybe_int(v, tol), (~a * b)[:6])
+    return (sx, z1, tx, z2, sy, ty) == (1, 0, 0, 0, 1, 0)
 
 
 def snap_affine(

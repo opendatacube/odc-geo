@@ -5,6 +5,8 @@
 """
 Add ``.odc.`` extension to :py:class:`xarray.Dataset` and :class:`xarray.DataArray`.
 """
+from __future__ import annotations
+
 import functools
 import warnings
 from dataclasses import dataclass
@@ -33,7 +35,12 @@ from .crs import CRS, CRSError, SomeCRS, norm_crs_or_error
 from .gcp import GCPGeoBox, GCPMapping
 from .geobox import Coordinate, GeoBox, GeoboxAnchor
 from .geom import Geometry
-from .math import affine_from_axis, maybe_int, resolution_from_affine
+from .math import (
+    affine_from_axis,
+    approx_equal_affine,
+    maybe_int,
+    resolution_from_affine,
+)
 from .overlap import compute_output_geobox
 from .roi import roi_is_empty
 from .types import Resolution, SomeResolution, SomeShape, xy_
@@ -174,7 +181,7 @@ def _mk_crs_coord(
         cf["gcps"] = _gcps_to_json(gcps)
 
     if transform is not None:
-        cf["GeoTransform"] = " ".join(map(str, transform.to_gdal()))
+        cf["GeoTransform"] = _render_geo_transform(transform, precision=24)
 
     return xarray.DataArray(
         numpy.asarray(epsg, "int32"),
@@ -483,6 +490,12 @@ def _extract_geo_transform(crs_coord: xarray.DataArray) -> Optional[Affine]:
     return Affine.from_gdal(c, a, b, f, d, e)
 
 
+def _render_geo_transform(transform: Affine, precision: int = 24) -> str:
+    return " ".join(
+        map(lambda x: f"{x:.{precision}f}".rstrip("0").rstrip("."), transform.to_gdal())
+    )
+
+
 def _extract_transform(
     src: XarrayObject,
     sdims: Tuple[str, str],
@@ -497,6 +510,9 @@ def _extract_transform(
         return _extract_geo_transform(crs_coord)
 
     _yy, _xx = (src[dim] for dim in sdims)
+    original_transform: Affine | None = None
+    if crs_coord is not None:
+        original_transform = _extract_geo_transform(crs_coord)
 
     # First try to compute from 1-D X/Y coords
     try:
@@ -504,9 +520,7 @@ def _extract_transform(
     except ValueError:
         # This can fail when any dimension is shorter than 2 elements
         # Figure out fallback resolution if possible and try again
-        if crs_coord is None:
-            return None
-        if (original_transform := _extract_geo_transform(crs_coord)) is None:
+        if crs_coord is None or original_transform is None:
             return None
         try:
             transform = affine_from_axis(
@@ -516,6 +530,11 @@ def _extract_transform(
             )
         except ValueError:
             return None
+
+    if original_transform is not None and approx_equal_affine(
+        transform, original_transform
+    ):
+        transform = original_transform
 
     if not gcp and (_pix2world := _xx.encoding.get("_transform", None)) is not None:
         # non-axis aligned geobox detected
