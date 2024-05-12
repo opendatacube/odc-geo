@@ -38,6 +38,7 @@ from .geom import Geometry
 from .math import (
     affine_from_axis,
     approx_equal_affine,
+    is_affine_st,
     maybe_int,
     resolution_from_affine,
 )
@@ -386,7 +387,7 @@ def xr_coords(
 
     if isinstance(gbox, GCPGeoBox):
         coords: Dict[Hashable, xarray.DataArray] = {
-            name: _mk_pixel_coord(name, sz, None)
+            name: _mk_pixel_coord(name, sz)
             for name, sz in zip(gbox.dimensions, gbox.shape)
         }
         gcps = gbox.gcps()
@@ -399,7 +400,7 @@ def xr_coords(
             }
         else:
             coords = {
-                name: _mk_pixel_coord(name, sz, transform)
+                name: _mk_pixel_coord(name, sz)
                 for name, sz in zip(gbox.dimensions, gbox.shape)
             }
 
@@ -414,14 +415,11 @@ def xr_coords(
 def _mk_pixel_coord(
     name: str,
     sz: int,
-    transform: Optional[Affine],
 ) -> xarray.DataArray:
     data = numpy.arange(0.5, sz, dtype="float32")
     xx = xarray.DataArray(
         data, coords={name: data}, dims=(name,), attrs={"units": "pixel"}
     )
-    if transform is not None:
-        xx.encoding["_transform"] = transform[:6]
     return xx
 
 
@@ -531,16 +529,16 @@ def _extract_transform(
         except ValueError:
             return None
 
-    if original_transform is not None and approx_equal_affine(
-        transform, original_transform
-    ):
-        transform = original_transform
+    if original_transform is not None:
+        if not is_affine_st(original_transform):
+            # non-axis aligned geobox detected
+            # adjust transform
+            #  world <- pix' <- pix
+            transform = original_transform * transform
 
-    if not gcp and (_pix2world := _xx.encoding.get("_transform", None)) is not None:
-        # non-axis aligned geobox detected
-        # adjust transform
-        #  world <- pix' <- pix
-        transform = Affine(*_pix2world) * transform
+        if approx_equal_affine(transform, original_transform):
+            transform = original_transform
+
     return transform
 
 

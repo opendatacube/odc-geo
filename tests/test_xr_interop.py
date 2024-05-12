@@ -87,8 +87,7 @@ def test_geobox_xr_coords():
     assert cc["spatial_ref"].attrs["spatial_ref"] == gbox.crs.wkt
     assert isinstance(cc["spatial_ref"].attrs["grid_mapping_name"], str)
     assert isinstance(cc["spatial_ref"].attrs["GeoTransform"], str)
-    assert cc["x"].encoding["_transform"] == _gbox.affine[:6]
-    assert cc["y"].encoding["_transform"] == _gbox.affine[:6]
+    assert xr_zeros(_gbox, dtype="uint16").odc.geobox == _gbox
 
     # geographic CRS
     A = mkA(0, scale=(0.1, -0.1), translation=(10, 30))
