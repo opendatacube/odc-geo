@@ -25,6 +25,11 @@ from odc.geo.xr import (
 )
 
 # pylint: disable=redefined-outer-name,import-outside-toplevel,protected-access
+TEST_GEOBOXES_SMALL_AXIS_ALIGNED = [
+    GeoBox.from_bbox((-10, -2, 5, 4), "epsg:4326", tight=True, resolution=0.2),
+    GeoBox.from_bbox((-10, -2, 5, 4), "epsg:3857", tight=True, resolution=1),
+    GeoBox.from_bbox((-10, -2, 5, 4), "epsg:3857", tight=True, resolution=resxy_(1, 2)),
+]
 
 
 @pytest.fixture
@@ -175,6 +180,7 @@ def test_odc_extension(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox):
     assert xx.odc.output_geobox("epsg:3857").crs == "epsg:3857"
     assert xx.odc.map_bounds() == gbox.map_bounds()
     assert xx.odc.output_geobox("utm").crs.epsg is not None
+    assert xx.odc.aspect == gbox.aspect
 
     # this drops encoding/attributes, but crs/geobox should remain the same
     _xx = xx * 10.0
@@ -351,6 +357,9 @@ def test_wrap_xr():
     assert xx.dims == gbox.dims
     assert xx.attrs == {}
 
+    assert wrap_xr(data, gbox, always_yx=True).dims == ("y", "x")
+    assert wrap_xr(data, gbox, dims=("Y", "X")).dims == ("Y", "X")
+
     xx = wrap_xr(data, gbox, nodata=None)
     assert xx.attrs == {}
 
@@ -374,6 +383,31 @@ def test_wrap_xr():
     xx = wrap_xr(data[..., np.newaxis], gbox)
     assert xx.shape == (*gbox.shape, 1)
     assert xx.band.data.tolist() == ["b0"]
+
+
+@pytest.mark.parametrize("gbox", TEST_GEOBOXES_SMALL_AXIS_ALIGNED)
+@pytest.mark.parametrize("nprefix", [0, 1, 2])
+@pytest.mark.parametrize("npostfix", [0, 1, 2])
+def test_wrap_xr_nd(gbox: GeoBox, nprefix: int, npostfix: int):
+    shape = (1,) * nprefix + gbox.shape + (3,) * npostfix
+    data = np.zeros(shape, dtype="uint16")
+    xx = wrap_xr(data, gbox, axis=nprefix)
+    assert xx.odc.geobox == gbox
+    assert xx.odc.ydim == nprefix
+    assert xx.dims[:nprefix] == ("time", "dim_0", "dim_1", "dim_2", "dim_3")[:nprefix]
+
+    if npostfix == 1:
+        assert xx.dims[-1] == "band"
+    if npostfix > 1:
+        assert xx.dims[nprefix + 2 :] == tuple(f"b_{i}" for i in range(npostfix))
+
+    _dims = tuple(f"custom_{dim}" for dim in xx.dims)
+    _dims = _dims[:nprefix] + ("y", "x") + _dims[nprefix + 2 :]
+
+    yy = wrap_xr(data, gbox, axis=nprefix, dims=_dims)
+    assert yy.dims == _dims
+    assert yy.odc.geobox == gbox
+    assert yy.odc.spatial_dims == _dims[nprefix : nprefix + 2]
 
 
 @pytest.mark.parametrize("xx_time", [None, ["2020-01-30"]])
@@ -478,13 +512,6 @@ def test_is_dask_collection():
 
     assert "is_dask_collection" in dir(odc.geo._interop)
     assert is_dask_collection is dask.is_dask_collection
-
-
-TEST_GEOBOXES_SMALL_AXIS_ALIGNED = [
-    GeoBox.from_bbox((-10, -2, 5, 4), "epsg:4326", tight=True, resolution=0.2),
-    GeoBox.from_bbox((-10, -2, 5, 4), "epsg:3857", tight=True, resolution=1),
-    GeoBox.from_bbox((-10, -2, 5, 4), "epsg:3857", tight=True, resolution=resxy_(1, 2)),
-]
 
 
 @pytest.mark.parametrize("geobox", TEST_GEOBOXES_SMALL_AXIS_ALIGNED)

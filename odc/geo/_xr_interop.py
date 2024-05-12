@@ -363,20 +363,42 @@ def crop(
 
 
 def xr_coords(
-    gbox: SomeGeoBox, crs_coord_name: Optional[str] = _DEFAULT_CRS_COORD_NAME
+    gbox: SomeGeoBox,
+    crs_coord_name: Optional[str] = _DEFAULT_CRS_COORD_NAME,
+    always_yx: bool = False,
+    dims: Optional[Tuple[str, str]] = None,
 ) -> Dict[Hashable, xarray.DataArray]:
     """
     Dictionary of Coordinates in xarray format.
 
+    :param gbox:
+      :py:class:`~odc.geo.geobox.GeoBox` or :py:class:`~odc.geo.gcp.GCPGeoBox`
+
     :param crs_coord_name:
-       Use custom name for CRS coordinate, default is "spatial_ref". Set to ``None`` to not generate
-       CRS coordinate at all.
+       Use custom name for CRS coordinate, default is "spatial_ref". Set to
+       ``None`` to not generate CRS coordinate at all.
+
+    :param always_yx:
+       If True, always use names ``y,x`` for spatial coordinates even for
+       geographic geoboxes.
+
+    :param dims:
+       Use custom names for spatial dimensions, default is to use ``y,x`` or
+       ``latitude, longitude`` based on projection used. Dimensions are supplied
+       in "array" order, i.e. ``('y', 'x')``.
 
     :returns:
-       Dictionary ``name:str -> xr.DataArray``. Where names are either ``y,x`` for projected or
+       Dictionary ``name:str -> xr.DataArray``. Where names are either as
+       supplied by ``dims=`` or otherwise ``y,x`` for projected or
        ``latitude, longitude`` for geographic.
 
     """
+    if dims is None:
+        if always_yx:
+            dims = ("y", "x")
+        else:
+            dims = gbox.dimensions
+
     attrs = {}
     crs = gbox.crs
     if crs is not None:
@@ -387,8 +409,7 @@ def xr_coords(
 
     if isinstance(gbox, GCPGeoBox):
         coords: Dict[Hashable, xarray.DataArray] = {
-            name: _mk_pixel_coord(name, sz)
-            for name, sz in zip(gbox.dimensions, gbox.shape)
+            name: _mk_pixel_coord(name, sz) for name, sz in zip(dims, gbox.shape)
         }
         gcps = gbox.gcps()
     else:
@@ -396,12 +417,11 @@ def xr_coords(
         if gbox.axis_aligned:
             coords = {
                 name: _coord_to_xr(name, coord, **attrs)
-                for name, coord in gbox.coordinates.items()
+                for name, coord in zip(dims, gbox.coordinates.values())
             }
         else:
             coords = {
-                name: _mk_pixel_coord(name, sz)
-                for name, sz in zip(gbox.dimensions, gbox.shape)
+                name: _mk_pixel_coord(name, sz) for name, sz in zip(dims, gbox.shape)
             }
 
     if crs_coord_name is not None and crs is not None:
@@ -544,6 +564,9 @@ def _extract_transform(
 
 def _locate_geo_info(src: XarrayObject) -> GeoState:
     # pylint: disable=too-many-locals
+    if len(src.dims) < 2:
+        return GeoState()
+
     sdims = spatial_dims(src, relaxed=True)
     if sdims is None:
         return GeoState()
@@ -1009,6 +1032,8 @@ def wrap_xr(
     time=None,
     nodata=None,
     crs_coord_name: Optional[str] = _DEFAULT_CRS_COORD_NAME,
+    always_yx: bool = False,
+    dims: Optional[Tuple[str, ...]] = None,
     axis: Optional[int] = None,
     **attrs,
 ) -> xarray.DataArray:
@@ -1019,37 +1044,74 @@ def wrap_xr(
     :param gbox: Geobox, must same shape as last two axis of ``im``
     :param time: optional time axis value(s), defaults to None
     :param nodata: optional `nodata` value, defaults to None
+    :param crs_coord_name: allows to change name of the crs coordinate variable
+    :param always_yx: If True, always use names ``y,x`` for spatial coordinates
+    :param dims: Custom names for spatial dimensions
+    :param axis: Which axis of the input array corresponds to Y,X
     :param attrs: Any other attributes to set on the result
     :return: xarray DataArray
     """
+    # pylint: disable=too-many-locals,too-many-arguments
+    assert dims is None or len(dims) == im.ndim
+
     if axis is None:
         axis = 1 if time is not None else 0
+    elif axis < 0:  # handle numpy style negative axis
+        axis = int(im.ndim) + axis
 
     if im.ndim == 2 and axis == 1:
         im = im[numpy.newaxis, ...]
 
-    assert axis in (0, 1)  # upto 1 extra dimension on the left only
-    assert im.ndim - axis - 2 in (0, 1)  # upto 1 extra dimension on the right only
+    assert axis >= 0
+    assert im.ndim - axis - 2 >= 0
     assert im.shape[axis : axis + 2] == gbox.shape
 
-    prefix_dims: Tuple[str, ...] = ("time",) if axis == 1 else ()
-    postfix_dims: Tuple[str, ...] = ("band",) if im.ndim - axis > 2 else ()
+    def _prefix_dims(n):
+        if n == 0:
+            return ()
+        if n == 1:
+            return ("time",)
+        return ("time", *[f"dim_{i}" for i in range(n - 1)])
 
-    dims = (*prefix_dims, *gbox.dimensions, *postfix_dims)
-    coords = xr_coords(gbox, crs_coord_name=crs_coord_name)
+    def _postfix_dims(n):
+        if n == 0:
+            return ()
+        if n == 1:
+            return ("band",)
+        return (f"b_{i}" for i in range(n))
+
+    sdims: Optional[Tuple[str, str]] = None
+    if dims is None:
+        sdims = ("y", "x") if always_yx else gbox.dimensions
+        dims = (*_prefix_dims(axis), *sdims, *_postfix_dims(im.ndim - axis - 2))
+    else:
+        sdims = dims[axis], dims[axis + 1]
+
+    prefix_dims = dims[:axis]
+    postfix_dims = dims[axis + 2 :]
+
+    coords = xr_coords(
+        gbox,
+        crs_coord_name=crs_coord_name,
+        always_yx=always_yx,
+        dims=sdims,
+    )
 
     if time is not None:
         if not isinstance(time, xarray.DataArray):
             if len(prefix_dims) > 0 and isinstance(time, (str, datetime)):
                 time = [time]
 
-            time = xarray.DataArray(time, dims=prefix_dims).astype("datetime64[ns]")
+            time = xarray.DataArray(time, dims=prefix_dims[:1]).astype("datetime64[ns]")
 
         coords["time"] = time
+
     if postfix_dims:
-        coords["band"] = xarray.DataArray(
-            [f"b{i}" for i in range(im.shape[-1])], dims=postfix_dims
-        )
+        for a, dim in enumerate(postfix_dims):
+            nb = im.shape[axis + 2 + a]
+            coords[dim] = xarray.DataArray(
+                [f"b{i}" for i in range(nb)], dims=(dim,), name=dim
+            )
 
     if nodata is not None:
         attrs = {"nodata": nodata, **attrs}
@@ -1079,6 +1141,9 @@ def xr_zeros(
     :param crs_coord_name: allows to change name of the crs coordinate variable
 
     :return: :py:class:`xarray.DataArray` filled with zeros (numpy or dask)
+
+    .. seealso:: :py:meth:`odc.geo.xr.wrap_xr`
+
     """
     if time is not None:
         _shape: Tuple[int, ...] = (len(time), *geobox.shape.yx)

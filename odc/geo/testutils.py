@@ -201,7 +201,6 @@ def purge_crs_info(xx: xr.DataArray) -> xr.DataArray:
         for attr in attributes_to_clear:
             _x.attrs.pop(attr, None)
         _x.encoding.pop("grid_mapping", None)
-        _x.encoding.pop("_transform", None)
         return _x
 
     # remove non-dimensional coordinate, which is CRS in our case
