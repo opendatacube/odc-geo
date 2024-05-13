@@ -336,11 +336,21 @@ def crop(
 
     .. seealso:: :py:meth:`odc.geo.xr.mask`
     """
+    meta: ODCExtension = xx.odc
+    sdims = meta.spatial_dims
+    gbox = meta.geobox
+
+    if sdims is None or gbox is None:
+        raise ValueError("Can't locate spatial dimensions")
+
+    if not isinstance(gbox, GeoBox):
+        raise ValueError("Can't crop GCPGeoBox")
+
     # Create new geobox with pixel grid of `xx` but enclosing `poly`.
-    poly_geobox = xx.odc.geobox.enclosing(poly)
+    poly_geobox = gbox.enclosing(poly)
 
     # Calculate ROI slices into `xx` for intersection between both geoboxes.
-    roi = xx.odc.geobox.overlap_roi(poly_geobox)
+    roi = gbox.overlap_roi(poly_geobox)
 
     # Verify that `poly` overlaps with `xx` by checking if the returned
     # ROI is empty
@@ -350,9 +360,6 @@ def crop(
         )
 
     # Crop spatial dims of `xx` using ROI
-    sdims = spatial_dims(xx)
-    if sdims is None:
-        raise ValueError("Can't locate spatial dimensions")
     xx_cropped = xx.isel({sdims[0]: roi[0], sdims[1]: roi[1]})
 
     # Optionally mask data outside rasterized `poly`
