@@ -6,6 +6,8 @@ from uuid import uuid4
 
 import pytest
 
+_ = pytest.importorskip("odc.geo.cog")
+
 from odc.geo.cog._mpu_fs import MPUFileSink
 
 # pylint: disable=protected-access
@@ -16,7 +18,7 @@ def slurp(path: Path) -> bytes:
         return f.read()
 
 
-@pytest.mark.parametrize("parts_base", [f"parts-{uuid4().hex[:8]}", None])
+@pytest.mark.parametrize("parts_base", [f"parts-3782781", None])
 @pytest.mark.parametrize("num_parts", [1, 2, 3, 10])
 def test_filesink(tmp_path: Path, parts_base: str | None, num_parts: int):
     dst = Path(tmp_path / f"{uuid4().hex}.bin")
