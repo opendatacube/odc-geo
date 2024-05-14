@@ -1,4 +1,4 @@
-from typing import Any, Optional, Tuple, Dict
+from typing import Any, Dict, Optional, Tuple
 
 import xarray as xr
 
@@ -10,17 +10,18 @@ from .geobox import GeoBox
 
 
 # pylint: disable=import-outside-toplevel, redefined-builtin, too-many-locals
-def _add_to_folium(url, bounds, map, name=None, **kw):
+def _add_to_folium(url, bounds, map, name=None, index=None, **kw):
     assert have.folium
 
     from folium.raster_layers import ImageOverlay
 
     img_overlay = ImageOverlay(url, bounds, name=name, **kw)
-    img_overlay.add_to(map)
+    if map is not None:
+        img_overlay.add_to(map, name=name, index=index)
     return img_overlay
 
 
-def _add_to_ipyleaflet(url, bounds, map, name=None, **kw):
+def _add_to_ipyleaflet(url, bounds, map, name=None, index=None, **kw):
     assert have.ipyleaflet
 
     from ipyleaflet import ImageOverlay, Map
@@ -31,7 +32,8 @@ def _add_to_ipyleaflet(url, bounds, map, name=None, **kw):
         kw.update(name=name)
 
     img_overlay = ImageOverlay(url=url, bounds=bounds, **kw)
-    map.add(img_overlay)
+    if map is not None:
+        map.add(img_overlay, index=index)
 
     return img_overlay
 
@@ -56,6 +58,7 @@ def add_to(
     map: Any,
     *,
     name: Optional[str] = None,
+    index: Optional[int] = None,
     fmt: str = "png",
     max_size: int = 4096,
     resampling: str = "nearest",
@@ -167,12 +170,13 @@ def add_to(
     if _add_to is None:
         return url, bounds
 
-    return _add_to(url, bounds, map, name=name, **kw)
+    return _add_to(url, bounds, map, name=name, index=index, **kw)
 
 
 def explore(
     xx: Any,
     map: Optional[Any] = None,
+    *,
     bands: Optional[Tuple[str, str, str]] = None,
     vmin: Optional[float] = None,
     vmax: Optional[float] = None,
@@ -245,12 +249,10 @@ def explore(
             "Please install it before using `.explore()`."
         )
 
-    from folium import Map, LayerControl
+    from folium import LayerControl, Map
 
-    # Update any supplied kwargs with custom params
     map_kwds = {} if map_kwds is None else map_kwds
-    kwargs.update(cmap=cmap, vmin=vmin, vmax=vmax, robust=robust, resampling=resampling)
-    map_kwds.update(tiles=tiles, attr=attr)
+    new_map = map is None
 
     # If input is a dataset, convert to an RGBA array
     if isinstance(xx, xr.Dataset):
@@ -258,11 +260,19 @@ def explore(
 
     # Create folium Map if required
     if map is None:
-        map = Map(**map_kwds)
+        map = Map(tiles=tiles, attr=attr, **map_kwds)
 
     # Add to map and raise a friendly error if data has unsuitable dims
     try:
-        xx.odc.add_to(map, **kwargs)
+        xx.odc.add_to(
+            map,
+            cmap=cmap,
+            vmin=vmin,
+            vmax=vmax,
+            robust=robust,
+            resampling=resampling,
+            **kwargs,
+        )
     except ValueError as e:
         raise ValueError(
             "Only 2D single-band (x, y) or 3D multi-band (x, y, band) "
@@ -271,14 +281,12 @@ def explore(
             "or `.sel()`: `da.isel(time=0).odc.explore()`."
         ) from e
 
-    # Zoom map to extent of data
-    map.fit_bounds(xx.odc.map_bounds())
+    if new_map:
+        # Zoom map to extent of data
+        map.fit_bounds(xx.odc.map_bounds())
 
-    # Add a layer control if requested and not already added
-    layer_control_added = any(
-        isinstance(child, LayerControl) for child in map._children.values()
-    )
-    if layer_control and not layer_control_added:
-        LayerControl().add_to(map)
+        # Add a layer control if requested
+        if layer_control:
+            LayerControl().add_to(map)
 
     return map
