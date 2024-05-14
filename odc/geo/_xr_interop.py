@@ -64,6 +64,14 @@ _DEFAULT_CRS_COORD_NAME = "spatial_ref"
 # these attributes are pruned during reproject
 SPATIAL_ATTRIBUTES = ("crs", "crs_wkt", "grid_mapping", "gcps", "epsg")
 
+# dimensions with these names are considered spatial
+STANDARD_SPATIAL_DIMS = [
+    ("y", "x"),
+    ("yc", "xc"),
+    ("latitude", "longitude"),
+    ("lat", "lon"),
+]
+
 
 @dataclass
 class GeoState:
@@ -152,13 +160,29 @@ def spatial_dims(
     :returns: ``None`` if no dimensions with expected names are found
     :returns: ``('y', 'x') | ('latitude', 'longitude') | ('lat', 'lon')``
     """
-    guesses = [("y", "x"), ("latitude", "longitude"), ("lat", "lon")]
+
+    def skip_dim(dim: str) -> bool:
+        if dim in ("time", "band", "bands", "wavelength", "wavelengths"):
+            return True
+
+        # skip dimensions without coord of the same name
+        if dim not in xx.coords:
+            return True
+
+        coord = xx.coords[dim]
+        # Primary coordinate for spatial dimension must have floating point type
+        if coord.dtype.kind != "f":
+            return True
+
+        return False
 
     _dims = [str(dim) for dim in xx.dims]
     dims = set(_dims)
-    for guess in guesses:
+    for guess in STANDARD_SPATIAL_DIMS:
         if dims.issuperset(guess):
             return guess
+
+    _dims = [dim for dim in _dims if not skip_dim(str(dim))]
 
     if relaxed and len(_dims) >= 2:
         return _dims[-2], _dims[-1]

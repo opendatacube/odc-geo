@@ -18,6 +18,7 @@ from odc.geo.xr import (
     ODCExtensionDs,
     rasterize,
     register_geobox,
+    spatial_dims,
     wrap_xr,
     xr_coords,
     xr_reproject,
@@ -729,3 +730,33 @@ def test_mask(xx_epsg4326, poly):
     xx_ds_masked = xx_ds.odc.mask(poly=poly)
     assert xx_ds_masked.odc.geobox == xx_ds.odc.geobox
     assert xx_ds_masked.test.isnull().any()
+
+
+def test_spatial_dims():
+    gbox = GeoBox.from_bbox([0, -10, 100, 20], "epsg:4326", tight=True, shape=(13, 29))
+    xx0 = xr_zeros(gbox, "int16", always_yx=True, time=["2020-01-01", "2020-01-02"])
+    assert spatial_dims(xx0) == ("y", "x")
+
+    assert wrap_xr(
+        xx0.data,
+        gbox,
+        dims=("T", "Y", "X"),
+        axis=1,
+    ).odc.spatial_dims == ("Y", "X")
+    assert wrap_xr(
+        xx0.data[..., np.newaxis],
+        gbox,
+        dims=("time", "Y", "X", "wavelength"),
+        axis=1,
+    ).odc.spatial_dims == ("Y", "X")
+
+    xx = wrap_xr(
+        np.zeros((2, 3, *gbox.shape.yx, 2, 3), dtype="int16"),
+        gbox,
+        axis=2,
+        dims=("A", "B", "Y", "X", "C", "D"),
+    )
+    assert "X" in xx.coords and "Y" in xx.coords
+    assert xx.odc.geobox == gbox
+    assert xx.odc.ydim == 2
+    assert xx.odc.spatial_dims == xx.dims[2:4]
