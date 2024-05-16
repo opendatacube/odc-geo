@@ -84,7 +84,7 @@ def _norm_compression_opts(
 
 
 def _get_gdal_metadata(
-    xx: xr.DataArray | list[xr.DataArray],
+    xx: Union[xr.DataArray, List[xr.DataArray]],
     tags: Optional[Dict[str, Any]],
 ) -> Dict[str, Any]:
     """
