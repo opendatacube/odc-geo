@@ -5,6 +5,8 @@
 """
 Write Cloud Optimized GeoTIFFs from xarrays.
 """
+from __future__ import annotations
+
 import warnings
 from contextlib import contextmanager
 from pathlib import Path
@@ -84,7 +86,7 @@ def _norm_compression_opts(
 
 
 def _get_gdal_metadata(
-    xx: Union[xr.DataArray, List[xr.DataArray]],
+    xx: xr.DataArray | list[xr.DataArray],
     tags: Optional[Dict[str, Any]],
 ) -> Dict[str, Any]:
     """
