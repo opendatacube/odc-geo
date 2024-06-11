@@ -821,9 +821,9 @@ def _xr_reproject_da(
         dst_nodata = src_nodata
 
     if is_dask_collection(src):
-        from ._dask import _dask_rio_reproject
+        from ._dask import dask_rio_reproject
 
-        dst: Any = _dask_rio_reproject(
+        dst: Any = dask_rio_reproject(
             src.data,
             src_gbox,
             dst_geobox,

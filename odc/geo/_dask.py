@@ -70,7 +70,7 @@ def _do_chunked_reproject(
     return dst
 
 
-def _dask_rio_reproject(
+def dask_rio_reproject(
     src: da.Array,
     s_gbox: Union[GeoBox, GCPGeoBox],
     d_gbox: GeoBox,
@@ -94,7 +94,6 @@ def _dask_rio_reproject(
 
     name: str = kwargs.pop("name", "reproject")
 
-    assert isinstance(s_gbox, GeoBox)
     gbt_src = GeoboxTiles(s_gbox, src.chunks[ydim : ydim + 2])
     gbt_dst = GeoboxTiles(d_gbox, chunks)
     d2s_idx = gbt_dst.grid_intersect(gbt_src)
