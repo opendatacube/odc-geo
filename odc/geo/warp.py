@@ -17,6 +17,15 @@ Resampling = Union[str, int, rasterio.warp.Resampling]
 Nodata = Optional[Union[int, float]]
 _WRP_CRS = "epsg:3857"
 
+__all__ = [
+    "resampling_s2rio",
+    "is_resampling_nn",
+    "resolve_fill_value",
+    "warp_affine",
+    "warp_affine_rio",
+    "rio_reproject",
+]
+
 
 def resampling_s2rio(name: str) -> rasterio.warp.Resampling:
     """
@@ -36,6 +45,18 @@ def is_resampling_nn(resampling: Resampling) -> bool:
     if isinstance(resampling, str):
         return resampling.lower() == "nearest"
     return resampling == rasterio.warp.Resampling.nearest
+
+
+def resolve_fill_value(dst_nodata, src_nodata, dtype):
+    dtype = np.dtype(dtype)
+
+    if dst_nodata is not None:
+        return dtype.type(dst_nodata)
+    if np.issubdtype(dtype, np.floating):
+        return dtype.type("nan")
+    if src_nodata is not None:
+        return dtype.type(src_nodata)
+    return dtype.type(0)
 
 
 def warp_affine_rio(
@@ -129,14 +150,13 @@ def rio_reproject(
     :returns: dst
     """
     assert src.ndim == dst.ndim
-    if dst_nodata is None:
-        if dst.dtype.kind == "f":
-            dst_nodata = np.nan
 
     if src.ndim == 2:
         return _rio_reproject(
             src, dst, s_gbox, d_gbox, resampling, src_nodata, dst_nodata, **kwargs
         )
+
+    fill_value = resolve_fill_value(dst_nodata, src_nodata, dst.dtype)
 
     if ydim is None:
         # Assume last two dimensions are Y/X
@@ -154,9 +174,9 @@ def rio_reproject(
             dst[roi],
             s_gbox,
             d_gbox,
-            resampling,
-            src_nodata,
-            dst_nodata,
+            resampling=resampling,
+            src_nodata=src_nodata,
+            dst_nodata=fill_value,
             **kwargs,
         )
     return dst

@@ -425,6 +425,9 @@ def test_xr_reproject(xx_epsg4326: xr.DataArray):
     assert xx.odc.geobox == dst_gbox
     assert xx.encoding["grid_mapping"] == "spatial_ref"
     assert "crs" not in xx.attrs
+    assert xx.dtype == xx_epsg4326.dtype
+
+    assert xx_epsg4326.odc.reproject(3857, dtype="float32").dtype == "float32"
 
     yy = xr.Dataset({"a": xx0, "b": xx0 + 1, "c": xr.DataArray([2, 3, 4])})
     assert isinstance(yy.odc, ODCExtensionDs)

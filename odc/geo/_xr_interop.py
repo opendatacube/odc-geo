@@ -45,6 +45,7 @@ from .math import (
 from .overlap import compute_output_geobox
 from .roi import roi_is_empty
 from .types import Resolution, SomeResolution, SomeShape, xy_
+from .warp import resolve_fill_value
 
 # pylint: disable=import-outside-toplevel
 # pylint: disable=too-many-lines
@@ -63,6 +64,8 @@ _DEFAULT_CRS_COORD_NAME = "spatial_ref"
 
 # these attributes are pruned during reproject
 SPATIAL_ATTRIBUTES = ("crs", "crs_wkt", "grid_mapping", "gcps", "epsg")
+NODATA_ATTRIBUTES = ("nodata", "_FillValue")
+REPROJECT_SKIP_ATTRS: set[str] = set(SPATIAL_ATTRIBUTES + NODATA_ATTRIBUTES)
 
 # dimensions with these names are considered spatial
 STANDARD_SPATIAL_DIMS = [
@@ -654,6 +657,7 @@ def xr_reproject(
     *,
     resampling: Union[str, int] = "nearest",
     dst_nodata: Optional[float] = None,
+    dtype=None,
     resolution: Union[SomeResolution, Literal["auto", "fit", "same"]] = "auto",
     shape: Union[SomeShape, int, None] = None,
     tight: bool = False,
@@ -728,10 +732,10 @@ def xr_reproject(
     }
     if isinstance(src, xarray.DataArray):
         return _xr_reproject_da(
-            src, how, resampling=resampling, dst_nodata=dst_nodata, **kw
+            src, how, resampling=resampling, dst_nodata=dst_nodata, dtype=dtype, **kw
         )
     return _xr_reproject_ds(
-        src, how, resampling=resampling, dst_nodata=dst_nodata, **kw
+        src, how, resampling=resampling, dst_nodata=dst_nodata, dtype=dtype, **kw
     )
 
 
@@ -750,6 +754,7 @@ def _xr_reproject_ds(
     *,
     resampling: Union[str, int] = "nearest",
     dst_nodata: Optional[float] = None,
+    dtype=None,
     **kw,
 ) -> xarray.Dataset:
     assert isinstance(src, xarray.Dataset)
@@ -776,7 +781,12 @@ def _xr_reproject_ds(
                 dv = dv.drop_vars(strip_coords)
             return dv
         return _xr_reproject_da(
-            dv, how=dst_geobox, resampling=resampling, dst_nodata=dst_nodata, **kw
+            dv,
+            how=dst_geobox,
+            resampling=resampling,
+            dst_nodata=dst_nodata,
+            dtype=dtype,
+            **kw,
         )
 
     return src.map(_maybe_reproject)
@@ -788,6 +798,7 @@ def _xr_reproject_da(
     *,
     resampling: Union[str, int] = "nearest",
     dst_nodata: Optional[float] = None,
+    dtype=None,
     **kw,
 ) -> xarray.DataArray:
     # pylint: disable=too-many-locals
@@ -809,6 +820,9 @@ def _xr_reproject_da(
     else:
         dst_geobox = src.odc.output_geobox(how, **kw_gbox)
 
+    if dtype is None:
+        dtype = src.dtype
+
     # compute destination shape by replacing spatial dimensions shape
     ydim = src.odc.ydim
     assert ydim + 1 == src.odc.xdim
@@ -817,8 +831,8 @@ def _xr_reproject_da(
     src_nodata = kw.pop("src_nodata", None)
     if src_nodata is None:
         src_nodata = src.odc.nodata
-    if dst_nodata is None:
-        dst_nodata = src_nodata
+
+    fill_value = resolve_fill_value(dst_nodata, src_nodata, dtype)
 
     if is_dask_collection(src):
         from ._dask import dask_rio_reproject
@@ -829,12 +843,13 @@ def _xr_reproject_da(
             dst_geobox,
             resampling=resampling,
             src_nodata=src_nodata,
-            dst_nodata=dst_nodata,
+            dst_nodata=fill_value,
             ydim=ydim,
+            dtype=dtype,
             **kw,
         )
     else:
-        dst = numpy.empty(dst_shape, dtype=src.dtype)
+        dst = numpy.full(dst_shape, fill_value, dtype=dtype)
 
         dst = rio_reproject(
             src.values,
@@ -843,17 +858,17 @@ def _xr_reproject_da(
             dst_geobox,
             resampling=resampling,
             src_nodata=src_nodata,
-            dst_nodata=dst_nodata,
+            dst_nodata=fill_value,
             ydim=ydim,
+            dtype=dtype,
             **kw,
         )
 
-    attrs = {k: v for k, v in src.attrs.items() if k not in SPATIAL_ATTRIBUTES}
-    if dst_nodata is None:
-        attrs.pop("nodata", None)
-        attrs.pop("_FillValue", None)
-    else:
-        attrs.update(nodata=maybe_int(dst_nodata, 1e-6))
+    attrs = {k: v for k, v in src.attrs.items() if k not in REPROJECT_SKIP_ATTRS}
+    if numpy.isfinite(fill_value) and (
+        dst_nodata is not None or src_nodata is not None
+    ):
+        attrs.update({k: maybe_int(float(fill_value), 1e-6) for k in NODATA_ATTRIBUTES})
 
     # new set of coords (replace x,y dims)
     # discard all coords that reference spatial dimensions

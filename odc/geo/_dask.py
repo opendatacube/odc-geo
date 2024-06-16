@@ -9,19 +9,13 @@ from dask.highlevelgraph import HighLevelGraph
 from ._blocks import BlockAssembler
 from .gcp import GCPGeoBox
 from .geobox import GeoBox, GeoboxTiles
-from .warp import Nodata, Resampling, _rio_reproject, resampling_s2rio
-
-
-def resolve_fill_value(dst_nodata, src_nodata, dtype):
-    dtype = np.dtype(dtype)
-
-    if dst_nodata is not None:
-        return dtype.type(dst_nodata)
-    if src_nodata is not None:
-        return dtype.type(src_nodata)
-    if np.issubdtype(dtype, np.floating):
-        return dtype.type("nan")
-    return dtype.type(0)
+from .warp import (
+    Nodata,
+    Resampling,
+    _rio_reproject,
+    resampling_s2rio,
+    resolve_fill_value,
+)
 
 
 def _do_chunked_reproject(
@@ -50,7 +44,11 @@ def _do_chunked_reproject(
         dtype = ba.dtype
 
     dst_shape = ba.with_yx(ba.shape, dst_gbox.shape)
-    dst = np.zeros(dst_shape, dtype=dtype)
+    dst = np.full(
+        dst_shape,
+        resolve_fill_value(dst_nodata, src_nodata, dtype),
+        dtype=dtype,
+    )
 
     for src_roi in ba.planes_yx():
         src = ba.extract(src_nodata, dtype=dtype, casting=casting, roi=src_roi)
@@ -79,6 +77,7 @@ def dask_rio_reproject(
     dst_nodata: Nodata = None,
     ydim: int = 0,
     chunks: Optional[Tuple[int, int]] = None,
+    dtype=None,
     **kwargs,
 ) -> da.Array:
     # pylint: disable=too-many-arguments, too-many-locals
@@ -92,6 +91,9 @@ def dask_rio_reproject(
     def with_yx(a, yx):
         return (*a[:ydim], *yx, *a[ydim + 2 :])
 
+    if dtype is None:
+        dtype = src.dtype
+
     name: str = kwargs.pop("name", "reproject")
 
     gbt_src = GeoboxTiles(s_gbox, src.chunks[ydim : ydim + 2])
@@ -100,6 +102,7 @@ def dask_rio_reproject(
 
     dst_shape = with_yx(src.shape, d_gbox.shape.yx)
     dst_chunks: Tuple[Tuple[int, ...], ...] = with_yx(src.chunks, gbt_dst.chunks)
+    fill_value = resolve_fill_value(dst_nodata, src_nodata, dtype)
 
     tk = uuid4().hex
     name = f"{name}-{tk}"
@@ -111,14 +114,13 @@ def dask_rio_reproject(
         gbt_src,
         gbt_dst,
         src_nodata=src_nodata,
-        dst_nodata=dst_nodata,
+        dst_nodata=fill_value,
         axis=ydim,
         resampling=resampling,
+        dtype=dtype,
         **kwargs,
     )
     src_block_keys = src.__dask_keys__()
-
-    fill_value = resolve_fill_value(dst_nodata, src_nodata, src.dtype)
 
     def _src(idx):
         a = src_block_keys
@@ -141,4 +143,4 @@ def dask_rio_reproject(
 
     dsk = HighLevelGraph.from_collections(name, dsk, dependencies=(src,))
 
-    return da.Array(dsk, name, chunks=dst_chunks, dtype=src.dtype, shape=dst_shape)
+    return da.Array(dsk, name, chunks=dst_chunks, dtype=dtype, shape=dst_shape)
