@@ -2,6 +2,7 @@ import math
 from typing import Tuple
 
 import numpy as np
+import numpy.testing as npt
 import pytest
 from affine import Affine
 
@@ -17,10 +18,13 @@ from odc.geo.math import (
     apply_affine,
     data_resolution_and_offset,
     is_almost_int,
+    is_nodata_empty,
     maybe_int,
     maybe_zero,
     quasi_random_r2,
     resolution_from_affine,
+    resolve_fill_value,
+    resolve_nodata,
     snap_affine,
     snap_grid,
     snap_scale,
@@ -28,6 +32,8 @@ from odc.geo.math import (
     split_translation,
 )
 from odc.geo.testutils import mkA
+
+NaN = float("nan")
 
 
 def test_math_ops():
@@ -391,3 +397,49 @@ def test_align_down_pow2(x: int):
     assert isinstance(y, int)
     assert y <= x
     assert 2 ** int(math.log2(y)) == y
+
+
+@pytest.mark.parametrize(
+    "nodata, dtype, expect",
+    [
+        (None, None, None),
+        (None, "float32", None),
+        ("auto", None, None),
+        ("auto", "float32", NaN),
+        ("auto", np.dtype("float64"), NaN),
+        ("auto", "uint32", None),
+        ("auto", "int16", None),
+        ("auto", "uint8", None),
+        ("auto", "bool", None),
+    ],
+)
+def test_resolve_nodata(nodata, dtype, expect):
+    npt.assert_equal(resolve_nodata(nodata, dtype), expect)
+    assert resolve_nodata("auto", dtype, 13) == 13
+
+
+@pytest.mark.parametrize(
+    "dst_nodata, src_nodata, dtype, expect",
+    [
+        (None, None, "uint16", 0),
+        (None, 3, "uint16", 3),
+        (4, 3, "uint16", 4),
+        (10, 0, "uint16", 10),
+        (NaN, 0, "float32", NaN),
+        (None, 0, "float32", NaN),
+        (None, None, "bool", False),
+        (None, None, "uint8", 0),
+    ],
+)
+def test_resolve_fill_value(dst_nodata, src_nodata, dtype, expect):
+    npt.assert_equal(resolve_fill_value(dst_nodata, src_nodata, dtype), expect)
+
+
+def test_empty():
+    assert is_nodata_empty(None) is True
+    assert is_nodata_empty(NaN) is True
+    assert is_nodata_empty(np.nan) is True
+    assert is_nodata_empty(0) is False
+    assert is_nodata_empty(-1) is False
+    assert is_nodata_empty(-1.0) is False
+    assert is_nodata_empty(np.uint8(0)) is False

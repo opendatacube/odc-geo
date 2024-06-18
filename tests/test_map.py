@@ -5,6 +5,8 @@ import xarray as xr
 from odc.geo._interop import have
 from odc.geo.xr import ODCExtensionDa
 
+# pylint: disable=protected-access,import-outside-toplevel
+
 cmap = np.asarray(
     [
         [153, 153, 102, 255],

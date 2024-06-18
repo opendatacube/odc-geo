@@ -12,7 +12,7 @@ import numpy as np
 
 from ..geobox import GeoBox
 from ..math import align_down_pow2, align_up
-from ..types import MaybeNodata, Shape2d, SomeShape, shape_, wh_
+from ..types import Nodata, Shape2d, SomeShape, shape_, wh_
 
 # pylint: disable=too-many-locals,too-many-branches,too-many-arguments,too-many-statements,too-many-instance-attributes
 
@@ -63,7 +63,7 @@ class CogMeta:
     compressionargs: Dict[str, Any] = field(default_factory=dict, repr=False)
     gbox: Optional[GeoBox] = None
     overviews: Tuple["CogMeta", ...] = field(default=(), repr=False)
-    nodata: MaybeNodata = None
+    nodata: Nodata = None
 
     def _pix_shape(self, shape: Shape2d) -> Tuple[int, ...]:
         if self.axis == "YX":

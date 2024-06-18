@@ -32,6 +32,8 @@ TEST_GEOBOXES_SMALL_AXIS_ALIGNED = [
     GeoBox.from_bbox((-10, -2, 5, 4), "epsg:3857", tight=True, resolution=resxy_(1, 2)),
 ]
 
+NaN = float("nan")
+
 
 @pytest.fixture
 def geobox_epsg4326():
@@ -361,7 +363,7 @@ def test_wrap_xr():
     assert wrap_xr(data, gbox, always_yx=True).dims == ("y", "x")
     assert wrap_xr(data, gbox, dims=("Y", "X")).dims == ("Y", "X")
 
-    xx = wrap_xr(data, gbox, nodata=None)
+    xx = wrap_xr(data, gbox)
     assert xx.attrs == {}
 
     xx = wrap_xr(data, gbox, nodata=10, some_flag=3)
@@ -384,6 +386,9 @@ def test_wrap_xr():
     xx = wrap_xr(data[..., np.newaxis], gbox)
     assert xx.shape == (*gbox.shape, 1)
     assert xx.band.data.tolist() == ["b0"]
+
+    assert wrap_xr(data.astype("float32"), gbox).odc.nodata is None
+    assert np.isnan(wrap_xr(data.astype("float32"), gbox, nodata=NaN).odc.nodata)
 
 
 @pytest.mark.parametrize("gbox", TEST_GEOBOXES_SMALL_AXIS_ALIGNED)

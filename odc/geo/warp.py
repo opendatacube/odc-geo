@@ -10,19 +10,18 @@ from affine import Affine
 
 from .gcp import GCPGeoBox
 from .geobox import GeoBox
-from .types import wh_
+from .math import resolve_fill_value, resolve_nodata
+from .types import MaybeAutoNodata, Nodata, wh_
 
 # pylint: disable=invalid-name, too-many-arguments
 Resampling = Union[str, int, rasterio.warp.Resampling]
-Nodata = Optional[Union[int, float]]
 _WRP_CRS = "epsg:3857"
 
 __all__ = [
     "resampling_s2rio",
     "is_resampling_nn",
     "resolve_fill_value",
-    "warp_affine",
-    "warp_affine_rio",
+    "rio_warp_affine",
     "rio_reproject",
 ]
 
@@ -47,25 +46,13 @@ def is_resampling_nn(resampling: Resampling) -> bool:
     return resampling == rasterio.warp.Resampling.nearest
 
 
-def resolve_fill_value(dst_nodata, src_nodata, dtype):
-    dtype = np.dtype(dtype)
-
-    if dst_nodata is not None:
-        return dtype.type(dst_nodata)
-    if np.issubdtype(dtype, np.floating):
-        return dtype.type("nan")
-    if src_nodata is not None:
-        return dtype.type(src_nodata)
-    return dtype.type(0)
-
-
-def warp_affine_rio(
+def rio_warp_affine(
     src: np.ndarray,
     dst: np.ndarray,
     A: Affine,
     resampling: Resampling,
-    src_nodata: Nodata = None,
-    dst_nodata: Nodata = None,
+    src_nodata: MaybeAutoNodata = "auto",
+    dst_nodata: MaybeAutoNodata = "auto",
     **kwargs,
 ) -> np.ndarray:
     """
@@ -89,36 +76,13 @@ def warp_affine_rio(
 
     s_gbox = GeoBox(wh_(sw, sh), Affine.identity(), _WRP_CRS)
     d_gbox = GeoBox(wh_(dw, dh), A, _WRP_CRS)
+
+    src_nodata = resolve_nodata(src_nodata, src.dtype)
+    dst_nodata = resolve_nodata(dst_nodata, dst.dtype)
+    fill_value = resolve_fill_value(dst_nodata, src_nodata, dst.dtype)
+
     return _rio_reproject(
-        src, dst, s_gbox, d_gbox, resampling, src_nodata, dst_nodata, **kwargs
-    )
-
-
-def warp_affine(
-    src: np.ndarray,
-    dst: np.ndarray,
-    A: Affine,
-    resampling: Resampling,
-    src_nodata: Nodata = None,
-    dst_nodata: Nodata = None,
-    **kwargs,
-) -> np.ndarray:
-    """
-    Perform Affine warp using best available backend (GDAL via rasterio is the only one so far).
-
-    :param        src: image as ndarray
-    :param        dst: image as ndarray
-    :param          A: Affine transformm, maps from dst_coords to src_coords
-    :param resampling: str resampling strategy
-    :param src_nodata: Value representing "no data" in the source image
-    :param dst_nodata: Value to represent "no data" in the destination image
-
-    :param     kwargs: any other args to pass to implementation
-
-    :returns: dst
-    """
-    return warp_affine_rio(
-        src, dst, A, resampling, src_nodata=src_nodata, dst_nodata=dst_nodata, **kwargs
+        src, dst, s_gbox, d_gbox, resampling, src_nodata, fill_value, **kwargs
     )
 
 
@@ -128,8 +92,8 @@ def rio_reproject(
     s_gbox: Union[GeoBox, GCPGeoBox],
     d_gbox: GeoBox,
     resampling: Resampling,
-    src_nodata: Nodata = None,
-    dst_nodata: Nodata = None,
+    src_nodata: MaybeAutoNodata = "auto",
+    dst_nodata: MaybeAutoNodata = "auto",
     ydim: Optional[int] = None,
     **kwargs,
 ) -> np.ndarray:
@@ -151,12 +115,21 @@ def rio_reproject(
     """
     assert src.ndim == dst.ndim
 
+    src_nodata = resolve_nodata(src_nodata, src.dtype)
+    dst_nodata = resolve_nodata(dst_nodata, dst.dtype)
+    fill_value = resolve_fill_value(dst_nodata, src_nodata, dst.dtype)
+
     if src.ndim == 2:
         return _rio_reproject(
-            src, dst, s_gbox, d_gbox, resampling, src_nodata, dst_nodata, **kwargs
+            src,
+            dst,
+            s_gbox,
+            d_gbox,
+            resampling=resampling,
+            src_nodata=src_nodata,
+            dst_nodata=fill_value,
+            **kwargs,
         )
-
-    fill_value = resolve_fill_value(dst_nodata, src_nodata, dst.dtype)
 
     if ydim is None:
         # Assume last two dimensions are Y/X

@@ -8,6 +8,7 @@ import numpy as np
 import xarray as xr
 
 from ._interop import is_dask_collection
+from .types import Nodata
 
 # pylint: disable=import-outside-toplevel
 
@@ -59,7 +60,7 @@ def _np_to_rgba(
     r: np.ndarray,
     g: np.ndarray,
     b: np.ndarray,
-    nodata: Optional[float],
+    nodata: Nodata,
     vmin: float,
     vmax: float,
 ) -> np.ndarray:
@@ -67,7 +68,7 @@ def _np_to_rgba(
 
     if r.dtype.kind == "f":
         valid = ~np.isnan(r)
-        if nodata is not None:
+        if nodata is not None and not np.isnan(nodata):
             valid = valid * (r != nodata)
     elif nodata is not None:
         valid = r != nodata
@@ -130,7 +131,7 @@ def to_rgba(
     assert vmax is not None
 
     _b = ds[bands[0]]
-    nodata = getattr(_b, "nodata", None)
+    nodata = _b.odc.nodata
     dims = (*_b.dims, "band")
 
     r, g, b = (ds[name].data for name in bands)
@@ -171,12 +172,20 @@ def _np_colorize(x, cmap, clip):
     return cmap[x]
 
 
-def _matplotlib_colorize(x, cmap, vmin=None, vmax=None, nodata=None, robust=False):
+def _matplotlib_colorize(
+    x,
+    cmap,
+    vmin=None,
+    vmax=None,
+    nodata: Nodata = None,
+    robust=False,
+):
     from matplotlib import colormaps
     from matplotlib.colors import Normalize
 
     if cmap is None or isinstance(cmap, str):
-        cmap = colormaps.get_cmap(cmap)
+        # None is a valid input, maps to default cmap
+        cmap = colormaps.get_cmap(cmap)  # type: ignore
 
     if nodata is not None:
         x = np.where(x == nodata, np.float32("nan"), x)
@@ -234,8 +243,11 @@ def colorize(
     :param clip: If ``True`` clip values from ``x`` to be in the safe range for ``cmap``.
     """
     # pylint: disable=too-many-locals
+    from ._xr_interop import ODCExtensionDa
 
     assert isinstance(x, xr.DataArray)
+    assert isinstance(x.odc, ODCExtensionDa)
+
     _is_dask = is_dask_collection(x.data)
 
     if isinstance(cmap, np.ndarray):
@@ -263,7 +275,7 @@ def colorize(
             _matplotlib_colorize,
             vmin=vmin,
             vmax=vmax,
-            nodata=getattr(x, "nodata", None),
+            nodata=x.odc.nodata,
             robust=robust,
         )
         nc, cmap_dtype = 4, "uint8"

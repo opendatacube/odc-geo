@@ -19,7 +19,8 @@ import xarray as xr
 from rasterio.shutil import copy as rio_copy  # pylint: disable=no-name-in-module
 
 from ..geobox import GeoBox
-from ..types import MaybeNodata, SomeShape, shape_, wh_
+from ..math import resolve_nodata
+from ..types import MaybeAutoNodata, Nodata, SomeShape, shape_, wh_
 from ..warp import resampling_s2rio
 from ._shared import adjust_blocksize
 
@@ -123,7 +124,7 @@ def _write_cog(
     pix: np.ndarray,
     geobox: GeoBox,
     fname: Union[Path, str],
-    nodata: MaybeNodata = None,
+    nodata: Nodata = None,
     overwrite: bool = False,
     blocksize: Optional[int] = None,
     overview_resampling: Optional[str] = None,
@@ -283,6 +284,7 @@ def write_cog(
     use_windowed_writes: bool = False,
     intermediate_compression: Union[bool, str, Dict[str, Any]] = False,
     tags: Optional[Dict[str, Any]] = None,
+    nodata: MaybeAutoNodata = "auto",
     **extra_rio_opts,
 ) -> Union[Path, bytes]:
     """
@@ -298,7 +300,7 @@ def write_cog(
     :param overview_levels: List of shrink factors to compute overiews for: [2,4,8,16,32],
                             to disable overviews supply empty list ``[]``
     :param nodata: Set ``nodata`` flag to this value if supplied, by default ``nodata`` is
-                   read from the attributes of the input array (``geo_im.attrs['nodata']``).
+                   read from the attributes of the input array (``geo_im.odc.nodata``).
     :param use_windowed_writes: Write image block by block (might need this for large images)
     :param intermediate_compression: Configure compression settings for first pass write
                     , default is no compression
@@ -322,6 +324,8 @@ def write_cog(
 
        This means that this function will use about 1.5 to 2 times memory taken by ``geo_im``.
     """
+    nodata = resolve_nodata(nodata, geo_im.dtype, geo_im.odc.nodata)
+
     if overviews is not None:
         layers = [geo_im, *overviews]
         result = write_cog_layers(
@@ -333,6 +337,7 @@ def write_cog(
             use_windowed_writes=use_windowed_writes,
             intermediate_compression=intermediate_compression,
             tags=tags,
+            nodata=nodata,
             **extra_rio_opts,
         )
         assert result is not None
@@ -340,9 +345,6 @@ def write_cog(
 
     pix = geo_im.data
     geobox = geo_im.odc.geobox
-    nodata = extra_rio_opts.pop("nodata", None)
-    if nodata is None:
-        nodata = geo_im.attrs.get("nodata", None)
 
     if geobox is None:
         raise ValueError("Need geo-registered array on input")
@@ -448,6 +450,7 @@ def write_cog_layers(
     intermediate_compression: Union[bool, str, Dict[str, Any]] = False,
     use_windowed_writes: bool = False,
     tags: Optional[Dict[str, Any]] = None,
+    nodata: Nodata = None,
     **extra_rio_opts,
 ) -> Union[Path, bytes, None]:
     """
@@ -475,14 +478,14 @@ def write_cog_layers(
         blocksize=blocksize,
         shape=gbox.shape,
         is_float=pix.dtype.kind == "f",
-        nodata=pix.attrs.get("nodata", None),
+        nodata=nodata,
     )
     rio_opts.update(extra_rio_opts)
 
     first_pass_cfg: Dict[str, Any] = {
         "num_threads": "ALL_CPUS",
         "blocksize": blocksize,
-        "nodata": rio_opts.get("nodata", None),
+        "nodata": nodata,
         "use_windowed_writes": use_windowed_writes,
         "gdal_metadata": _get_gdal_metadata(xx, tags),
         **_norm_compression_opts(intermediate_compression),

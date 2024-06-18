@@ -29,6 +29,9 @@ from numpy.polynomial.polynomial import polygrid2d, polyval2d
 from .types import (
     XY,
     AnchorEnum,
+    FillValue,
+    MaybeAutoNodata,
+    Nodata,
     Resolution,
     SomeResolution,
     SomeShape,
@@ -179,6 +182,49 @@ def is_almost_int(x: float, tol: float) -> bool:
     if x > 0.5:
         x = 1 - x
     return x < tol
+
+
+def resolve_fill_value(dst_nodata: Nodata, src_nodata: Nodata, dtype) -> FillValue:
+    dtype = np.dtype(dtype)
+
+    if dst_nodata is not None:
+        return dtype.type(dst_nodata)
+    if np.issubdtype(dtype, np.floating):
+        return dtype.type("nan")
+    if src_nodata is not None:
+        return dtype.type(src_nodata)
+    return dtype.type(0)
+
+
+def resolve_nodata(
+    nodata: MaybeAutoNodata,
+    dtype=None,
+    xr_nodata=None,
+) -> Nodata:
+    # pylint: disable=too-many-return-statements
+    if nodata is None:
+        return None
+
+    if nodata == "auto":
+        if xr_nodata is not None:
+            return xr_nodata
+        if dtype is None:
+            return None
+        if np.issubdtype(dtype, np.floating):
+            return np.nan
+        return None
+
+    if isinstance(nodata, str):
+        return float(nodata)
+    return nodata
+
+
+def is_nodata_empty(nodata: Nodata) -> bool:
+    if nodata is None:
+        return True
+    if isinstance(nodata, float) and np.isnan(nodata):
+        return True
+    return False
 
 
 def _snap_edge_pos(x0: float, x1: float, res: float, tol: float) -> Tuple[float, int]:

@@ -39,13 +39,15 @@ from .math import (
     affine_from_axis,
     approx_equal_affine,
     is_affine_st,
+    is_nodata_empty,
     maybe_int,
     resolution_from_affine,
+    resolve_fill_value,
+    resolve_nodata,
 )
 from .overlap import compute_output_geobox
 from .roi import roi_is_empty
-from .types import Resolution, SomeResolution, SomeShape, xy_
-from .warp import resolve_fill_value
+from .types import MaybeAutoNodata, Nodata, Resolution, SomeResolution, SomeShape, xy_
 
 # pylint: disable=import-outside-toplevel
 # pylint: disable=too-many-lines
@@ -656,7 +658,7 @@ def xr_reproject(
     how: Union[SomeCRS, GeoBox],
     *,
     resampling: Union[str, int] = "nearest",
-    dst_nodata: Optional[float] = None,
+    dst_nodata: MaybeAutoNodata = "auto",
     dtype=None,
     resolution: Union[SomeResolution, Literal["auto", "fit", "same"]] = "auto",
     shape: Union[SomeShape, int, None] = None,
@@ -753,7 +755,7 @@ def _xr_reproject_ds(
     how: Union[SomeCRS, GeoBox],
     *,
     resampling: Union[str, int] = "nearest",
-    dst_nodata: Optional[float] = None,
+    dst_nodata: MaybeAutoNodata = "auto",
     dtype=None,
     **kw,
 ) -> xarray.Dataset:
@@ -797,7 +799,7 @@ def _xr_reproject_da(
     how: Union[SomeCRS, GeoBox],
     *,
     resampling: Union[str, int] = "nearest",
-    dst_nodata: Optional[float] = None,
+    dst_nodata: MaybeAutoNodata = "auto",
     dtype=None,
     **kw,
 ) -> xarray.DataArray:
@@ -828,9 +830,8 @@ def _xr_reproject_da(
     assert ydim + 1 == src.odc.xdim
     dst_shape = (*src.shape[:ydim], *dst_geobox.shape, *src.shape[ydim + 2 :])
 
-    src_nodata = kw.pop("src_nodata", None)
-    if src_nodata is None:
-        src_nodata = src.odc.nodata
+    src_nodata = resolve_nodata(kw.pop("src_nodata", "auto"), src.dtype, src.odc.nodata)
+    dst_nodata = resolve_nodata(dst_nodata, dtype, src_nodata)
 
     fill_value = resolve_fill_value(dst_nodata, src_nodata, dtype)
 
@@ -865,10 +866,9 @@ def _xr_reproject_da(
         )
 
     attrs = {k: v for k, v in src.attrs.items() if k not in REPROJECT_SKIP_ATTRS}
-    if numpy.isfinite(fill_value) and (
-        dst_nodata is not None or src_nodata is not None
-    ):
-        attrs.update({k: maybe_int(float(fill_value), 1e-6) for k in NODATA_ATTRIBUTES})
+    if not is_nodata_empty(dst_nodata):
+        assert dst_nodata is not None
+        attrs.update({k: maybe_int(float(dst_nodata), 1e-6) for k in NODATA_ATTRIBUTES})
 
     # new set of coords (replace x,y dims)
     # discard all coords that reference spatial dimensions
@@ -997,7 +997,7 @@ class ODCExtensionDa(ODCExtension):
         return assign_crs(self._xx, crs=crs, crs_coord_name=crs_coord_name)
 
     @property
-    def nodata(self) -> Optional[float]:
+    def nodata(self) -> Nodata:
         """Extract ``nodata/_FillValue`` attribute if set."""
         attrs = self._xx.attrs
         for k in ["nodata", "_FillValue"]:
@@ -1076,7 +1076,7 @@ def wrap_xr(
     gbox: SomeGeoBox,
     *,
     time=None,
-    nodata=None,
+    nodata: MaybeAutoNodata = "auto",
     crs_coord_name: Optional[str] = _DEFAULT_CRS_COORD_NAME,
     always_yx: bool = False,
     dims: Optional[Tuple[str, ...]] = None,
@@ -1159,8 +1159,9 @@ def wrap_xr(
                 [f"b{i}" for i in range(nb)], dims=(dim,), name=dim
             )
 
-    if nodata is not None:
-        attrs = {"nodata": nodata, **attrs}
+    _nodata = resolve_nodata(nodata, im.dtype)
+    if not is_nodata_empty(_nodata) or nodata != "auto":
+        attrs = {"nodata": _nodata, **attrs}
 
     out = xarray.DataArray(im, coords=coords, dims=dims, attrs=attrs)
     if crs_coord_name is not None:

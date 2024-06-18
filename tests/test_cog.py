@@ -345,7 +345,7 @@ def test_norm_compress():
         _gbox.center_pixel.pad(3),
     ],
 )
-@pytest.mark.parametrize("nodata", [None, float("nan"), 0, -999])
+@pytest.mark.parametrize("nodata", ["auto", None, float("nan"), 0, -999])
 @pytest.mark.parametrize("gdal_metadata", [None, "<GDALMetadata></GDALMetadata>"])
 def test_geotiff_metadata(gbox: GeoBox, nodata, gdal_metadata: Optional[str]):
     assert gbox.crs is not None

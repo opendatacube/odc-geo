@@ -9,13 +9,9 @@ from dask.highlevelgraph import HighLevelGraph
 from ._blocks import BlockAssembler
 from .gcp import GCPGeoBox
 from .geobox import GeoBox, GeoboxTiles
-from .warp import (
-    Nodata,
-    Resampling,
-    _rio_reproject,
-    resampling_s2rio,
-    resolve_fill_value,
-)
+from .math import resolve_fill_value
+from .types import Nodata
+from .warp import Resampling, _rio_reproject, resampling_s2rio
 
 
 def _do_chunked_reproject(

@@ -18,7 +18,8 @@ import xarray as xr
 
 from .._interop import have
 from ..geobox import GeoBox
-from ..types import MaybeNodata, Shape2d, Unset, shape_
+from ..math import resolve_nodata
+from ..types import MaybeAutoNodata, Shape2d, Unset, shape_
 from ._mpu import mpu_write
 from ._mpu_fs import MPUFileSink
 from ._s3 import MultiPartUpload, s3_parse_url
@@ -120,7 +121,7 @@ def _make_empty_cog(
     dtype: Any,
     gbox: Optional[GeoBox] = None,
     *,
-    nodata: MaybeNodata = None,
+    nodata: MaybeAutoNodata = "auto",
     gdal_metadata: Optional[str] = None,
     compression: Union[str, Unset] = Unset(),
     compressionargs: Any = None,
@@ -139,6 +140,8 @@ def _make_empty_cog(
         TiffWriter,
         enumarg,
     )
+
+    nodata = resolve_nodata(nodata, dtype)
 
     predictor, compression, compressionargs = _norm_compression_tifffile(
         dtype,
@@ -773,7 +776,7 @@ def save_cog_with_dask(
 
 def geotiff_metadata(
     geobox: GeoBox,
-    nodata: MaybeNodata = None,
+    nodata: MaybeAutoNodata = "auto",
     gdal_metadata: Optional[str] = None,
 ) -> Tuple[List[Tuple[int, int, int, Any]], Dict[str, Any]]:
     """

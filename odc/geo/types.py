@@ -21,8 +21,10 @@ from typing import (
 
 MaybeInt = Optional[int]
 MaybeFloat = Optional[float]
-Nodata = Union[float, int, str]
-MaybeNodata = Optional[Nodata]
+FillValue = Union[float, int]
+Nodata = Union[float, int, None]
+MaybeNodata = Union[float, int, str, None]
+MaybeAutoNodata = Union[float, int, str, None, Literal["auto"]]
 T = TypeVar("T")
 T1 = TypeVar("T1")
 T2 = TypeVar("T2")
