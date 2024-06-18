@@ -411,6 +411,11 @@ def test_align_down_pow2(x: int):
         ("auto", "int16", None),
         ("auto", "uint8", None),
         ("auto", "bool", None),
+        ("nan", "float32", NaN),
+        (NaN, "float32", NaN),
+        (np.nan, "float32", NaN),
+        (33, "int8", 33),
+        (-99.99, "float64", -99.99),
     ],
 )
 def test_resolve_nodata(nodata, dtype, expect):
