@@ -1000,12 +1000,35 @@ class ODCExtensionDa(ODCExtension):
     def nodata(self) -> Nodata:
         """Extract ``nodata/_FillValue`` attribute if set."""
         attrs = self._xx.attrs
+        encoding = self._xx.encoding
+
         for k in ["nodata", "_FillValue"]:
-            nodata = attrs.get(k, None)
-            if nodata is not None:
-                return float(nodata)
+            nodata = attrs.get(k, ())
+            if nodata == ():
+                nodata = encoding.get(k, ())
+
+            if nodata == ():
+                continue
+
+            if nodata is None:
+                return None
+
+            return float(nodata)
 
         return None
+
+    @nodata.setter
+    def nodata(self, value: Nodata):
+        nodata = resolve_nodata(value, self._xx.dtype)
+
+        if nodata is None:
+            for k in ["nodata", "_FillValue"]:
+                self._xx.attrs.pop(k, None)
+                self._xx.encoding.pop(k, None)
+            return
+
+        self._xx.attrs["nodata"] = nodata
+        self._xx.encoding["_FillValue"] = nodata
 
     colorize = _wrap_op(colorize)
 

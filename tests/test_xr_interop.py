@@ -165,6 +165,50 @@ def test_purge_crs_info(xx_epsg4326: xr.DataArray):
     assert xx.encoding == {}
 
 
+def test_set_nodata(xx_epsg4326: xr.DataArray):
+    xx = xx_epsg4326
+
+    assert xx.odc.nodata is None
+    assert xx.attrs == {}
+
+    for new_nodata in [0, 999, 3]:
+        xx.odc.nodata = new_nodata
+        assert xx.odc.nodata == new_nodata
+        assert "_FillValue" in xx.encoding
+        assert xx.encoding["_FillValue"] == new_nodata
+        assert xx.attrs["nodata"] == new_nodata
+
+        xx.odc.nodata = None
+        assert xx.odc.nodata is None
+        assert "_FillValue" not in xx.encoding
+        assert xx.attrs == {}
+
+
+def test_nodata_nan(xx_epsg4326: xr.DataArray):
+    xx = xx_epsg4326.astype("float32")
+    assert isinstance(xx.odc, ODCExtensionDa)
+
+    assert xx.odc.nodata is None
+    assert xx.dtype.kind == "f"
+
+    # set to NaN from nothing
+    xx.odc.nodata = NaN
+    assert isinstance(xx.odc.nodata, float)
+    assert np.isnan(xx.odc.nodata)
+    assert np.isnan(xx.encoding["_FillValue"])
+    assert np.isnan(xx.attrs["nodata"])
+
+    xx.odc.nodata = -9999
+    assert xx.odc.nodata == -9999
+
+    # set to NaN from non-NaN, and use a string
+    xx.odc.nodata = "nan"  # type: ignore
+    assert isinstance(xx.odc.nodata, float)
+    assert np.isnan(xx.odc.nodata)
+    assert np.isnan(xx.encoding["_FillValue"])
+    assert np.isnan(xx.attrs["nodata"])
+
+
 def test_odc_extension(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox):
     gbox = geobox_epsg4326
     xx = xx_epsg4326
