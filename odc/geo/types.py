@@ -23,7 +23,6 @@ MaybeInt = Optional[int]
 MaybeFloat = Optional[float]
 FillValue = Union[float, int]
 Nodata = Union[float, int, None]
-MaybeNodata = Union[float, int, str, None]
 SomeNodata = Union[float, int, str, None, Literal["auto"]]
 T = TypeVar("T")
 T1 = TypeVar("T1")
