@@ -30,9 +30,9 @@ from .types import (
     XY,
     AnchorEnum,
     FillValue,
-    MaybeAutoNodata,
     Nodata,
     Resolution,
+    SomeNodata,
     SomeResolution,
     SomeShape,
     res_,
@@ -197,7 +197,7 @@ def resolve_fill_value(dst_nodata: Nodata, src_nodata: Nodata, dtype) -> FillVal
 
 
 def resolve_nodata(
-    nodata: MaybeAutoNodata,
+    nodata: SomeNodata,
     dtype=None,
     xr_nodata=None,
 ) -> Nodata:

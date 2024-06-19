@@ -20,7 +20,7 @@ from rasterio.shutil import copy as rio_copy  # pylint: disable=no-name-in-modul
 
 from ..geobox import GeoBox
 from ..math import resolve_nodata
-from ..types import MaybeAutoNodata, Nodata, SomeShape, shape_, wh_
+from ..types import Nodata, SomeNodata, SomeShape, shape_, wh_
 from ..warp import resampling_s2rio
 from ._shared import adjust_blocksize
 
@@ -284,7 +284,7 @@ def write_cog(
     use_windowed_writes: bool = False,
     intermediate_compression: Union[bool, str, Dict[str, Any]] = False,
     tags: Optional[Dict[str, Any]] = None,
-    nodata: MaybeAutoNodata = "auto",
+    nodata: SomeNodata = "auto",
     **extra_rio_opts,
 ) -> Union[Path, bytes]:
     """

@@ -11,7 +11,7 @@ from affine import Affine
 from .gcp import GCPGeoBox
 from .geobox import GeoBox
 from .math import resolve_fill_value, resolve_nodata
-from .types import MaybeAutoNodata, Nodata, wh_
+from .types import Nodata, SomeNodata, wh_
 
 # pylint: disable=invalid-name, too-many-arguments
 Resampling = Union[str, int, rasterio.warp.Resampling]
@@ -51,8 +51,8 @@ def rio_warp_affine(
     dst: np.ndarray,
     A: Affine,
     resampling: Resampling,
-    src_nodata: MaybeAutoNodata = "auto",
-    dst_nodata: MaybeAutoNodata = "auto",
+    src_nodata: SomeNodata = "auto",
+    dst_nodata: SomeNodata = "auto",
     **kwargs,
 ) -> np.ndarray:
     """
@@ -92,8 +92,8 @@ def rio_reproject(
     s_gbox: Union[GeoBox, GCPGeoBox],
     d_gbox: GeoBox,
     resampling: Resampling,
-    src_nodata: MaybeAutoNodata = "auto",
-    dst_nodata: MaybeAutoNodata = "auto",
+    src_nodata: SomeNodata = "auto",
+    dst_nodata: SomeNodata = "auto",
     ydim: Optional[int] = None,
     **kwargs,
 ) -> np.ndarray:

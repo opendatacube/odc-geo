@@ -471,6 +471,9 @@ def test_xr_reproject(xx_epsg4326: xr.DataArray):
     assert xx_epsg4326.odc.nodata is None
     dst_gbox = xx_epsg4326.odc.geobox.zoom_out(1.3)
     xx = xx_epsg4326.odc.reproject(dst_gbox)
+    assert isinstance(xx, xr.DataArray)
+    assert isinstance(xx.odc, ODCExtensionDa)
+
     assert xx.odc.geobox == dst_gbox
     assert xx.encoding["grid_mapping"] == "spatial_ref"
     assert "crs" not in xx.attrs

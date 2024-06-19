@@ -47,7 +47,7 @@ from .math import (
 )
 from .overlap import compute_output_geobox
 from .roi import roi_is_empty
-from .types import MaybeAutoNodata, Nodata, Resolution, SomeResolution, SomeShape, xy_
+from .types import Nodata, Resolution, SomeNodata, SomeResolution, SomeShape, xy_
 
 # pylint: disable=import-outside-toplevel
 # pylint: disable=too-many-lines
@@ -658,7 +658,7 @@ def xr_reproject(
     how: Union[SomeCRS, GeoBox],
     *,
     resampling: Union[str, int] = "nearest",
-    dst_nodata: MaybeAutoNodata = "auto",
+    dst_nodata: SomeNodata = "auto",
     dtype=None,
     resolution: Union[SomeResolution, Literal["auto", "fit", "same"]] = "auto",
     shape: Union[SomeShape, int, None] = None,
@@ -755,7 +755,7 @@ def _xr_reproject_ds(
     how: Union[SomeCRS, GeoBox],
     *,
     resampling: Union[str, int] = "nearest",
-    dst_nodata: MaybeAutoNodata = "auto",
+    dst_nodata: SomeNodata = "auto",
     dtype=None,
     **kw,
 ) -> xarray.Dataset:
@@ -799,7 +799,7 @@ def _xr_reproject_da(
     how: Union[SomeCRS, GeoBox],
     *,
     resampling: Union[str, int] = "nearest",
-    dst_nodata: MaybeAutoNodata = "auto",
+    dst_nodata: SomeNodata = "auto",
     dtype=None,
     **kw,
 ) -> xarray.DataArray:
@@ -1099,7 +1099,7 @@ def wrap_xr(
     gbox: SomeGeoBox,
     *,
     time=None,
-    nodata: MaybeAutoNodata = "auto",
+    nodata: SomeNodata = "auto",
     crs_coord_name: Optional[str] = _DEFAULT_CRS_COORD_NAME,
     always_yx: bool = False,
     dims: Optional[Tuple[str, ...]] = None,
