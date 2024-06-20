@@ -8,6 +8,7 @@ Add ``.odc.`` extension to :py:class:`xarray.Dataset` and :class:`xarray.DataArr
 from __future__ import annotations
 
 import functools
+import math
 import warnings
 from dataclasses import dataclass
 from datetime import datetime
@@ -591,6 +592,9 @@ def _extract_transform(
             # adjust transform
             #  world <- pix' <- pix
             transform = original_transform * transform
+
+        if any(map(math.isnan, transform)):
+            transform = original_transform
 
         if approx_equal_affine(transform, original_transform):
             transform = original_transform
