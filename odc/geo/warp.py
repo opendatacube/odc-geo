@@ -23,6 +23,7 @@ __all__ = [
     "resolve_fill_value",
     "rio_warp_affine",
     "rio_reproject",
+    "warp_affine",
 ]
 
 
@@ -84,6 +85,10 @@ def rio_warp_affine(
     return _rio_reproject(
         src, dst, s_gbox, d_gbox, resampling, src_nodata, fill_value, **kwargs
     )
+
+
+# backward compatibility wrapper
+warp_affine = rio_warp_affine
 
 
 def rio_reproject(
