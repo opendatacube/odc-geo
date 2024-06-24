@@ -75,6 +75,10 @@ def __getattr__(name):
             return False
 
         return is_dask_collection
+    if name == "__path__":
+        loader = globals().get("__loader__")
+        if loader is not None:
+            return loader.path
 
     raise AttributeError(f"module {__name__} has no attribute {name}")
 
