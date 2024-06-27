@@ -228,6 +228,9 @@ def test_odc_extension(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox):
     assert xx.odc.map_bounds() == gbox.map_bounds()
     assert xx.odc.output_geobox("utm").crs.epsg is not None
     assert xx.odc.aspect == gbox.aspect
+    assert xx.odc.grid_mapping == xx.encoding["grid_mapping"]
+    assert xx.odc.crs_coord == xx.spatial_ref
+    assert xx.odc.crs_coord.attrs == xx.spatial_ref.attrs
 
     # this drops encoding/attributes, but crs/geobox should remain the same
     _xx = xx * 10.0
@@ -299,6 +302,8 @@ def test_odc_extension_ds(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox):
 def test_assign_crs(xx_epsg4326: xr.DataArray):
     xx = purge_crs_info(xx_epsg4326)
     assert xx.odc.crs is None
+    assert xx.odc.grid_mapping is None
+    assert xx.odc.crs_coord is None
     yy = xx.odc.assign_crs("epsg:4326")
     assert xx.odc.uncached.crs is None
     assert yy.odc.crs == "epsg:4326"

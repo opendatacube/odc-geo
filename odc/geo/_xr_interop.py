@@ -953,6 +953,18 @@ class ODCExtension:
 
         return gbox.map_bounds()
 
+    @property
+    def crs_coord(self) -> xarray.DataArray | None:
+        """Return CRS coordinate DataArray."""
+        return self._state.crs_coord
+
+    @property
+    def grid_mapping(self) -> str | None:
+        """Return name of the grid mapping coordinate."""
+        if c := self.crs_coord:
+            return str(c.name)
+        return None
+
     mask = _wrap_op(mask)
     crop = _wrap_op(crop)
 
