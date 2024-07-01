@@ -26,8 +26,6 @@ from pyproj.transformer import Transformer
 
 from .types import XY, Unset
 
-SomeCRS = Union[str, int, "CRS", _CRS, Dict[str, Any]]
-MaybeCRS = Union[SomeCRS, Unset, None]
 EPSG_UNSET = 0
 
 
@@ -394,6 +392,9 @@ class CRSMismatchError(ValueError):
     coordinate references.
     """
 
+
+SomeCRS = Union[str, int, CRS, _CRS, Dict[str, Any]]
+MaybeCRS = Union[SomeCRS, Unset, None]
 
 # fmt: off
 @overload
