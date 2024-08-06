@@ -1,7 +1,7 @@
 odc.geo
 #######
 
-|Documentation Status| |Test Status| |Test Coverage| |Conda Version|
+|Documentation Status| |Test Status| |Test Coverage| |Conda Version| |Discord|
 
 This library combines geometry shape classes from shapely_ with CRS from pyproj_ to provide
 projection aware ``Geometry``. It exposes all the functionality provided by ``shapely`` modules, but
@@ -48,6 +48,10 @@ For details and motivation see `ODC-EP-06`_ enhancement proposal.
 .. |Conda Version| image:: https://anaconda.org/conda-forge/odc-geo/badges/version.svg
    :target: https://anaconda.org/conda-forge/odc-geo
    :alt:  Conda Version
+
+.. |Discord| image:: https://img.shields.io/discord/1212501566326571070?label=Discord&logo=discord&logoColor=white&color=7289DA
+   :target: https://discord.gg/4hhBQVas5U
+   :alt: Join Discord for support
 
 .. |Intro Image| image:: docs/_static/intro.svg
    :alt: Map with GeoBoxes
