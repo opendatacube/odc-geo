@@ -82,7 +82,7 @@ def _make_crs_transform_key(from_crs, to_crs, always_xy):
 
 @cachetools.cached({}, key=_make_crs_transform_key)
 def _make_crs_transform(from_crs: _CRS, to_crs: _CRS, always_xy: bool) -> Transformer:
-    return Transformer.from_crs(from_crs, to_crs, always_xy=always_xy)
+    return Transformer.from_crs(from_crs, to_crs, always_xy=always_xy, force_over=force_over)
 
 
 class CRS:
