@@ -103,7 +103,7 @@ class GbxPointTransform:
         self._src = src
         self._dst = dst
         self._back = back
-        self._tr = src.crs.transformer_to_crs(dst.crs)
+        self._tr = src.crs.transformer_to_crs(dst.crs, force_over=True)
         self._clamps: Optional[Tuple[Tuple[float, float], Tuple[float, float]]] = None
         if src.crs.geographic:
             self._clamps = ((-180, 180), (-90, 90))

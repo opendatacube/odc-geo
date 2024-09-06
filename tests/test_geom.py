@@ -522,6 +522,53 @@ def test_gen_test_image_xy():
     assert isinstance(A, Affine)
 
 
+def test_geobox_overlap():
+    from odc.geo.types import xy_
+    from odc.geo.overlap import (
+        roi_boundary,
+        unstack_xy,
+        stack_xy,
+        gbox_boundary,
+        roi_from_points,
+        native_pix_transform,
+    )
+
+    pts_per_side = 5
+    padding = 1
+    align = True
+
+    dst_affine = Affine(
+        152.87405657034833,
+        0.0,
+        -20037508.342789244,
+        0.0,
+        -152.87405657034833,
+        -1995923.6825825237,
+    )
+    dst = GeoBox((256, 256), dst_affine, "EPSG:3857")
+
+    src_affine = Affine(10.0, 0.0, 99960.0, 0.0, -10.0, 8100040.0)
+    src = GeoBox((10980, 10980), src_affine, "EPSG:32701")
+
+    tr = native_pix_transform(src, dst)
+
+    xy = tr.back(unstack_xy(gbox_boundary(dst, pts_per_side)))
+    roi_src = roi_from_points(stack_xy(xy), src.shape, padding, align=align)
+
+    xy_pix_src = unstack_xy(roi_boundary(roi_src, pts_per_side))
+
+    xx, yy = np.asarray([pt.xy for pt in xy_pix_src]).T
+
+    # This goes via world transform to a pixel space
+    xys = tr([xy_(x, y) for x, y in zip(xx, yy)])
+
+    # Results should be within a resonable range in pixel space
+    # Not sure how to test it better.
+    for xy in xys:
+        assert xy.x >= 0 - 25.6
+        assert xy.y <= 256 + 25.6
+
+
 def test_fixed_point():
     aa = np.asarray([0, 0.5, 1])
     uu = to_fixed_point(aa, "uint8")

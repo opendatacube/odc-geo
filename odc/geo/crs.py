@@ -76,12 +76,12 @@ def _make_crs(
     return (crs, crs_str, epsg)
 
 
-def _make_crs_transform_key(from_crs, to_crs, always_xy):
-    return (id(from_crs), id(to_crs), always_xy)
+def _make_crs_transform_key(from_crs, to_crs, always_xy, force_over=False):
+    return (id(from_crs), id(to_crs), always_xy, force_over)
 
 
 @cachetools.cached({}, key=_make_crs_transform_key)
-def _make_crs_transform(from_crs: _CRS, to_crs: _CRS, always_xy: bool) -> Transformer:
+def _make_crs_transform(from_crs: _CRS, to_crs: _CRS, always_xy: bool, force_over: bool = False) -> Transformer:
     return Transformer.from_crs(from_crs, to_crs, always_xy=always_xy, force_over=force_over)
 
 
@@ -299,7 +299,7 @@ class CRS:
         return self._str
 
     def transformer_to_crs(
-        self, other: "CRS", always_xy: bool = True
+        self, other: "CRS", always_xy: bool = True, force_over: bool = False
     ) -> Callable[[Any, Any], Tuple[Any, Any]]:
         """
         Build coordinate transformer to other projection.
@@ -318,7 +318,7 @@ class CRS:
         """
 
         # pylint: disable=protected-access
-        tr = _make_crs_transform(self._crs, other._crs, always_xy=always_xy)
+        tr = _make_crs_transform(self._crs, other._crs, always_xy=always_xy, force_over=force_over)
 
         def result(x, y, **kw):
             rx, ry = tr.transform(x, y, **kw)  # pylint: disable=unpacking-non-sequence
