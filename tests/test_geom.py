@@ -537,36 +537,52 @@ def test_geobox_overlap():
     padding = 1
     align = True
 
-    dst_affine = Affine(
-        152.87405657034833,
-        0.0,
-        -20037508.342789244,
-        0.0,
-        -152.87405657034833,
-        -1995923.6825825237,
-    )
-    dst = GeoBox((256, 256), dst_affine, "EPSG:3857")
-
     src_affine = Affine(10.0, 0.0, 99960.0, 0.0, -10.0, 8100040.0)
     src = GeoBox((10980, 10980), src_affine, "EPSG:32701")
 
-    tr = native_pix_transform(src, dst)
+    test_destinations = [
+        GeoBox(
+            (256, 256),
+            Affine(
+                76.43702828517416,
+                0.0,
+                20017940.46354824,
+                0.0,
+                -76.43702828518872,
+                -1976355.8033415154,
+            ),
+            "EPSG:3857",
+        ),
+        GeoBox(
+            (256, 256),
+            Affine(
+                152.87405657034833,
+                0.0,
+                -20037508.342789244,
+                0.0,
+                -152.87405657034833,
+                -1995923.6825825237,
+            ),
+            "EPSG:3857",
+        ),
+    ]
 
-    xy = tr.back(unstack_xy(gbox_boundary(dst, pts_per_side)))
-    roi_src = roi_from_points(stack_xy(xy), src.shape, padding, align=align)
+    for dst in test_destinations:
+        tr = native_pix_transform(src, dst)
 
-    xy_pix_src = unstack_xy(roi_boundary(roi_src, pts_per_side))
+        xy = tr.back(unstack_xy(gbox_boundary(dst, pts_per_side)))
+        roi_src = roi_from_points(stack_xy(xy), src.shape, padding, align=align)
+        xy_pix_src = unstack_xy(roi_boundary(roi_src, pts_per_side))
+        xx, yy = np.asarray([pt.xy for pt in xy_pix_src]).T
 
-    xx, yy = np.asarray([pt.xy for pt in xy_pix_src]).T
+        # This goes via world transform to a pixel space
+        xys = tr([xy_(x, y) for x, y in zip(xx, yy)])
 
-    # This goes via world transform to a pixel space
-    xys = tr([xy_(x, y) for x, y in zip(xx, yy)])
-
-    # Results should be within a resonable range in pixel space
-    # Not sure how to test it better.
-    for xy in xys:
-        assert xy.x >= 0 - 25.6
-        assert xy.y <= 256 + 25.6
+        # Results should be within a resonable range in pixel space
+        # Not sure how to test it better.
+        for xy in xys:
+            assert xy.x >= 0 - 25.6
+            assert xy.y <= 256 + 25.6
 
 
 def test_fixed_point():
