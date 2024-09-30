@@ -10,8 +10,8 @@ import pytest
 from affine import Affine
 from pytest import approx
 
-from odc.geo._interop import have
 from odc.geo import CRS, CRSMismatchError, geom, wh_
+from odc.geo._interop import have
 from odc.geo.geobox import GeoBox, _round_to_res
 from odc.geo.geom import (
     chop_along_antimeridian,
@@ -21,6 +21,15 @@ from odc.geo.geom import (
     multigeom,
     projected_lon,
     triangulate,
+)
+from odc.geo.overlap import (
+    _relative_rois,
+    native_pix_transform,
+    roi_boundary,
+    unstack_xy,
+    gbox_boundary,
+    stack_xy,
+    roi_from_points,
 )
 from odc.geo.testutils import (
     SAMPLE_WKT_WITHOUT_AUTHORITY,
@@ -658,6 +667,73 @@ def test_wrap_dateline_sinusoidal(pts):
     assert not wrapped.intersects(geom.line([(0, -90), (0, 90)], crs=epsg4326))
 
 
+@pytest.mark.parametrize(
+    "dst_dstslices",
+    [
+        [
+            GeoBox(
+                (256, 256),
+                Affine(
+                    76.43702828517416,
+                    0.0,
+                    20017940.46354824,
+                    0.0,
+                    -76.43702828518872,
+                    -1976355.8033415154,
+                ),
+                "EPSG:3857",
+            ),
+            (slice(0, 256, None), slice(0, 256, None)),
+        ],[
+            GeoBox(
+                (256, 256),
+                Affine(
+                    152.87405657034833,
+                    0.0,
+                    -20037508.342789244,
+                    0.0,
+                    -152.87405657034833,
+                    -1995923.6825825237,
+                ),
+                "EPSG:3857",
+            ),
+            (slice(0, 256, None), slice(0, 256, None)),
+        ]
+    ]
+)
+def test_geobox_overlap(dst_dstslices):
+    dst, dst_slices = dst_dstslices
+    pts_per_side = 5
+    padding = 1
+    align = True
+
+    src_affine = Affine(10.0, 0.0, 99960.0, 0.0, -10.0, 8100040.0)
+    src = GeoBox((10980, 10980), src_affine, "EPSG:32701")
+
+    tr = native_pix_transform(src, dst)
+
+    # _, roi_dst = _relative_rois(src, dst, tr, pts_per_side=pts_per_side, padding=padding, align=align) 
+
+    # This code is from _relative_rois, just to check the output
+    xy = tr.back(unstack_xy(gbox_boundary(dst, pts_per_side)))
+    roi_src = roi_from_points(stack_xy(xy), src.shape, padding, align=align)
+
+    xys = tr(unstack_xy(roi_boundary(roi_src, pts_per_side)))
+
+    MIN_PIXEL = 0 - 26
+    MAX_PIXEL = 256 + 26
+
+    for xy in xys:
+        assert xy.x >= MIN_PIXEL
+        assert xy.x <= MAX_PIXEL
+        assert xy.y >= MIN_PIXEL
+        assert xy.y <= MAX_PIXEL
+
+    # TODO: Get correct slice values in here.
+    # roi_dst = roi_from_points(stack_xy(xy), dst.shape, padding=0)
+    # assert roi_dst == dst_slices
+
+
 def test_wrap_dateline_utm():
     poly = geom.box(618300, -1876800, 849000, -1642500, "EPSG:32660")
 
@@ -1037,7 +1113,7 @@ def test_triangulate(crs):
     ],
 )
 def test_explore_geom(geom_json):
-    from folium import Map, GeoJson
+    from folium import GeoJson, Map
 
     # Create Geometry
     geometry = geom.Geometry(geom_json, "EPSG:4326")
