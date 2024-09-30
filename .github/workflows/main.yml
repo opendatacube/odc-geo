@@ -66,11 +66,8 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v3
         if: steps.conda_cache.outputs.cache-hit != 'true'
         with:
-          channels: conda-forge
-          channel-priority: true
+          miniforge-version: latest
           activate-environment: ""
-          mamba-version: "*"
-          use-mamba: true
 
       - name: Dump Conda Environment Info
         shell: bash -l {0}
@@ -78,7 +75,7 @@ jobs:
         run: |
           conda info
           conda list
-          mamba -V
+          mamba --version
           conda config --show-sources
           conda config --show
           printenv | sort
@@ -187,7 +184,6 @@ jobs:
         id: conda_cache
         with:
           path: /tmp/test_env
-
           key: ${{ runner.os }}-test-env-py310-${{ hashFiles('tests/test-env-py310.yml') }}
 
       - name: Update PATH
