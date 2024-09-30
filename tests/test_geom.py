@@ -712,7 +712,7 @@ def test_geobox_overlap(dst_dstslices):
 
     tr = native_pix_transform(src, dst)
 
-    # _, roi_dst = _relative_rois(src, dst, tr, pts_per_side=pts_per_side, padding=padding, align=align) 
+    # _, roi_dst = _relative_rois(src, dst, tr, pts_per_side=pts_per_side, padding=padding, align=align)
 
     # This code is from _relative_rois, just to check the output
     xy = tr.back(unstack_xy(gbox_boundary(dst, pts_per_side)))
