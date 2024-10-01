@@ -66,9 +66,12 @@ class GridSpec:
         self.crs = norm_crs_or_error(crs)
         self._shape = tile_shape
         self.resolution = resolution
+
+        # This is an arbitrary rounding of 12 decimal places
+        # I don't know how to make it more robust
         self.tile_size = xy_(
-            tile_shape.x * abs(resolution.x),
-            tile_shape.y * abs(resolution.y),
+            round(tile_shape.x * abs(resolution.x), 12),
+            round(tile_shape.y * abs(resolution.y), 12),
         )
         self.origin = origin
 

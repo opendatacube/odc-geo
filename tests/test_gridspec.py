@@ -9,13 +9,43 @@ import numpy
 import pytest
 from pytest import approx
 
-from odc.geo import CRS, res_, resyx_, xy_, yx_
+from odc.geo import CRS, res_, resyx_, xy_, yx_, XY
 from odc.geo.geom import polygon
 from odc.geo.gridspec import GridSpec
 from odc.geo.testutils import SAMPLE_WKT_WITHOUT_AUTHORITY
 
 # pylint: disable=protected-access,use-implicit-booleaness-not-comparison
 # pylint: disable=comparison-with-itself,unnecessary-comprehension
+
+
+def test_gridspec_small():
+    print("Starting test for GridSpec")
+    WGS84GRID30 = GridSpec(
+        "EPSG:4326", tile_shape=(5000, 5000), resolution=0.0003, origin=XY(-180, -90)
+    )
+
+    assert WGS84GRID30.tile_shape == (5000, 5000)
+    assert WGS84GRID30.tile_size == XY(1.5, 1.5)
+
+    # Tile is at (-180 + 50*1.5) and (-90 + 50*1.5)
+    tile = (50, 50)
+    geobox = WGS84GRID30.tile_geobox(tile)
+    affine = geobox.affine
+
+    # Affine should be like this: (0.0003, 0, -105.0, 0, -0.0003, -13.5)
+    assert affine.a == 0.0003
+    assert affine.c == -105.0  # -180 + 50 * 1.5 * 0.0003
+    assert affine.f == -13.50  # -90 + 50 * 1.5 * 0.0003
+
+    # Tile is at (-180 + 200*1.5) and (-90 + 75*1.5)
+    tile = (200, 75)
+    geobox = WGS84GRID30.tile_geobox(tile)
+    affine = geobox.affine
+
+    # Affine should be like this: (0.0003, 0, 120.0, 0, -0.0003, 24.0)
+    assert affine.a == 0.0003
+    assert affine.c == 120.0  # -180 + 200 * 1.5 * 0.0003
+    assert affine.f == 24.0  # -90 + 75 * 1.5 * 0.0003
 
 
 def test_gridspec():
