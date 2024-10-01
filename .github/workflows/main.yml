@@ -78,7 +78,8 @@ jobs:
         run: |
           conda info
           conda list
-          mamba -V
+          # New version of mamba doesn't support -V
+          # mamba -V
           conda config --show-sources
           conda config --show
           printenv | sort
