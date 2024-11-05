@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from typing import Any, Optional, Sequence, Tuple, Union, Mapping
 from uuid import uuid4
 
 import dask.array as da
@@ -15,7 +15,7 @@ from .warp import Resampling, _rio_reproject, resampling_s2rio
 
 
 def _do_chunked_reproject(
-    d2s: Dict[Tuple[int, int], Sequence[Tuple[int, int]]],
+    d2s: Mapping[Tuple[int, int], Sequence[Tuple[int, int]]],
     src_gbt: GeoboxTiles,
     dst_gbt: GeoboxTiles,
     dst_idx: Tuple[int, int],
