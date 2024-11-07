@@ -182,7 +182,7 @@ def _write_cog(
         "height": h,
         "count": nbands,
         "dtype": pix.dtype.name,
-        "crs": str(geobox.crs),
+        "crs": str(geobox.crs) if geobox.crs is not None else None,
         "transform": geobox.transform,
         **_default_cog_opts(
             blocksize=blocksize, shape=wh_(w, h), is_float=pix.dtype.kind == "f"
