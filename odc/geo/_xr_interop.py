@@ -48,6 +48,15 @@ from .math import (
     resolve_fill_value,
     resolve_nodata,
 )
+from .masking import (
+    bits_to_bool,
+    enum_to_bool,
+    mask_invalid_data,
+    mask_clouds,
+    mask_ls,
+    mask_s2,
+    scale_and_offset,
+)
 from .overlap import compute_output_geobox
 from .roi import roi_is_empty
 from .types import Nodata, Resolution, SomeNodata, SomeResolution, SomeShape, xy_
@@ -1053,6 +1062,14 @@ class ODCExtensionDa(ODCExtension):
 
     colorize = _wrap_op(colorize)
 
+    scale_and_offset = _wrap_op(scale_and_offset)
+
+    bits_to_bool = _wrap_op(bits_to_bool)
+
+    enum_to_bool = _wrap_op(enum_to_bool)
+
+    mask_invalid_data = _wrap_op(mask_invalid_data)
+
     if have.rasterio:
         write_cog = _wrap_op(write_cog)
         to_cog = _wrap_op(to_cog)
@@ -1092,6 +1109,16 @@ class ODCExtensionDs(ODCExtension):
         vmax: Optional[float] = None,
     ) -> xarray.DataArray:
         return to_rgba(self._xx, bands=bands, vmin=vmin, vmax=vmax)
+
+    scale_and_offset = _wrap_op(scale_and_offset)
+
+    mask_invalid_data = _wrap_op(mask_invalid_data)
+
+    mask_clouds = _wrap_op(mask_clouds)
+
+    mask_ls = _wrap_op(mask_ls)
+
+    mask_s2 = _wrap_op(mask_s2)
 
 
 ODCExtensionDs.to_rgba.__doc__ = to_rgba.__doc__
