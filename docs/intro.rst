@@ -16,8 +16,8 @@ Key features
 * **Vector and raster reprojection:** Efficiently reproject data between CRSs using high-performance reprojection utilities powered by dask_
 * **Geospatial metadata handling:** Inspect and manipulate geo-registered raster metadata using a standardised :py:class:`~odc.geo.geobox.GeoBox` pixel grid model
 * **Spatial grid definition:** Generate precise :py:class:`~odc.geo.gridspec.GridSpec` tile grids for seamless large-scale analysis
-* **Cloud-optimised data:** Export geo-registered raster data into optimised cloud-optimised GeoTIFF files 
-* **Spatial analysis:** Tools for rasterising, masking, clipping vector and raster data 
+* **Cloud-optimised data:** Export geo-registered raster data into optimised cloud-optimised GeoTIFF files
+* **Spatial analysis:** Tools for rasterising, masking, clipping vector and raster data
 * **Interactive visualisation:** Plot and explore spatial vector and raster data on an interactive map
 
 .. This library combines geometry shape classes from shapely_ with CRS from pyproj_ to provide
