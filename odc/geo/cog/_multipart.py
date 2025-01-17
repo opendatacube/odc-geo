@@ -7,9 +7,10 @@ multipart uploads across storage backends.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Union
 
 from dask.delayed import Delayed
+
 from ._mpu import get_mpu_kwargs, mpu_upload
 
 if TYPE_CHECKING:
@@ -65,7 +66,7 @@ class MultiPartUploadBase(ABC):
         *,
         mk_header: Any = None,
         mk_footer: Any = None,
-        user_kw: dict[str, Any] | None = None,
+        user_kw: Union[dict[str, Any], None] = None,
         writes_per_chunk: int = 1,
         spill_sz: int = 20 * (1 << 20),
         client: Any = None,
