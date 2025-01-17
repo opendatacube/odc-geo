@@ -167,7 +167,7 @@ jobs:
       - name: Check with mypy
         shell: bash
         run: |
-          mypy odc
+          mypy --explicit-package-bases --python-version 3.10 odc
 
   test-with-coverage:
     runs-on: ubuntu-latest
