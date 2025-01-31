@@ -1,5 +1,6 @@
 name: odc-geo
 channels:
+  - nodefaults
   - conda-forge
 
 dependencies:
