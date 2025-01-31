@@ -1,8 +1,7 @@
 """Tests for the Azure AzMultiPartUpload class."""
 
 import base64
-from unittest.mock import MagicMock, patch
-
+from unittest.mock import MagicMock
 import pytest
 
 pytest.importorskip("azure.storage.blob")
@@ -24,12 +23,12 @@ def test_mpu_init(azure_mpu):
     assert azure_mpu.credential is None
 
 
-@patch("odc.geo.cog._az.BlobServiceClient")
-def test_azure_multipart_upload(mock_blob_service_client):
+def test_azure_multipart_upload():
     """Test the full Azure AzMultiPartUpload functionality."""
     # Mock Azure Blob SDK client structure
     mock_blob_client = MagicMock()
     mock_container_client = MagicMock()
+    mock_blob_service_client = MagicMock()
     mock_blob_service_client.return_value.get_container_client.return_value = (
         mock_container_client
     )
@@ -45,7 +44,15 @@ def test_azure_multipart_upload(mock_blob_service_client):
     credential = "mock-sas-token"
 
     # Create an instance of AzMultiPartUpload and call its methods
-    azure_upload = AzMultiPartUpload(account_url, container, blob, credential)
+    azure_upload = AzMultiPartUpload(
+        account_url,
+        container,
+        blob,
+        client=mock_blob_service_client(
+            account_url=account_url,
+            credential=credential,
+        ),
+    )
     upload_id = azure_upload.initiate()
     part1 = azure_upload.write_part(1, b"first chunk of data")
     part2 = azure_upload.write_part(2, b"second chunk of data")
