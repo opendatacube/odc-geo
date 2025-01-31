@@ -23,7 +23,7 @@ dependencies:
   ## linting tools
   - autopep8
   - autoflake
-  - black
+  - black >=25.1
   - isort
   - mypy
   - pycodestyle
