@@ -37,7 +37,12 @@ class AzMultiPartUpload(AzureLimits, MultiPartUploadBase):
     # pylint: disable=too-many-instance-attributes
 
     def __init__(
-        self, account_url: str, container: str, blob: str, credential: Any = None
+        self,
+        account_url: str,
+        container: str,
+        blob: str,
+        credential: Any = None,
+        client: Any = None,
     ):
         """
         Initialise Azure multipart upload.
@@ -56,7 +61,7 @@ class AzMultiPartUpload(AzureLimits, MultiPartUploadBase):
         # pylint: disable=import-outside-toplevel,import-error
         from azure.storage.blob import BlobServiceClient
 
-        self.blob_service_client = BlobServiceClient(
+        self.blob_service_client = client or BlobServiceClient(
             account_url=account_url, credential=credential
         )
         self.container_client = self.blob_service_client.get_container_client(container)
