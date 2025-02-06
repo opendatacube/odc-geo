@@ -2,6 +2,8 @@
 #
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
+from __future__ import annotations
+
 import array
 import functools
 import itertools
@@ -20,12 +22,14 @@ from typing import (
     Sequence,
     Tuple,
     Union,
+    cast,
 )
 
 import numpy
 from affine import Affine
 from pyproj.aoi import AreaOfInterest
 from shapely import geometry, ops
+from shapely.coords import CoordinateSequence
 from shapely.geometry import base
 
 from ._interop import have
@@ -443,7 +447,10 @@ def _geojson_to_shapely(xx: Any) -> base.BaseGeometry:
     return to_geom(xx)
 
 
-def densify(coords: CoordList, resolution: float) -> CoordList:
+def densify(
+    coords: Sequence[Tuple[float, float]] | CoordinateSequence,
+    resolution: float,
+) -> CoordList:
     """
     Adds points so they are at most `resolution` units apart.
     """
@@ -452,15 +459,16 @@ def densify(coords: CoordList, resolution: float) -> CoordList:
     def short_enough(p1, p2):
         return (p1[0] ** 2 + p2[0] ** 2) < d2
 
-    new_coords = [coords[0]]
+    new_coords: List[Tuple[float, float]] = [cast(Tuple[float, float], coords[0])]
     for p1, p2 in zip(coords[:-1], coords[1:]):
+        p1, p2 = (cast(Tuple[float, float], p) for p in (p1, p2))
         if not short_enough(p1, p2):
             segment = geometry.LineString([p1, p2])
             segment_length = segment.length
             d = resolution
             while d < segment_length:
-                (pt,) = segment.interpolate(d).coords
-                new_coords.append(pt)
+                ((x0, x1),) = segment.interpolate(d).coords
+                new_coords.append((x0, x1))
                 d += resolution
 
         new_coords.append(p2)
@@ -563,13 +571,17 @@ class Geometry(SupportsCoords[float]):
     @property
     def boundary(self) -> "Geometry": return Geometry(self.geom.boundary, self.crs)
     @property
-    def exterior(self) -> "Geometry": return Geometry(self.geom.exterior, self.crs)
+    def exterior(self) -> "Geometry":
+        assert isinstance(self.geom, geometry.Polygon)
+        return Geometry(self.geom.exterior, self.crs)
     @property
-    def interiors(self) -> List["Geometry"]: return [Geometry(g, self.crs) for g in self.geom.interiors]
+    def interiors(self) -> List["Geometry"]:
+        assert isinstance(self.geom, geometry.Polygon)
+        return [Geometry(g, self.crs) for g in self.geom.interiors]
     @property
     def centroid(self) -> "Geometry": return Geometry(self.geom.centroid, self.crs)
     @property
-    def coords(self) -> CoordList: return list(self.geom.coords)
+    def coords(self) -> CoordList: return cast(list[tuple[float, float]], list(self.geom.coords))
     @property
     def points(self) -> CoordList: return self.coords
     @property
@@ -612,15 +624,26 @@ class Geometry(SupportsCoords[float]):
                 "MultiPolygon",
                 "MultiLineString",
             ]:
-                return type(geom)([segmentize_shapely(g) for g in geom.geoms])
+                assert isinstance(
+                    geom,
+                    (
+                        geometry.GeometryCollection,
+                        geometry.MultiPolygon,
+                        geometry.MultiLineString,
+                    ),
+                )
+                _geoms = [segmentize_shapely(g) for g in geom.geoms]
+                return type(geom)(_geoms)  # type: ignore
 
             if geom.geom_type in ["LineString", "LinearRing"]:
-                return type(geom)(densify(list(geom.coords), resolution))
+                assert isinstance(geom, (geometry.LineString, geometry.LinearRing))
+                return type(geom)(densify(geom.coords, resolution))
 
             if geom.geom_type == "Polygon":
+                assert isinstance(geom, geometry.Polygon)
                 return geometry.Polygon(
-                    densify(list(geom.exterior.coords), resolution),
-                    [densify(list(i.coords), resolution) for i in geom.interiors],
+                    densify(geom.exterior.coords, resolution),
+                    [densify(i.coords, resolution) for i in geom.interiors],
                 )
 
             raise ValueError(
@@ -637,7 +660,7 @@ class Geometry(SupportsCoords[float]):
         """
         return Geometry(self.geom.interpolate(distance), self.crs)
 
-    def buffer(self, distance: float, resolution: float = 30) -> "Geometry":
+    def buffer(self, distance: float, resolution: int | None = None) -> "Geometry":
         return Geometry(self.geom.buffer(distance, resolution=resolution), self.crs)
 
     def simplify(self, tolerance: float, preserve_topology: bool = True) -> "Geometry":
@@ -676,7 +699,7 @@ class Geometry(SupportsCoords[float]):
 
     def _to_crs(self, crs: CRS) -> "Geometry":
         assert self.crs is not None
-        return Geometry(ops.transform(self.crs.transformer_to_crs(crs), self.geom), crs)
+        return Geometry(ops.transform(self.crs.transformer_to_crs(crs), self.geom), crs)  # type: ignore
 
     def to_crs(
         self,
@@ -856,7 +879,7 @@ class Geometry(SupportsCoords[float]):
                 "Please install it before using `.explore()`."
             )
 
-        from folium import Map, GeoJson
+        from folium import GeoJson, Map
 
         # Create folium Map if required
         map_kwds = {} if map_kwds is None else map_kwds
@@ -993,6 +1016,7 @@ class Geometry(SupportsCoords[float]):
             return polygon(pts, self.crs, *inners)
 
         if self.geom_type in ("LinearRing", "LineString"):
+            assert isinstance(self.geom, (geometry.LinearRing, geometry.LineString))
             pts = [(x, y) for x, y in self.points if pred(x, y)]
             if len(pts) == 1:
                 pts = []  # need at least 2 points for this type
@@ -1000,19 +1024,21 @@ class Geometry(SupportsCoords[float]):
             return Geometry(_geom, self.crs)
 
         if self.geom_type == "Point":
+            assert isinstance(self.geom, geometry.Point)
             x, y = self.coords[0]
             if pred(x, y):
                 return self
             return Geometry(geometry.Point(), self.crs)
 
         if self.geom_type == "MultiPoint":
+            assert isinstance(self.geom, geometry.MultiPoint)
             pts = [(x, y) for x, y in [pt.points[0] for pt in self.geoms] if pred(x, y)]
             return multipoint(pts, self.crs)
 
         if self.is_multi:
             _filtered = [g.filter(pred).geom for g in self.geoms]
             _filtered = [g for g in _filtered if not g.is_empty]
-            _geom = type(self.geom)(_filtered)
+            _geom = type(self.geom)(_filtered)  # type: ignore
             return Geometry(_geom, self.crs)
 
         raise AssertionError("Unhandled geometry type detected")  # pragma: no cover
@@ -1260,11 +1286,11 @@ def _multigeom(geoms: List[base.BaseGeometry]) -> base.BaseGeometry:
     geoms = [g for g in geoms if not g.is_empty]
     src_type = src_type.pop()
     if src_type == "Polygon":
-        return geometry.MultiPolygon(geoms)
+        return geometry.MultiPolygon(geoms)  # type: ignore
     if src_type == "Point":
-        return geometry.MultiPoint(geoms)
+        return geometry.MultiPoint(geoms)  # type: ignore
     if src_type == "LineString":
-        return geometry.MultiLineString(geoms)
+        return geometry.MultiLineString(geoms)  # type: ignore
     return geometry.GeometryCollection(geoms)
 
 
