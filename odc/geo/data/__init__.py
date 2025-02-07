@@ -1,7 +1,6 @@
 import json
 import lzma
 import threading
-
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
@@ -84,6 +83,7 @@ class Countries(_CachedGeoDataFrame):
 
     def frame_by_iso3(self, iso3):
         df = self._instance
+        assert df is not None
         return df[df.ISO_A3 == iso3]
 
 

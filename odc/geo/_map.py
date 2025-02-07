@@ -242,12 +242,13 @@ def explore(
     :return: A :py:mod:`folium` map containing the plotted xarray data.
     """
     # pylint: disable=too-many-arguments, protected-access
-
-    if not have.folium:
-        raise ModuleNotFoundError(
+    have.check_or_error(
+        "folium",
+        msg=(
             "'folium' is required but not installed. "
             "Please install it before using `.explore()`."
-        )
+        ),
+    )
 
     from folium import LayerControl, Map
 

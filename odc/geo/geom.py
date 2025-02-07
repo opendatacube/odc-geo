@@ -872,13 +872,7 @@ class Geometry(SupportsCoords[float]):
         :return: A :py:mod:`folium` map containing the plotted Geometry.
         """
         # pylint: disable=import-outside-toplevel, redefined-builtin
-
-        if not have.folium:
-            raise ModuleNotFoundError(
-                "'folium' is required but not installed. "
-                "Please install it before using `.explore()`."
-            )
-
+        have.check_or_error("folium")
         from folium import GeoJson, Map
 
         # Create folium Map if required

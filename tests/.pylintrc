@@ -1,5 +1,5 @@
 [MESSAGES CONTROL]
-disable = 
+disable =
     all
 
 enable = E,F
