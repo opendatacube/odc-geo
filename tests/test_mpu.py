@@ -7,7 +7,6 @@ import pytest
 from odc.geo.cog._mpu import MPUChunk, SomeData, mpu_write
 
 FakeWriteResult = Tuple[int, SomeData, Dict[str, Any]]
-# pylint: disable=unbalanced-tuple-unpacking,redefined-outer-name,import-outside-toplevel
 
 
 class FakeWriter:
