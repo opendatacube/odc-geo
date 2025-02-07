@@ -167,6 +167,7 @@ def _write_cog(
         else:
             overview_levels = [2**i for i in range(1, 6)]
 
+    path: Path | None = None
     if fname != ":mem:":
         path = check_write_path(
             fname, overwrite
@@ -226,7 +227,7 @@ def _write_cog(
 
     # Deal efficiently with "no overviews needed case"
     if len(overview_levels) == 0:
-        if fname == ":mem:":
+        if path is None:
             with rasterio.MemoryFile() as mem:
                 with mem.open(driver="GTiff", **rio_opts) as dst:
                     _write(pix, band, dst)
@@ -246,7 +247,7 @@ def _write_cog(
                 _write(pix, band, tmp)
                 tmp.build_overviews(overview_levels, resampling)
 
-                if fname == ":mem:":
+                if path is None:
                     with rasterio.MemoryFile() as mem2:
                         rio_copy(
                             tmp,

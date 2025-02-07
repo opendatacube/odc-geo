@@ -24,7 +24,8 @@ profile = "black"
 [tool.pylint.messages_control]
 
 max-line-length = 120
-max-args = 7
+max-args = 15
+max-positional-arguments = 12
 
 disable = [
   "missing-function-docstring",
@@ -36,4 +37,5 @@ disable = [
   "ungrouped-imports",
   "wrong-import-position",
   "too-few-public-methods",
+  "unsubscriptable-object",
 ]

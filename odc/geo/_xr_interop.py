@@ -863,6 +863,7 @@ def _xr_reproject_da(
     else:
         dst = numpy.full(dst_shape, fill_value, dtype=dtype)
 
+        # pylint: disable=possibly-used-before-assignment
         dst = rio_reproject(
             src.values,
             dst,

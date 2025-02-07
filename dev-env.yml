@@ -28,11 +28,10 @@ dependencies:
   - isort
   - mypy
   - pycodestyle
-  - pylint
+  - pylint =3
   - docutils
 
   ## test
   - pytest
-  - hypothesis
   - pytest-cov
   - pytest-timeout
