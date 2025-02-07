@@ -67,6 +67,7 @@ jobs:
         if: steps.conda_cache.outputs.cache-hit != 'true'
         with:
           miniforge-version: latest
+          channels: conda-forge,defaults
           activate-environment: ""
 
       - name: Dump Conda Environment Info
