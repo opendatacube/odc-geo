@@ -10,8 +10,8 @@ import pytest
 from affine import Affine
 from pytest import approx
 
-from odc.geo._interop import have
 from odc.geo import CRS, CRSMismatchError, geom, wh_
+from odc.geo._interop import have
 from odc.geo.geobox import GeoBox, _round_to_res
 from odc.geo.geom import (
     chop_along_antimeridian,
@@ -32,9 +32,6 @@ from odc.geo.testutils import (
     to_fixed_point,
     xy_from_gbox,
 )
-
-# pylint: disable=protected-access, pointless-statement
-# pylint: disable=too-many-statements,too-many-locals,too-many-lines,unnecessary-lambda-assignment
 
 
 def test_pickleable():
@@ -1037,7 +1034,7 @@ def test_triangulate(crs):
     ],
 )
 def test_explore_geom(geom_json):
-    from folium import Map, GeoJson
+    from folium import GeoJson, Map
 
     # Create Geometry
     geometry = geom.Geometry(geom_json, "EPSG:4326")

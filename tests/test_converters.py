@@ -1,7 +1,5 @@
-# pylint: disable=wrong-import-position,redefined-outer-name
 from pathlib import Path
 from unittest.mock import MagicMock
-from warnings import catch_warnings, filterwarnings
 
 import pytest
 

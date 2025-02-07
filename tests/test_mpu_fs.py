@@ -10,8 +10,6 @@ _ = pytest.importorskip("odc.geo.cog")
 
 from odc.geo.cog._mpu_fs import MPUFileSink
 
-# pylint: disable=protected-access
-
 
 def slurp(path: Path) -> bytes:
     with path.open("rb") as f:
