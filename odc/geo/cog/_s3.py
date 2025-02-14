@@ -5,17 +5,19 @@ S3 utils for COG to S3.
 from __future__ import annotations
 
 from threading import Lock
-from typing import TYPE_CHECKING, Any, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Optional
 
 from cachetools import cached
 
-from ._mpu import PartsWriter, SomeData, mpu_write
+from ._mpu import PartsWriter, SomeData
+from ._multipart import MultiPartUploadBase
 
 if TYPE_CHECKING:
     import dask.bag
-    import distributed
     from botocore.credentials import ReadOnlyCredentials
     from dask.delayed import Delayed
+
+    import distributed
 
 _state: dict[str, Any] = {}
 
@@ -38,7 +40,7 @@ def _dask_client() -> "distributed.Client" | None:
         return None
 
 
-def s3_parse_url(url: str) -> Tuple[str, str]:
+def s3_parse_url(url: str) -> tuple[str, str]:
     if url.startswith("s3://"):
         bucket, *key = url[5:].split("/", 1)
         key = key[0] if len(key) else ""
@@ -68,7 +70,7 @@ class S3Limits:
         return 10_000
 
 
-class MultiPartUpload(S3Limits):
+class S3MultiPartUpload(S3Limits, MultiPartUploadBase):
     """
     Dask to S3 dumper.
     """
@@ -92,6 +94,7 @@ class MultiPartUpload(S3Limits):
 
     @cached({})
     def s3_client(self):
+        """Return the S3 client."""
         # pylint: disable=import-outside-toplevel,import-error
         from botocore.session import Session
 
@@ -108,15 +111,15 @@ class MultiPartUpload(S3Limits):
         )
 
     def initiate(self, **kw) -> str:
+        """Initiate the S3 multipart upload."""
         assert self.uploadId == ""
         s3 = self.s3_client()
-
         rr = s3.create_multipart_upload(Bucket=self.bucket, Key=self.key, **kw)
-        uploadId = rr["UploadId"]
-        self.uploadId = uploadId
-        return uploadId
+        self.uploadId = rr["UploadId"]
+        return self.uploadId
 
     def write_part(self, part: int, data: SomeData) -> dict[str, Any]:
+        """Write a single part to S3."""
         s3 = self.s3_client()
         assert self.uploadId != ""
         rr = s3.upload_part(
@@ -126,31 +129,32 @@ class MultiPartUpload(S3Limits):
             Key=self.key,
             UploadId=self.uploadId,
         )
-        etag = rr["ETag"]
-        return {"PartNumber": part, "ETag": etag}
+        return {"PartNumber": part, "ETag": rr["ETag"]}
 
     @property
     def url(self) -> str:
+        """Return the S3 URL of the object."""
         return f"s3://{self.bucket}/{self.key}"
 
     def finalise(self, parts: list[dict[str, Any]]) -> str:
+        """Finalise the multipart upload."""
         s3 = self.s3_client()
         assert self.uploadId
-
         rr = s3.complete_multipart_upload(
             Bucket=self.bucket,
             Key=self.key,
             UploadId=self.uploadId,
             MultipartUpload={"Parts": parts},
         )
-
         return rr["ETag"]
 
     @property
     def started(self) -> bool:
+        """Check if the multipart upload has been initiated."""
         return len(self.uploadId) > 0
 
     def cancel(self, other: str = ""):
+        """Cancel the multipart upload."""
         uploadId = other if other else self.uploadId
         if not uploadId:
             return
@@ -169,23 +173,23 @@ class MultiPartUpload(S3Limits):
             if uploadId == self.uploadId:
                 self.uploadId = ""
 
-    def list_active(self):
+    def list_active(self) -> list[str]:
+        """List active multipart uploads."""
         s3 = self.s3_client()
         rr = s3.list_multipart_uploads(Bucket=self.bucket, Prefix=self.key)
         return [x["UploadId"] for x in rr.get("Uploads", [])]
 
     def read(self, **kw):
+        """Read the object directly from S3."""
         s3 = self.s3_client()
         return s3.get_object(Bucket=self.bucket, Key=self.key, **kw)["Body"].read()
 
     def __dask_tokenize__(self):
-        return (
-            self.bucket,
-            self.key,
-            self.uploadId,
-        )
+        """Dask-specific tokenization for S3 uploads."""
+        return (self.bucket, self.key, self.uploadId)
 
     def writer(self, kw, *, client: Any = None) -> PartsWriter:
+        """Return a Dask-compatible writer."""
         if client is None:
             client = _dask_client()
         writer = DelayedS3Writer(self, kw)
@@ -193,30 +197,9 @@ class MultiPartUpload(S3Limits):
             writer.prep_client(client)
         return writer
 
-    # pylint: disable=too-many-arguments
-    def upload(
-        self,
-        chunks: "dask.bag.Bag" | list["dask.bag.Bag"],
-        *,
-        mk_header: Any = None,
-        mk_footer: Any = None,
-        user_kw: dict[str, Any] | None = None,
-        writes_per_chunk: int = 1,
-        spill_sz: int = 20 * (1 << 20),
-        client: Any = None,
-        **kw,
-    ) -> "Delayed":
-        write = self.writer(kw, client=client) if spill_sz else None
-        return mpu_write(
-            chunks,
-            write,
-            mk_header=mk_header,
-            mk_footer=mk_footer,
-            user_kw=user_kw,
-            writes_per_chunk=writes_per_chunk,
-            spill_sz=spill_sz,
-            dask_name_prefix="s3finalise",
-        )
+    def dask_name_prefix(self) -> str:
+        """Return the Dask name prefix for S3."""
+        return "s3finalise"
 
 
 def _safe_get(v, timeout=0.1):
@@ -233,7 +216,7 @@ class DelayedS3Writer(S3Limits):
 
     # pylint: disable=import-outside-toplevel,import-error
 
-    def __init__(self, mpu: MultiPartUpload, kw: dict[str, Any]):
+    def __init__(self, mpu: S3MultiPartUpload, kw: dict[str, Any]):
         self.mpu = mpu
         self.kw = kw  # mostly ContentType= kinda thing
         self._shared_var: Optional["distributed.Variable"] = None
@@ -259,7 +242,7 @@ class DelayedS3Writer(S3Limits):
             self._shared_var = Variable(self._build_name("MPUpload"), client)
         return self._shared_var
 
-    def _ensure_init(self, final_write: bool = False) -> MultiPartUpload:
+    def _ensure_init(self, final_write: bool = False) -> S3MultiPartUpload:
         # pylint: disable=too-many-return-statements
         mpu = self.mpu
         if mpu.started:
@@ -279,7 +262,7 @@ class DelayedS3Writer(S3Limits):
         uploadId = _safe_get(shared_state, 0.1)
 
         if uploadId is not None:
-            # someone else initialized it
+            # someone else initialised it
             mpu.uploadId = uploadId
             return mpu
 
@@ -287,7 +270,7 @@ class DelayedS3Writer(S3Limits):
         with lock:
             uploadId = _safe_get(shared_state, 0.1)
             if uploadId is not None:
-                # someone else initialized it while we were getting a lock
+                # someone else initialised it while we were getting a lock
                 mpu.uploadId = uploadId
                 return mpu
 

@@ -50,7 +50,7 @@ from .math import (
 )
 from .overlap import compute_output_geobox
 from .roi import roi_is_empty
-from .types import Nodata, Resolution, SomeNodata, SomeResolution, SomeShape, xy_
+from .types import Nodata, Resolution, SomeNodata, SomeResolution, SomeShape, Unset, xy_
 
 # pylint: disable=import-outside-toplevel
 # pylint: disable=too-many-lines
@@ -79,6 +79,8 @@ STANDARD_SPATIAL_DIMS = [
     ("latitude", "longitude"),
     ("lat", "lon"),
 ]
+
+_NoValue = Unset()
 
 
 @dataclass
@@ -861,6 +863,7 @@ def _xr_reproject_da(
     else:
         dst = numpy.full(dst_shape, fill_value, dtype=dtype)
 
+        # pylint: disable=possibly-used-before-assignment
         dst = rio_reproject(
             src.values,
             dst,
@@ -1024,11 +1027,11 @@ class ODCExtensionDa(ODCExtension):
         encoding = self._xx.encoding
 
         for k in ["nodata", "_FillValue"]:
-            nodata = attrs.get(k, ())
-            if nodata == ():
-                nodata = encoding.get(k, ())
+            nodata = attrs.get(k, _NoValue)
+            if nodata is _NoValue:
+                nodata = encoding.get(k, _NoValue)
 
-            if nodata == ():
+            if nodata is _NoValue:
                 continue
 
             if nodata is None:

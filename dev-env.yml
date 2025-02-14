@@ -1,9 +1,10 @@
 name: odc-geo
 channels:
+  - nodefaults
   - conda-forge
 
 dependencies:
-  - python =3.8
+  - python =3.10
 
   # odc-geo dependencies
   - pyproj
@@ -23,15 +24,14 @@ dependencies:
   ## linting tools
   - autopep8
   - autoflake
-  - black
+  - black >=25.1
   - isort
   - mypy
   - pycodestyle
-  - pylint
+  - pylint =3
   - docutils
 
   ## test
   - pytest
-  - hypothesis
   - pytest-cov
   - pytest-timeout

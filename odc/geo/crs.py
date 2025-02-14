@@ -54,7 +54,7 @@ def _make_crs_key(crs_spec: Union[int, str, Hashable, CRSLike]) -> Hashable:
 
 @cachetools.cached(_crs_cache, key=_make_crs_key)
 def _make_crs(
-    crs_spec: Union[str, int, _CRS, CRSLike]
+    crs_spec: Union[str, int, _CRS, CRSLike],
 ) -> Tuple[_CRS, str, Optional[int]]:
     epsg = EPSG_UNSET
     if isinstance(crs_spec, str):
@@ -242,7 +242,7 @@ class CRS:
         return self._str
 
     def __hash__(self) -> int:
-        return hash(self._str)
+        return hash(self._crs)
 
     def __repr__(self) -> str:
         return f"CRS('{self._str}')"

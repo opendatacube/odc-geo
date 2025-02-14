@@ -11,8 +11,6 @@ from odc.geo import wh_
 from odc.geo.geobox import GeoBox
 from odc.geo.testutils import epsg3857
 
-# pylint: disable=pointless-statement,too-many-statements
-
 
 def test_gbox_ops():
     s = GeoBox(wh_(1000, 100), Affine(10, 0, 12340, 0, -10, 316770), epsg3857)

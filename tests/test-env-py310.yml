@@ -1,9 +1,11 @@
 name: odc-geo-tests-py310
 channels:
   - conda-forge
+  - nodefaults
 
 dependencies:
   - python =3.10
+  - pip >=25
 
   # odc-geo dependencies, optional also
   - pyproj
@@ -18,11 +20,11 @@ dependencies:
   ## linting tools
   - autopep8
   - autoflake
-  - black >=23.7.0
+  - black >=25.1.0
   - isort
   - mypy
   - pycodestyle
-  - pylint =2.17
+  - pylint =3
   - types-cachetools
   - types-certifi
 
@@ -33,13 +35,17 @@ dependencies:
   - geopandas
   - folium
   - ipyleaflet
-  - matplotlib
+  - matplotlib-inline
   - ipykernel
   - ipython
   - rioxarray
+  - azure-storage-blob
 
   # for docs
   - sphinx
   - sphinx_rtd_theme >=1.2.0
   - sphinx-autodoc-typehints
   - jupyter-sphinx >=0.4.0
+  - pip:
+    - -e ../
+    - types-shapely

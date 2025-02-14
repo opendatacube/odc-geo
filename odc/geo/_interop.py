@@ -43,6 +43,14 @@ class _LibChecker:
     def tifffile(self) -> bool:
         return self._check("tifffile")
 
+    @property
+    def azure(self) -> bool:
+        return self._check("azure.storage.blob")
+
+    @property
+    def botocore(self) -> bool:
+        return self._check("botocore")
+
     @staticmethod
     def _check(lib_name: str) -> bool:
         return importlib.util.find_spec(lib_name) is not None

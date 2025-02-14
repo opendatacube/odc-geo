@@ -14,9 +14,6 @@ from odc.geo.geom import polygon
 from odc.geo.gridspec import GridSpec
 from odc.geo.testutils import SAMPLE_WKT_WITHOUT_AUTHORITY
 
-# pylint: disable=protected-access,use-implicit-booleaness-not-comparison
-# pylint: disable=comparison-with-itself,unnecessary-comprehension
-
 
 def test_gridspec():
     gs = GridSpec(

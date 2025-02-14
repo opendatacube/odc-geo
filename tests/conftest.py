@@ -8,8 +8,6 @@ from odc.geo.data import country_geom, ocean_geom
 from odc.geo.geobox import GeoBox
 from odc.geo.xr import rasterize
 
-# pylint: disable=protected-access,import-outside-toplevel,redefined-outer-name
-
 
 @pytest.fixture(scope="session")
 def data_dir():

@@ -284,7 +284,7 @@ class VariableSizedTiles:
     @property
     def chunks(self) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
         """Dask compatible chunk rerpesentation."""
-        y, x = (tuple(np.diff(idx).tolist()) for idx in self._offsets)
+        y, x = (tuple(map(int, np.diff(idx))) for idx in self._offsets)
         return (y, x)
 
     def locate(self, pix: SomeIndex2d) -> Tuple[int, int]:
@@ -383,13 +383,13 @@ def roi_boundary(roi: NormalizedROI, pts_per_side: int = 2) -> np.ndarray:
     roi needs to be in the normalised form, i.e. no open-ended start/stop,
 
     :returns:
-      ``Nx2 <float32>`` array of ``X,Y`` points on the perimeter of the envelope defined by ``roi``
+      ``Nx2 <float64>`` array of ``X,Y`` points on the perimeter of the envelope defined by ``roi``
 
     .. seealso:: :py:func:`~odc.geo.roi.roi_normalise`
     """
     yy, xx = roi
-    xx = np.linspace(xx.start, xx.stop, pts_per_side, dtype="float32")
-    yy = np.linspace(yy.start, yy.stop, pts_per_side, dtype="float32")
+    xx = np.linspace(xx.start, xx.stop, pts_per_side, dtype="float64")
+    yy = np.linspace(yy.start, yy.stop, pts_per_side, dtype="float64")
 
     return polygon_path(xx, yy, closed=False).T
 

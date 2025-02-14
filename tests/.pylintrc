@@ -1,0 +1,6 @@
+[MESSAGES CONTROL]
+disable =
+    all
+
+enable = E,F
+max-line-length = 120

@@ -1,5 +1,4 @@
-""" Helpers for dealing with RGB(A) images.
-"""
+"""Helpers for dealing with RGB(A) images."""
 
 import functools
 from typing import Any, List, Optional, Tuple
@@ -193,7 +192,7 @@ def _matplotlib_colorize(
     if robust:
         if x.dtype.kind != "f":
             x = x.astype("float32")
-        _vmin, _vmax = np.nanpercentile(x, [2, 98])
+        _vmin, _vmax = (float(x) for x in np.nanpercentile(x, [2, 98]))  # type: ignore
 
         # do not override configured values
         if vmin is None:

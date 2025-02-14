@@ -25,7 +25,6 @@ from odc.geo.xr import (
     xr_zeros,
 )
 
-# pylint: disable=redefined-outer-name,import-outside-toplevel,protected-access
 TEST_GEOBOXES_SMALL_AXIS_ALIGNED = [
     GeoBox.from_bbox((-10, -2, 5, 4), "epsg:4326", tight=True, resolution=0.2),
     GeoBox.from_bbox((-10, -2, 5, 4), "epsg:3857", tight=True, resolution=1),

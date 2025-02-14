@@ -30,8 +30,6 @@ from odc.geo.testutils import (
     xy_norm,
 )
 
-# pylint: disable=pointless-statement,too-many-statements,protected-access
-
 
 def test_geobox_simple():
     t = GeoBox(

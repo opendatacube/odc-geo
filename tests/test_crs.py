@@ -24,9 +24,6 @@ from odc.geo.geom import common_crs
 from odc.geo.testutils import epsg3577, epsg3857, epsg4326
 from odc.geo.types import Unset, xy_
 
-# pylint: disable=missing-class-docstring,use-implicit-booleaness-not-comparison
-# pylint: disable=comparison-with-itself
-
 
 def test_common_crs():
     assert common_crs([]) is None

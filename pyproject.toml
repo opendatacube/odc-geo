@@ -3,7 +3,7 @@ requires = ["setuptools>=51.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.9"
 ignore_missing_imports = true
 allow_redefinition = true
 
@@ -24,7 +24,8 @@ profile = "black"
 [tool.pylint.messages_control]
 
 max-line-length = 120
-max-args = 7
+max-args = 15
+max-positional-arguments = 12
 
 disable = [
   "missing-function-docstring",
@@ -36,4 +37,5 @@ disable = [
   "ungrouped-imports",
   "wrong-import-position",
   "too-few-public-methods",
+  "unsubscriptable-object",
 ]

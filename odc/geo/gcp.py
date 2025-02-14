@@ -102,9 +102,16 @@ class GCPMapping:
 
     def points(self) -> Tuple[Geometry, Geometry]:
         """Return multipoint geometries for (Pixel, World)."""
+        pix_points: list[tuple[float, float]] = [
+            (float(p[0]), float(p[1])) for p in self._pix.tolist()
+        ]
+        wld_points: list[tuple[float, float]] = [
+            (float(p[0]), float(p[1])) for p in self._wld.tolist()
+        ]
+
         return (
-            multipoint(self._pix.tolist(), None),
-            multipoint(self._wld.tolist(), self.crs),
+            multipoint(pix_points, None),
+            multipoint(wld_points, self.crs),
         )
 
     def __dask_tokenize__(self):

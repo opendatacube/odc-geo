@@ -33,8 +33,6 @@ from odc.geo.xr import xr_zeros
 gbox_globe = GridSpec.web_tiles(0)[0, 0]
 _gbox = GeoBox.from_bbox((-10, -20, 15, 30), 4326, resolution=1)
 
-# pylint: disable=redefined-outer-name
-
 
 @pytest.fixture
 def gbox():
