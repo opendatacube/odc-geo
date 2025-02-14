@@ -58,6 +58,11 @@ def test_write_cog(gbox: GeoBox):
     )
     assert len(img_bytes) == len(img_bytes2)
 
+    # Verify COG can be written to file and read back
+    img.odc.write_cog("output_cog.tif")
+    with rio_open("output_cog.tif") as ds:
+        assert ds.read(1) is not None
+
 
 @pytest.mark.parametrize(
     ["scales", "offsets", "units"],
