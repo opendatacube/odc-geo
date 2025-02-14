@@ -268,10 +268,10 @@ def _write_cog(
                         return bytes(mem2.getbuffer())
 
                 rio_copy(
-                    tmp, 
-                    path, 
-                    driver="GTiff", 
-                    copy_src_overviews=True, 
+                    tmp,
+                    path,
+                    driver="GTiff",
+                    copy_src_overviews=True,
                     **_without(
                         rio_opts,
                         "width",
