@@ -627,6 +627,9 @@ def save_cog_with_dask(
     blocksize: Union[Unset, int, list[Union[int, tuple[int, int]]]] = Unset(),
     bigtiff: bool = True,
     overview_resampling: Union[int, str] = "nearest",
+    tile_batching: int | Callable[[int], int] = 4,
+    tile_batching_threshold: int = 20,
+    merge_compressed_overviews: Optional[int] = 4,
     aws: Optional[dict[str, Any]] = None,
     azure: Optional[dict[str, Any]] = None,
     client: Any = None,
@@ -636,21 +639,47 @@ def save_cog_with_dask(
     """
     Save a Cloud Optimized GeoTIFF to S3, Azure Blob Storage, or file with Dask.
 
-    :param xx: Pixels as :py:class:`xarray.DataArray` backed by Dask
-    :param dst: S3, Azure URL, or file path
-    :param compression: Compression to use, default is ``DEFLATE``
-    :param level: Compression "level", depends on chosen compression
-    :param predictor: TIFF predictor setting
-    :param compressionargs: Any other compression arguments
-    :param overview_resampling: Resampling to use for computing overviews
-    :param blocksize: Configure blocksizes for main and overview images
-    :param bigtiff: Generate BigTIFF by default, set to ``False`` to disable
-    :param aws: Configure AWS write access
-    :param azure: Azure credentials/config
-    :param client: Dask client
-    :param stats: Set to ``False`` to disable stats computation
+    To optimise performance, pre-chunk your data to the desired COG block sizes.
+    Then configure batching and overview merging as needed:
 
-    :returns: Dask delayed
+    - `tile_batching` is how many tiles get grouped into a single
+      compression task. If it's an integer, that fixed number of tiles are compressed
+      together. If it's a callable, it is given the total tile count and returns a
+      number of tiles to compress at once. Combining small tile tasks can reduce
+      overhead.
+
+    - `tile_batching_threshold` is the minimum number of tiles in a given layer before
+      any tile batching occurs. If a layer has fewer tiles than this threshold,
+      batching is skipped because overhead might outweigh the benefits.
+
+    - `merge_compressed_overviews` merges n topmost overview layers *after* they have
+      been compressed, reducing overhead from having multiple small overview layers.
+      If you only have a few overviews, you can disable or lower this. By default,
+      it's set to merge up to four of the highest overview layers.
+
+    :param xx: Pixels as :py:class:`xarray.DataArray` backed by Dask.
+    :param dst: S3, Azure URL, or file path.
+    :param compression: Compression to use, default is ``DEFLATE``.
+    :param level: Compression “level”, depends on chosen compression.
+    :param predictor: TIFF predictor setting.
+    :param compressionargs: Any other compression arguments.
+    :param overview_resampling: Resampling method used for computing overviews.
+    :param tile_batching: How many tiles to group into each compression task. Can be
+                          an integer or a function of total tile count. Default is 4.
+    :param tile_batching_threshold: Minimum number of tiles in a layer before batching
+                                    is applied. Default is 20.
+    :param merge_compressed_overviews: Merges that many highest-level overview layers
+                                       after compression into a single chunk. Default is 4.
+                                       Set to None or 0 to disable merging.
+    :param blocksize: Configure block sizes for main and overview images.
+    :param bigtiff: Generate BigTIFF by default, set to ``False`` to disable.
+    :param aws: Configure AWS write access.
+    :param azure: Azure credentials/config.
+    :param client: Dask client.
+    :param stats: Set to `False` to disable stats computation. If `True`, uses a
+                  mid-level layer to compute stats.
+
+    :returns: Dask delayed.
     """
     # pylint: disable=import-outside-toplevel
     import dask.bag
@@ -665,7 +694,7 @@ def save_cog_with_dask(
     }
     parts_base = kw.pop("parts_base", None)
 
-    # Normalise compression settings and remove GDAL compat options from kw
+    # Normalize compression settings and remove GDAL compat options from kw
     predictor, compression, compressionargs = _norm_compression_tifffile(
         xx.dtype, predictor, compression, compressionargs, level=level, kw=kw
     )
@@ -677,6 +706,8 @@ def save_cog_with_dask(
     ydim = xx_odc.ydim
     data_chunks: tuple[int, int] = xx.data.chunksize[ydim : ydim + 2]
     if isinstance(blocksize, Unset):
+        # As a default guess, keep the existing chunk size, and for overviews
+        # use half that dimension as a block. (Placeholder logic)
         blocksize = [data_chunks, int(max(*data_chunks) // 2)]
 
     # Metadata
@@ -707,6 +738,7 @@ def save_cog_with_dask(
 
     layers = _pyramids_from_cog_metadata(xx, meta, resampling=overview_resampling)
 
+    # Default stats: pick a mid-level overview
     if stats is True:
         stats = len(layers) // 2
 
@@ -716,13 +748,21 @@ def save_cog_with_dask(
             layers[stats].data, nodata=xx_odc.nodata, yaxis=xx_odc.ydim
         )
 
-    # Prepare tiles
+    # Prepare tiles for each pyramid level and band
     _tiles: list["dask.bag.Bag"] = []
     for scale_idx, (mm, img) in enumerate(zip(meta.flatten(), layers)):
         for sample_idx in range(meta.num_planes):
             tt = _compress_tiles(img, mm, scale_idx=scale_idx, sample_idx=sample_idx)
-            if tt.npartitions > 20:
-                tt = tt.repartition(npartitions=tt.npartitions // 4)
+            # Apply tile batching if the total tile count >= threshold
+            num_tiles = tt.npartitions
+            if num_tiles >= tile_batching_threshold:
+                if callable(tile_batching):
+                    batch_size = tile_batching(num_tiles)
+                else:
+                    batch_size = tile_batching
+                if batch_size > 1:
+                    new_parts = np.ceil(num_tiles / batch_size)
+                    tt = tt.repartition(npartitions=new_parts)
             _tiles.append(tt)
 
     if dst == "":
@@ -776,14 +816,24 @@ def save_cog_with_dask(
             **upload_params,
         )
 
-    # Upload tiles
-    tiles_write_order = _tiles[::-1]  # Reverse tiles for writing
-    if len(tiles_write_order) > 4:  # Optimize for larger datasets
+    # Reverse tile order for writing: highest overview first
+    tiles_write_order = _tiles[::-1]
+
+    # Optionally merge the top N overview levels into a single sub-stream.
+    # Each overview layer typically uses its own sub-stream and needs
+    # a portion of the upload’s chunk budget (e.g., S3 has a 10,000-chunk limit).
+    # Combining multiple small overviews into one sub-stream lowers the total
+    # number of sub-streams, leaving more chunk space for other layers.
+    if (
+        merge_compressed_overviews
+        and len(tiles_write_order) > merge_compressed_overviews
+    ):
         tiles_write_order = [
-            dask.bag.concat(tiles_write_order[:4]),
-            *tiles_write_order[4:],
+            dask.bag.concat(tiles_write_order[:merge_compressed_overviews]),
+            *tiles_write_order[merge_compressed_overviews:],
         ]
 
+    # Upload tiles
     return uploader.upload(
         tiles_write_order,
         mk_header=_patch_hdr,
