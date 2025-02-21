@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 from urllib.parse import urlparse
 from xml.sax.saxutils import escape as xml_escape
 
+import math
 import numpy as np
 import xarray as xr
 
@@ -761,7 +762,7 @@ def save_cog_with_dask(
                 else:
                     batch_size = tile_batching
                 if batch_size > 1:
-                    new_parts = np.ceil(num_tiles / batch_size)
+                    new_parts = math.ceil(num_tiles / batch_size)
                     tt = tt.repartition(npartitions=new_parts)
             _tiles.append(tt)
 
