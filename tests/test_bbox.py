@@ -41,9 +41,6 @@ def test_boundingbox():
     assert BoundingBox(1, 3, 10, 20).buffered(1, 3) == (0, 0, 11, 23)
     assert BoundingBox(1, 3, 10, 20).buffered(1) == (0, 2, 11, 21)
 
-    assert BoundingBox.from_transform(
-        wh_(10, 12), Affine.translation(1, 3), "epsg:3857"
-    ) == (1, 3, 11, 15)
     assert (
         BoundingBox.from_transform(
             wh_(10, 12), Affine.translation(1, 3), "epsg:3857"
@@ -56,6 +53,19 @@ def test_boundingbox():
     bb = BoundingBox(0, 3, 2, 4, "epsg:3857")
     assert bb.aoi == bb.to_crs("epsg:4326").aoi
     assert bb.aoi != AreaOfInterest(0, 3, 2, 4)
+
+
+@pytest.mark.parametrize(
+    "shape,transform,expect",
+    [
+        (wh_(15, 11), Affine.identity(), (0, 0, 15, 11)),
+        (wh_(10, 12), Affine.translation(1, 3), (1, 3, 11, 15)),
+        (wh_(10, 30), Affine(1, -1, 30, 1, 1, 0), (0, 0, 40, 40)),
+    ],
+)
+def test_bbox_from_transform(shape, transform, expect):
+    assert BoundingBox.from_transform(shape, transform).bbox == expect
+    assert BoundingBox.from_transform(shape, transform, epsg3857).crs == epsg3857
 
 
 @pytest.mark.parametrize("crs", [None, "epsg:4326", epsg3857])

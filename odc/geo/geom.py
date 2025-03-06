@@ -287,9 +287,11 @@ class BoundingBox(Sequence[float]):
         :param transform: Affine mapping from pixel to world
         :param crs: CRS
         """
-        p1 = transform * (0, 0)
-        p2 = transform * shape_(shape).xy
-        return BoundingBox.from_points(p1, p2, crs=crs)
+        nx, ny = shape_(shape).xy
+        pts = [(0, 0), (nx, 0), (nx, ny), (0, ny)]
+        transform.itransform(pts)
+        xx, yy = list(zip(*pts))
+        return BoundingBox.from_xy((min(xx), max(xx)), (min(yy), max(yy)), crs)
 
     @property
     def aoi(self) -> AreaOfInterest:
