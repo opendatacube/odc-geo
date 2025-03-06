@@ -206,8 +206,6 @@ def _mk_crs_coord(
     gcps=None,
     transform: Optional[Affine] = None,
 ) -> xarray.DataArray:
-    # pylint: disable=protected-access
-
     cf = crs.proj.to_cf()
     epsg = 0 if crs.epsg is None else crs.epsg
     crs_wkt = cf.get("crs_wkt", None) or crs.wkt
@@ -224,6 +222,20 @@ def _mk_crs_coord(
         name=name,
         dims=(),
         attrs={"spatial_ref": crs_wkt, **cf},
+    )
+
+
+def xr_crs_coord(
+    crs: SomeCRS,
+    name: str = _DEFAULT_CRS_COORD_NAME,
+    gcps=None,
+    transform: Optional[Affine] = None,
+) -> xarray.DataArray:
+    """
+    Construct CRS coordinate for xarray.
+    """
+    return _mk_crs_coord(
+        norm_crs_or_error(crs), name=name, gcps=gcps, transform=transform
     )
 
 
