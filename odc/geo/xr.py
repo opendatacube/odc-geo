@@ -26,6 +26,7 @@ from ._xr_interop import (
     to_rgba,
     wrap_xr,
     xr_coords,
+    xr_crs_coord,
     xr_reproject,
     xr_zeros,
 )
@@ -41,6 +42,7 @@ __all__ = [
     "register_geobox",
     "spatial_dims",
     "xr_coords",
+    "xr_crs_coord",
     "wrap",
     "wrap_xr",
     "xr_reproject",
@@ -53,7 +55,7 @@ __all__ = [
 
 # pylint: disable=import-outside-toplevel,unused-import
 if have.rasterio:
-    from ._xr_interop import add_to, compress, rio_reproject, to_cog, write_cog, explore
+    from ._xr_interop import add_to, compress, explore, rio_reproject, to_cog, write_cog
 
     __all__.extend(
         [
