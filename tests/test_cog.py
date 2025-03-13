@@ -40,7 +40,7 @@ def gbox():
     return gs[2, 1]
 
 
-def test_write_cog(gbox: GeoBox):
+def test_write_cog(gbox: GeoBox, tmp_path: Path):
     img = xr_zeros(gbox, dtype="uint16")
     assert img.odc.geobox == gbox
 
@@ -59,8 +59,9 @@ def test_write_cog(gbox: GeoBox):
     assert len(img_bytes) == len(img_bytes2)
 
     # Verify COG can be written to file and read back
-    img.odc.write_cog("output_cog.tif")
-    with rio_open("output_cog.tif") as ds:
+    fname = str(tmp_path / "output_cog.tif")
+    img.odc.write_cog(fname)
+    with rio_open(fname) as ds:
         assert ds.read(1) is not None
 
 
