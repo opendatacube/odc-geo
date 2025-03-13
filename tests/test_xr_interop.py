@@ -230,6 +230,9 @@ def test_odc_extension(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox):
     assert xx.odc.grid_mapping == xx.encoding["grid_mapping"]
     assert xx.odc.crs_coord == xx.spatial_ref
     assert xx.odc.crs_coord.attrs == xx.spatial_ref.attrs
+    assert (xx.odc.x == xx.longitude).all()
+    assert (xx.odc.y == xx.latitude).all()
+    assert xx.odc.z is None
 
     # this drops encoding/attributes, but crs/geobox should remain the same
     _xx = xx * 10.0
@@ -243,11 +246,11 @@ def test_odc_extension(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox):
     assert _xx.odc.spatial_dims == ("YY", "XX")
     assert _xx.odc.crs == gbox.crs
 
-    # 1-d xarrays should report None for everything
+    # 1-d xarrays should report None for everything but CRS
     assert _xx.XX.odc.spatial_dims is None
-    assert _xx.XX.odc.crs is None
     assert _xx.XX.odc.transform is None
     assert _xx.XX.odc.geobox is None
+    assert _xx.XX.odc.crs == gbox.crs
 
     # when geobox is none output_geobox should fail
     with pytest.raises(ValueError):
@@ -291,11 +294,11 @@ def test_odc_extension_ds(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox):
     assert _xx.odc.spatial_dims == ("YY", "XX")
     assert _xx.odc.crs == gbox.crs
 
-    # 1-d xarrays should report None for everything
+    # 1-d xarrays should report None for everything but CRS
     assert _xx.XX.odc.spatial_dims is None
-    assert _xx.XX.odc.crs is None
     assert _xx.XX.odc.transform is None
     assert _xx.XX.odc.geobox is None
+    assert _xx.XX.odc.crs == gbox.crs
 
 
 def test_assign_crs(xx_epsg4326: xr.DataArray):

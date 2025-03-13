@@ -89,12 +89,17 @@ class GeoState:
     Geospatial information for xarray object.
     """
 
+    # pylint: disable=too-many-instance-attributes
+
     spatial_dims: Optional[Tuple[str, str]] = None
     crs_coord: Optional[xarray.DataArray] = None
     transform: Optional[Affine] = None
     crs: Optional[CRS] = None
     geobox: Optional[SomeGeoBox] = None
     gcp: Optional[GCPMapping] = None
+    x: Optional[xarray.DataArray] = None
+    y: Optional[xarray.DataArray] = None
+    z: Optional[xarray.DataArray] = None
 
 
 def _get_crs_from_attrs(obj: XarrayObject, sdims: Tuple[str, str]) -> Optional[CRS]:
@@ -570,24 +575,56 @@ def _render_geo_transform(transform: Affine, precision: int = 24) -> str:
     )
 
 
+def _spatial_coords_yx(
+    src: XarrayObject, sdims: Tuple[str, str]
+) -> Tuple[xarray.DataArray | None, xarray.DataArray | None]:
+    def is_spatial(coord) -> bool:
+        if coord.ndim == 1:
+            return coord.dims[0] in sdims
+        if coord.ndim == 2:
+            return coord.dims == sdims
+        return False
+
+    coords = {n: c for n, c in src.coords.items() if is_spatial(c)}
+
+    # primary coords coord.name == dim.name
+    if set(coords).issuperset(sdims):
+        _yy, _xx = (coords[dim] for dim in sdims)
+        return _yy, _xx
+
+    cx = [c for n, c in coords.items() if str(n).lower().startswith("x")]
+    cy = [c for n, c in coords.items() if str(n).lower().startswith("y")]
+
+    if len(cy) >= 1 and len(cx) >= 1:
+        return cy[0], cx[0]
+
+    return (None, None)
+
+
 def _extract_transform(
-    src: XarrayObject,
-    sdims: Tuple[str, str],
-    crs_coord: Optional[xarray.DataArray],
+    coords: Tuple[xarray.DataArray | None, xarray.DataArray | None],
+    crs_coord: xarray.DataArray | None,
     gcp: bool,
 ) -> Optional[Affine]:
-    if any(dim not in src.coords for dim in sdims):
+
+    def is_1d(coord) -> bool:
+        if coord is None:
+            return False
+        return coord.ndim == 1
+
+    _yy, _xx = coords
+    if not (is_1d(_yy) and is_1d(_xx)):
         # special case of no spatial dims at all
         # happens for GCP/rotated sources loaded by rioxarray
         if gcp or crs_coord is None:
             return None
         return _extract_geo_transform(crs_coord)
 
-    _yy, _xx = (src[dim] for dim in sdims)
     original_transform: Affine | None = None
     if crs_coord is not None:
         original_transform = _extract_geo_transform(crs_coord)
 
+    assert _yy is not None and _xx is not None
     # First try to compute from 1-D X/Y coords
     try:
         transform = affine_from_axis(_xx.values, _yy.values)
@@ -621,14 +658,38 @@ def _extract_transform(
     return transform
 
 
+def _geo_info_1d(src: XarrayObject) -> GeoState:
+    crs_coords = _locate_crs_coords(src)
+    if len(crs_coords) < 1:
+        return GeoState()
+    crs_coord, *_other = crs_coords
+    if len(_other) > 0:
+        warnings.warn("Multiple CRS coordinates are present")
+
+    xx: xarray.DataArray | None = None
+    yy: xarray.DataArray | None = None
+    zz: xarray.DataArray | None = None
+    for c in src.coords.values():
+        if c.name in ("x", "X"):
+            xx = c
+        elif c.name in ("y", "Y"):
+            yy = c
+        elif c.name in ("z", "Z"):
+            zz = c
+
+    return GeoState(crs_coord=crs_coord, crs=_extract_crs(crs_coord), x=xx, y=yy, z=zz)
+
+
 def _locate_geo_info(src: XarrayObject) -> GeoState:
     # pylint: disable=too-many-locals
     if len(src.dims) < 2:
-        return GeoState()
+        return _geo_info_1d(src)
 
     sdims = spatial_dims(src, relaxed=True)
     if sdims is None:
         return GeoState()
+
+    yy, xx = _spatial_coords_yx(src, sdims)
 
     crs_coord: Optional[xarray.DataArray] = None
     crs: Optional[CRS] = None
@@ -649,7 +710,7 @@ def _locate_geo_info(src: XarrayObject) -> GeoState:
         # try looking in attributes
         crs = _get_crs_from_attrs(src, sdims)
 
-    transform = _extract_transform(src, sdims, crs_coord, gcp is not None)
+    transform = _extract_transform((yy, xx), crs_coord, gcp is not None)
 
     if gcp is not None:
         geobox = GCPGeoBox((ny, nx), gcp, transform)
@@ -663,6 +724,8 @@ def _locate_geo_info(src: XarrayObject) -> GeoState:
         crs=crs,
         geobox=geobox,
         gcp=gcp,
+        x=xx,
+        y=yy,
     )
 
 
@@ -977,6 +1040,18 @@ class ODCExtension:
     def crs_coord(self) -> xarray.DataArray | None:
         """Return CRS coordinate DataArray."""
         return self._state.crs_coord
+
+    @property
+    def x(self) -> xarray.DataArray | None:
+        return self._state.x
+
+    @property
+    def y(self) -> xarray.DataArray | None:
+        return self._state.y
+
+    @property
+    def z(self) -> xarray.DataArray | None:
+        return self._state.z
 
     @property
     def grid_mapping(self) -> str | None:
