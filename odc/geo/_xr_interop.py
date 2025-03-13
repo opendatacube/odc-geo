@@ -836,6 +836,41 @@ def _extract_output_geobox_params(kw):
     return out
 
 
+def _xr_reproject_pts(src: xarray.Dataset, how: CRS) -> xarray.Dataset:
+    oo = src.odc
+    assert isinstance(oo, ODCExtensionDs)
+    xx, yy, zz = oo.x, oo.y, oo.z
+    crs_coord = oo.crs_coord
+    src_crs = oo.crs
+
+    if src_crs is None or xx is None or yy is None:
+        raise ValueError("Can not reproject non-georegistered array.")
+
+    assert crs_coord is not None
+    new_coords = {crs_coord.name: xr_crs_coord(how, name=str(crs_coord.name))}
+
+    tr = src_crs.transformer(how, always_xy=True)
+    if zz is None:
+        x_, y_ = tr.transform(xx, yy)
+        new_coords.update(
+            {
+                xx.name: xarray.DataArray(x_, dims=xx.dims),
+                yy.name: xarray.DataArray(y_, dims=yy.dims),
+            }
+        )
+    else:
+        x_, y_, z_ = tr.transform(xx, yy, zz)
+        new_coords.update(
+            {
+                xx.name: xarray.DataArray(x_, dims=xx.dims),
+                yy.name: xarray.DataArray(y_, dims=yy.dims),
+                zz.name: xarray.DataArray(z_, dims=zz.dims),
+            }
+        )
+
+    return src.assign_coords(new_coords)
+
+
 def _xr_reproject_ds(
     src: Any,
     how: Union[SomeCRS, GeoBox],
@@ -846,6 +881,16 @@ def _xr_reproject_ds(
     **kw,
 ) -> xarray.Dataset:
     assert isinstance(src, xarray.Dataset)
+
+    if len(src.dims) == 1:
+        # assume point data
+        if isinstance(how, GeoBox):
+            assert how.crs is not None
+            crs = how.crs
+        else:
+            crs = norm_crs_or_error(how)
+
+        return _xr_reproject_pts(src, crs)
 
     if have.rasterio is False:  # pragma: nocover
         raise RuntimeError("Please install `rasterio` to use this method")
