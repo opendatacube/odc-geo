@@ -185,7 +185,7 @@ class MPUChunk:
             return len(_data)
 
         def can_flush(pw: PartsWriter):
-            if self.write_credits < 1:
+            if self.write_credits < 1 and not self.is_final:
                 return False
             if self.started_write:
                 return self.is_final or len(data) >= pw.min_write_sz
@@ -201,7 +201,8 @@ class MPUChunk:
             if write is None:
                 raise RuntimeError("Flush required but no writer provided")
 
-            assert can_flush(write)
+            if not self.is_final:
+                assert can_flush(write)
             return _flush_data(write)
 
         # Haven't started writing yet
