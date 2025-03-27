@@ -145,10 +145,8 @@ class MPUChunk:
                 rhs.is_final,
                 lhs.lhs_keep,
             )
-
-        # Flush `lhs.data + rhs.left_data` if we can
-        #  or else move it into .left_data
-        lhs.flush_rhs(write, rhs.left_data)
+        # In merge, force flush without asserting can_flush:
+        lhs.flush_rhs(write, rhs.left_data, in_merge=True)
 
         return MPUChunk(
             rhs.nextPartId,
@@ -162,7 +160,7 @@ class MPUChunk:
         )
 
     def flush_rhs(
-        self, write: Optional[PartsWriter], extra_data: Optional[bytearray] = None
+        self, write: Optional[PartsWriter], extra_data: Optional[bytearray] = None, in_merge: bool = False
     ) -> int:
         data = self.data
         if extra_data is not None and len(extra_data):
@@ -174,7 +172,7 @@ class MPUChunk:
             _data = data
             if not self.started_write and self.lhs_keep > 0:
                 self.left_data = bytearray(_data[: self.lhs_keep])
-                _data = data[self.lhs_keep :]
+                _data = data[self.lhs_keep:]
 
             part = pw(self.nextPartId, _data)
 
@@ -194,14 +192,10 @@ class MPUChunk:
             return len(data) - self.lhs_keep >= pw.min_write_sz
 
         if self.started_write:
-            # When starting to write we ensure that there is always enough
-            # data and write credits left to flush the remainder
-            #
-            # User must have provided `write` function
             if write is None:
                 raise RuntimeError("Flush required but no writer provided")
-
-            if not self.is_final:
+            # When in merge context, skip the assertion
+            if not in_merge and not self.is_final:
                 assert can_flush(write)
             return _flush_data(write)
 
