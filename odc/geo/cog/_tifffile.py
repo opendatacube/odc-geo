@@ -369,7 +369,8 @@ def _compress_tiles(
     # pylint: disable=import-outside-toplevel
     have.check_or_error("dask")
     from dask.bag import Bag
-    from dask.base import quote, tokenize
+    from dask.base import tokenize
+    from dask.core import quote
     from dask.highlevelgraph import HighLevelGraph
 
     from .._interop import is_dask_collection
