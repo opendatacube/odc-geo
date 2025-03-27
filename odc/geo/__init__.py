@@ -7,8 +7,6 @@
 #  _crs <-- _geom <-- _geobox <- other
 # isort: skip_file
 
-from ._version import __version__
-
 from .types import (
     AnchorEnum,
     XY,
@@ -45,7 +43,6 @@ from .geom import (
 )
 
 __all__ = [
-    "__version__",
     "AnchorEnum",
     "XY",
     "Index2d",
@@ -73,3 +70,12 @@ __all__ = [
     "wh_",
     "shape_",
 ]
+
+
+def __getattr__(name: str) -> str:
+    from importlib.metadata import version
+
+    if name == "__version__":
+        return version("odc_geo")
+    else:
+        raise AttributeError(f"module {__name__} has no attribute {name}")
