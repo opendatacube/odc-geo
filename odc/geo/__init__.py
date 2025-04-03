@@ -73,9 +73,8 @@ __all__ = [
 
 
 def __getattr__(name: str) -> str:
-    from importlib.metadata import version
+    from importlib.metadata import version  # pylint: disable=import-outside-toplevel
 
     if name == "__version__":
         return version("odc_geo")
-    else:
-        raise AttributeError(f"module {__name__} has no attribute {name}")
+    raise AttributeError(f"module {__name__} has no attribute {name}")
