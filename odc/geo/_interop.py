@@ -51,6 +51,14 @@ class _LibChecker:
     def botocore(self) -> bool:
         return self._check("botocore")
 
+    @property
+    def laspy(self) -> bool:
+        return self._check("laspy")
+
+    @property
+    def copc(self) -> bool:
+        return self._check("laspy") and (self._check("lazrs") or self._check("laszip"))
+
     @staticmethod
     def _check(lib_name: str) -> bool:
         return importlib.util.find_spec(lib_name) is not None

@@ -44,7 +44,8 @@ warp = ["rasterio"]
 tiff = ["tifffile", "imagecodecs", "dask[array,distributed]", "rasterio", "xarray>=0.19"]
 s3 = ["boto3"]
 az = ["azure-storage-blob"]
-all = ["rasterio", "tifffile", "imagecodecs", "dask[array,distributed]", "xarray>=0.19", "boto3", "azure-storage-blob"]
+las = ["laspy", "lazrs"]
+all = ["rasterio", "tifffile", "imagecodecs", "dask[array,distributed]", "xarray>=0.19", "boto3", "azure-storage-blob", "laspy", "lazrs"]
 
 [build-system]
 requires = ["flit_core >=3.2,<4"]
@@ -107,4 +108,6 @@ dev = [
     "rasterio>=1.4.3",
     "tifffile>=2024.8.30",
     "xarray>=0.19",
+    "laspy>=2.5.4",
+    "lazrs>=0.6.2",
 ]
