@@ -446,9 +446,9 @@ def _mpu_append_chunks_op(
 
 
 def _merge_and_spill_op(
-    lhs: MPUChunk, 
-    rhs: MPUChunk, 
-    write: Optional[PartsWriter] = None, 
+    lhs: MPUChunk,
+    rhs: MPUChunk,
+    write: Optional[PartsWriter] = None,
     spill_sz: int = 0,
 ) -> MPUChunk:
     merged = MPUChunk.merge(lhs, rhs, write)
