@@ -51,6 +51,7 @@ class AzMultiPartUpload(AzureLimits, MultiPartUploadBase):
         :param container: Name of the container.
         :param blob: Name of the blob.
         :param credential: Authentication credentials (e.g., SAS token or key).
+        :param client: Optional BlobServiceClient instance.
         """
         self.account_url = account_url
         self.container = container

@@ -4,6 +4,7 @@ Multi-part upload as a graph
 
 from __future__ import annotations
 
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from functools import partial
 from typing import (
     TYPE_CHECKING,
@@ -65,6 +66,7 @@ class MPUChunk:
         "observed",
         "is_final",
         "lhs_keep",
+        "__dict__",
     )
 
     def __init__(
@@ -99,6 +101,7 @@ class MPUChunk:
             self.parts,
             self.observed,
             self.is_final,
+            self.lhs_keep,
         )
 
     def __repr__(self) -> str:
@@ -164,55 +167,60 @@ class MPUChunk:
     def flush_rhs(
         self, write: Optional[PartsWriter], extra_data: Optional[bytearray] = None
     ) -> int:
-        data = self.data
-        if extra_data is not None and len(extra_data):
-            data += extra_data
-
-        def _flush_data(pw: PartsWriter):
-            assert pw.min_part <= self.nextPartId <= pw.max_part
-
-            _data = data
-            if not self.started_write and self.lhs_keep > 0:
-                self.left_data = bytearray(_data[: self.lhs_keep])
-                _data = data[self.lhs_keep :]
-
-            part = pw(self.nextPartId, _data)
-
+        data_to_flush = bytearray(self.data)
+        if extra_data:
+            data_to_flush += extra_data
+        self.data = bytearray()
+        writeable_len = len(data_to_flush)
+        if not self.started_write and self.lhs_keep > 0:
+            writeable_len = max(0, writeable_len - self.lhs_keep)
+        should_flush = (self.is_final and writeable_len > 0) or (
+            not self.is_final and writeable_len >= write.min_write_sz
+        )
+        if not self.is_final and self.write_credits < 1:
+            should_flush = False
+        if not should_flush:
+            self.data = data_to_flush
+            return 0
+        bytes_flushed_total = 0
+        max_chunk_size = write.max_write_sz
+        current_data = data_to_flush
+        if not self.started_write and self.lhs_keep > 0:
+            if len(current_data) < self.lhs_keep:
+                self.left_data = (
+                    self.left_data + current_data if self.left_data else current_data
+                )
+                return 0
+            self.left_data = bytearray(current_data[: self.lhs_keep])
+            current_data = current_data[self.lhs_keep :]
+        offset = 0
+        total_size = len(current_data)
+        while offset < total_size:
+            if self.write_credits < 1:
+                self.data = bytearray(current_data[offset:])
+                raise RuntimeError(
+                    f"Insufficient write credits at part {self.nextPartId}"
+                )
+            if not write.min_part <= self.nextPartId <= write.max_part:
+                self.data = bytearray(current_data[offset:])
+                raise ValueError(
+                    f"Next Part ID {self.nextPartId} out of range [{write.min_part}, {write.max_part}]"
+                )
+            chunk_size = min(total_size - offset, max_chunk_size)
+            chunk_data = current_data[offset : offset + chunk_size]
+            try:
+                part = write(self.nextPartId, bytes(chunk_data))
+            except Exception as e:
+                self.data = bytearray(current_data[offset:])
+                raise RuntimeError(f"Writer failed for part {self.nextPartId}") from e
+            if part.get("PartNumber") != self.nextPartId:
+                pass
             self.parts.append(part)
-            self.data = bytearray()
+            bytes_flushed_total += len(chunk_data)
             self.nextPartId += 1
             self.write_credits -= 1
-            return len(_data)
-
-        def can_flush(pw: PartsWriter):
-            if self.write_credits < 1 and not self.is_final:
-                return False
-            if self.started_write:
-                return self.is_final or len(data) >= pw.min_write_sz
-            if self.is_final:
-                return len(data) > self.lhs_keep
-            return len(data) - self.lhs_keep >= pw.min_write_sz
-
-        if self.started_write:
-            # When starting to write we ensure that there is always enough
-            # data and write credits left to flush the remainder
-            #
-            # User must have provided `write` function
-            if write is None:
-                raise RuntimeError("Flush required but no writer provided")
-
-            if not self.is_final:
-                assert can_flush(write)
-            return _flush_data(write)
-
-        # Haven't started writing yet
-        # - Flush if possible and writer is provided
-        # - OR just move all the data to .left_data section
-        if write is not None and can_flush(write):
-            return _flush_data(write)
-
-        self.left_data, self.data = self.left_data + data, bytearray()
-        return 0
+            offset += chunk_size
+        return bytes_flushed_total
 
     def flush(
         self,
@@ -220,66 +228,61 @@ class MPUChunk:
         leftPartId: Optional[int] = None,
         finalise: bool = True,
     ) -> tuple[int, Any]:
-        rr = None
+        total_bytes = 0
+        result = None
         if not self.started_write:
-            assert not self.left_data
-            # TODO: special case this code path
             partId = self.nextPartId if leftPartId is None else leftPartId
-            spill_data = self.data
-            self.parts.append(write(partId, spill_data))
+            if self.data:
+                part_info = write(partId, self.data)
+                self.parts.append(part_info)
+                total_bytes += len(self.data)
             self.data = bytearray()
-
-            if finalise:
-                rr = write.finalise(self.parts)
-
-            return len(spill_data), rr
-
-        bytes_written = 0
-        if self.data:
-            self.is_final = True
-            bytes_written = self.flush_rhs(write)
-
-        if self.left_data:
-            assert len(self.left_data) >= write.min_write_sz
-            partId = 1 if leftPartId is None else leftPartId
-            self.parts.insert(0, write(partId, self.left_data))
-            bytes_written += len(self.left_data)
-            self.left_data = bytearray()
-
+        else:
+            if self.data:
+                orig_final = self.is_final
+                self.is_final = True
+                total_bytes += self.flush_rhs(write)
+                self.is_final = orig_final
+            if self.left_data:
+                partId = write.min_part if leftPartId is None else leftPartId
+                self.parts.insert(0, write(partId, self.left_data))
+                total_bytes += len(self.left_data)
+                self.left_data = bytearray()
         if finalise:
-            rr = write.finalise(self.parts)
-
-        return bytes_written, rr
+            result = write.finalise(self.parts)
+        return total_bytes, result
 
     def maybe_write(self, write: PartsWriter, spill_sz: int) -> int:
-        # if not last section keep 'min_write_sz' and 1 partId around after flush
-        rhs_keep, parts_to_keep = (0, 0) if self.is_final else (write.min_write_sz, 1)
+        rhs_keep = 0 if self.is_final else write.min_write_sz
         lhs_keep = 0 if self.started_write else self.lhs_keep
-
-        if self.write_credits - 1 < parts_to_keep:
+        parts_to_keep = 0 if self.is_final else 1
+        if self.write_credits - parts_to_keep < 1:
             return 0
-
-        bytes_to_write = len(self.data) - rhs_keep - lhs_keep
-        if bytes_to_write < spill_sz:
+        bytes_available = len(self.data) - rhs_keep - lhs_keep
+        if bytes_available < spill_sz:
             return 0
-
         if lhs_keep == 0:
-            spill_data = self.data[:bytes_to_write]
-            self.data = bytearray(self.data[bytes_to_write:])
+            spill_data = self.data[:bytes_available]
+            self.data = self.data[bytes_available:]
         else:
-            spill_data = self.data[lhs_keep : lhs_keep + bytes_to_write]
-            assert not self.left_data
-            self.left_data = bytearray(self.data[:lhs_keep])
-            self.data = bytearray(self.data[bytes_to_write + lhs_keep :])
-
-        assert len(spill_data) == bytes_to_write
-        assert len(spill_data) >= spill_sz
-
-        self.parts.append(write(self.nextPartId, spill_data))
+            spill_data = self.data[lhs_keep : lhs_keep + bytes_available]
+            self.left_data = self.data[:lhs_keep]
+            self.data = self.data[lhs_keep + bytes_available :]
+        try:
+            part_info = write(self.nextPartId, bytes(spill_data))
+        except Exception as e:
+            if lhs_keep == 0:
+                self.data = spill_data + self.data
+            else:
+                self.data = self.left_data + spill_data + self.data
+                self.left_data = bytearray()
+            raise RuntimeError(
+                f"Writer failed during maybe_write for part {self.nextPartId}"
+            ) from e
+        self.parts.append(part_info)
         self.nextPartId += 1
         self.write_credits -= 1
-
-        return bytes_to_write
+        return len(spill_data)
 
     @staticmethod
     def gen_bunch(
@@ -296,7 +299,7 @@ class MPUChunk:
                 partId + idx * writes_per_chunk,
                 writes_per_chunk,
                 is_final=is_final,
-                lhs_keep=lhs_keep,
+                lhs_keep=lhs_keep if idx == 0 else 0,
             )
 
     @staticmethod
@@ -370,10 +373,6 @@ def mpu_write(
     spill_sz: int = 20 * (1 << 20),
     dask_name_prefix="mpufinalise",
 ) -> "Delayed":
-    # pylint: disable=import-outside-toplevel,too-many-locals,too-many-arguments
-    from dask.base import tokenize
-    from dask.delayed import delayed
-
     if not isinstance(chunks, list):
         chunks = [chunks]
     if write is None:
@@ -390,33 +389,29 @@ def mpu_write(
             partId,
             ch,
             writes_per_chunk=writes_per_chunk,
-            lhs_keep=lhs_keep,
+            lhs_keep=lhs_keep if idx == 0 else 0,
             spill_sz=spill_sz,
             mark_final=mk_footer is None and (idx == len(chunks) - 1),
             write=write,
         )
         dss.append(sub)
-        partId = partId + ch.npartitions * writes_per_chunk
+        partId += ch.npartitions * writes_per_chunk
+    data_substream = (
+        dss[0]
+        if len(dss) == 1
+        else MPUChunk.collate_substreams(dss, write=write, spill_sz=spill_sz)
+    )
+    # pylint: disable=import-outside-toplevel
+    from dask import delayed, tokenize
 
-    if len(dss) == 1:
-        data_substream = dss[0]
-    else:
-        data_substream = MPUChunk.collate_substreams(
-            dss,
-            write=write,
-            spill_sz=spill_sz,
-        )
-
-    tk = tokenize(write, mk_header, mk_footer, user_kw, spill_sz)
+    tk = tokenize(write, mk_header, mk_footer, user_kw, spill_sz, data_substream)
     name = f"{dask_name_prefix}-{tk}"
-
-    return delayed(_finalizer_dask_op, name=name, pure=True)(
+    return delayed(_finalizer_dask_op, name=name, pure=False)(
         data_substream,
         write=write,
         mk_header=mk_header,
         mk_footer=mk_footer,
         user_kw=user_kw,
-        dask_key_name=name,
     )
 
 
@@ -426,11 +421,12 @@ def _mpu_collate_op(
     write: Optional[PartsWriter] = None,
     spill_sz: int = 0,
 ) -> MPUChunk:
-    assert len(substreams) > 0
-    root, *rest = substreams
-    for rhs in rest:
+    if not substreams:
+        raise ValueError("Received empty list of substreams to collate.")
+    root = substreams[0]
+    for rhs in substreams[1:]:
         root = MPUChunk.merge(root, rhs, write=write)
-        if write and spill_sz:
+        if write and spill_sz > 0:
             root.maybe_write(write, spill_sz)
     return root
 
@@ -440,30 +436,25 @@ def _mpu_append_chunks_op(
     chunks: Iterable[tuple[bytes, Any]],
     write: Optional[PartsWriter] = None,
     spill_sz: int = 0,
-):
-    # expect 1 MPUChunk per partition
+) -> list[MPUChunk]:
     (mpu,) = mpus
-    for chunk in chunks:
-        data, chunk_id = chunk
+    for data, chunk_id in chunks:
         mpu.append(data, chunk_id)
-        if write is not None and spill_sz > 0:
+        if write and spill_sz > 0:
             mpu.maybe_write(write, spill_sz)
-
     return [mpu]
 
 
 def _merge_and_spill_op(
-    lhs: MPUChunk,
-    rhs: MPUChunk,
-    write: Optional[PartsWriter] = None,
+    lhs: MPUChunk, 
+    rhs: MPUChunk, 
+    write: Optional[PartsWriter] = None, 
     spill_sz: int = 0,
 ) -> MPUChunk:
-    mm = MPUChunk.merge(lhs, rhs, write)
-    if write is None or spill_sz == 0:
-        return mm
-
-    mm.maybe_write(write, spill_sz)
-    return mm
+    merged = MPUChunk.merge(lhs, rhs, write)
+    if write and spill_sz:
+        merged.maybe_write(write, spill_sz)
+    return merged
 
 
 def _finalizer_dask_op(
@@ -473,29 +464,63 @@ def _finalizer_dask_op(
     mk_header: Any = None,
     mk_footer: Any = None,
     user_kw: dict[str, Any] | None = None,
+    final_task_timeout: int = 600,
 ):
-    if user_kw is None:
-        user_kw = {}
-
+    user_kw = user_kw or {}
     _root = data_substream
-    hdr_bytes, footer_bytes = [
-        None if op is None else op(data_substream.observed, **user_kw)
-        for op in [mk_header, mk_footer]
-    ]
-
-    if footer_bytes:
-        _root.append(footer_bytes)
-
-    if hdr_bytes:
-        hdr = MPUChunk(1, 1)
-        hdr.append(hdr_bytes)
-        _root = MPUChunk.merge(hdr, _root)
+    try:
+        hdr_bytes, footer_bytes = [
+            None if op is None else op(_root.observed, **user_kw)
+            for op in [mk_header, mk_footer]
+        ]
+        if footer_bytes:
+            _root.append(footer_bytes)
+        if hdr_bytes:
+            hdr_chunk = MPUChunk(write.min_part if write else 1, 1)
+            hdr_chunk.append(hdr_bytes)
+            _root = MPUChunk.merge(hdr_chunk, _root, write=write)
+    except Exception as e:
+        raise RuntimeError(f"Failed during header/footer processing: {e}") from e
 
     if write is None:
         return _root
 
-    _, rr = _root.flush(write, leftPartId=1, finalise=True)
-    return rr
+    try:
+        # pylint: disable=import-outside-toplevel
+        from dask.distributed import get_client
+
+        client = get_client()
+    except Exception as e:
+        raise RuntimeError(f"Dask client not found in _finalizer_dask_op: {e}") from e
+
+    try:
+        future = client.submit(_remote_final_flush, _root, write, pure=False)
+    except Exception as e:
+        raise RuntimeError(f"Dask task submission failed: {e}") from e
+
+    try:
+        final_upload_result = future.result(timeout=final_task_timeout)
+    except FuturesTimeoutError:
+        try:
+            future.cancel(asynchronous=True)
+        except Exception as cancel_e:
+            raise RuntimeError(
+                f"Final task timed out after {final_task_timeout} seconds: {cancel_e}"
+            ) from cancel_e
+        raise
+    except Exception as e:
+        raise RuntimeError(f"Remote final task failed: {e}") from e
+    finally:
+        future.release()
+    return final_upload_result
+
+
+def _remote_final_flush(chunk_state: MPUChunk, writer_obj: PartsWriter):
+    try:
+        _, result = chunk_state.flush(writer_obj, leftPartId=None, finalise=True)
+        return result
+    except Exception as e:
+        raise RuntimeError(f"Error during remote final flush/commit task: {e}") from e
 
 
 def get_mpu_kwargs(
@@ -532,13 +557,10 @@ def mpu_upload(
     if client is not None:
         writer_kw["client"] = client
     spill_sz = kw.get("spill_sz", 20 * (1 << 20))
-    if spill_sz:
-        write = writer(writer_kw)
-    else:
-        write = None
-    return mpu_write(
-        chunks,
-        write,
-        dask_name_prefix=dask_name_prefix,
-        **kw,  # everything else remains
-    )
+    write_instance: PartsWriter = None
+    if spill_sz > 0:
+        try:
+            write_instance = writer(**writer_kw)
+        except Exception as e:
+            raise RuntimeError(f"Writer {writer} instantiation failed: {e}.") from e
+    return mpu_write(chunks, write_instance, dask_name_prefix=dask_name_prefix, **kw)
