@@ -184,6 +184,8 @@ def _rio_reproject(
         #    https://github.com/opendatacube/datacube-core/issues/1448
         kwargs.update(XSCALE=1, YSCALE=1)
 
+    kwargs = {k: v for k, v in kwargs.items() if v is not None}
+
     dtype_remap = {"int8": "int16", "bool": "uint8"}
 
     def _alias_or_convert(arr: np.ndarray) -> Tuple[np.ndarray, bool]:
