@@ -1201,7 +1201,7 @@ def multiline(coords: List[CoordList], crs: MaybeCRS) -> Geometry:
     return Geometry({"type": "MultiLineString", "coordinates": coords}, crs=crs)
 
 
-def polygon(outer, crs: MaybeCRS, *inners) -> Geometry:
+def polygon(outer: CoordList, crs: MaybeCRS, *inners) -> Geometry:
     """
     Create a 2D Polygon.
 
@@ -1257,7 +1257,7 @@ def polygon_from_transform(
     :param crs: CRS
     """
     x1, y1 = shape_(shape).xy
-    points = [(0, 0), (0, y1), (x1, y1), (x1, 0), (0, 0)]
+    points = [(0.0, 0.0), (0.0, y1), (x1, y1), (x1, 0.0), (0.0, 0.0)]
     transform.itransform(points)
     return polygon(points, crs=crs)
 
