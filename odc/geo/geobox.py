@@ -235,7 +235,7 @@ class GeoBoxBase:
         if self.linear:
             _extent = geom.polygon_from_transform(self._shape, self._affine, self._crs)
         else:
-            _extent = geom.polygon(self.boundary(16).tolist(), self._crs).transform(
+            _extent = geom.polygon(self.boundary(16).tolist(), self._crs).transform(  # type: ignore[arg-type]
                 self.pix2wld
             )
 
