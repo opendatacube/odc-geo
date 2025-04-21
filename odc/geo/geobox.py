@@ -116,7 +116,7 @@ class GeoBoxBase:
 
     __slots__ = ("_shape", "_affine", "_crs", "_extent", "_lazy_ui")
 
-    def __init__(self, shape: SomeShape, affine: Affine, crs: MaybeCRS):
+    def __init__(self, shape: SomeShape, affine: Affine, crs: MaybeCRS) -> None:
         shape = shape_(shape)
 
         self._shape = shape
@@ -511,7 +511,7 @@ class GeoBox(GeoBoxBase):
 
     __slots__ = ()
 
-    def __init__(self, shape: SomeShape, affine: Affine, crs: MaybeCRS):
+    def __init__(self, shape: SomeShape, affine: Affine, crs: MaybeCRS) -> None:
         GeoBoxBase.__init__(self, shape, affine, crs)
 
     @staticmethod
@@ -891,10 +891,10 @@ class GeoBox(GeoBoxBase):
             tol=tol,
         )
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.__repr__()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"GeoBox({self._shape.yx!r}, {self._affine!r}, {self._crs!r})"
 
     def __eq__(self, other):
@@ -1340,7 +1340,7 @@ class GeoboxTiles:
         tile_shape: Union[SomeShape, Chunks2d, None],
         *,
         _tiles: Optional[RoiTiles] = None,
-    ):
+    ) -> None:
         """
         Construct from a :py:class:`~odc.geo.GeoBox`.
 
@@ -1546,7 +1546,7 @@ class GeoboxTiles:
             *self._tiles.__dask_tokenize__()[1:],
         )
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.roi)
 
     def __eq__(self, __value: object) -> bool:

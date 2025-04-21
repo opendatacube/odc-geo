@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 _state: dict[str, Any] = {}
 
 
-def _mpu_local_lock(k="mpu_lock") -> Lock:
+def _mpu_local_lock(k: str = "mpu_lock") -> Lock:
     lck = _state.get(k, None)
     if lck is not None:
         return lck
@@ -84,7 +84,7 @@ class S3MultiPartUpload(S3Limits, MultiPartUploadBase):
         profile: Optional[str] = None,
         endpoint_url: Optional[str] = None,
         creds: Optional["ReadOnlyCredentials"] = None,
-    ):
+    ) -> None:
         self.bucket = bucket
         self.key = key
         self.uploadId = uploadId
@@ -153,7 +153,7 @@ class S3MultiPartUpload(S3Limits, MultiPartUploadBase):
         """Check if the multipart upload has been initiated."""
         return len(self.uploadId) > 0
 
-    def cancel(self, other: str = ""):
+    def cancel(self, other: str = "") -> None:
         """Cancel the multipart upload."""
         uploadId = other if other else self.uploadId
         if not uploadId:
@@ -202,7 +202,7 @@ class S3MultiPartUpload(S3Limits, MultiPartUploadBase):
         return "s3finalise"
 
 
-def _safe_get(v, timeout=0.1):
+def _safe_get(v, timeout: float = 0.1):
     try:
         return v.get(timeout)
     except Exception:  # pylint: disable=broad-except
@@ -216,7 +216,7 @@ class DelayedS3Writer(S3Limits):
 
     # pylint: disable=import-outside-toplevel,import-error
 
-    def __init__(self, mpu: S3MultiPartUpload, kw: dict[str, Any]):
+    def __init__(self, mpu: S3MultiPartUpload, kw: dict[str, Any]) -> None:
         self.mpu = mpu
         self.kw = kw  # mostly ContentType= kinda thing
         self._shared_var: Optional["distributed.Variable"] = None

@@ -10,7 +10,7 @@ from .geobox import GeoBox
 
 
 # pylint: disable=import-outside-toplevel, redefined-builtin, too-many-locals
-def _add_to_folium(url, bounds, map, name=None, index=None, **kw):
+def _add_to_folium(url, bounds, map, name: Optional[str] = None, index=None, **kw):
     assert have.folium
 
     from folium.raster_layers import ImageOverlay
@@ -21,7 +21,7 @@ def _add_to_folium(url, bounds, map, name=None, index=None, **kw):
     return img_overlay
 
 
-def _add_to_ipyleaflet(url, bounds, map, name=None, index=None, **kw):
+def _add_to_ipyleaflet(url, bounds, map, name: Optional[str] = None, index=None, **kw):
     assert have.ipyleaflet
 
     from ipyleaflet import ImageOverlay, Map

@@ -18,7 +18,7 @@ def slurp(path: Path) -> bytes:
 
 @pytest.mark.parametrize("parts_base", [f"parts-3782781", None])
 @pytest.mark.parametrize("num_parts", [1, 2, 3, 10])
-def test_filesink(tmp_path: Path, parts_base: str | None, num_parts: int):
+def test_filesink(tmp_path: Path, parts_base: str | None, num_parts: int) -> None:
     dst = Path(tmp_path / f"{uuid4().hex}.bin")
     assert dst.exists() is False
     if parts_base is not None:

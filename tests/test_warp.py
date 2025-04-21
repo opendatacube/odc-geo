@@ -20,7 +20,9 @@ NaN = float("nan")
     ],
 )
 @pytest.mark.parametrize("resampling", ["nearest", "bilinear", "average", "sum"])
-def test_warp_nan(country_raster_f32: xr.DataArray, crs: MaybeCRS, resampling: str):
+def test_warp_nan(
+    country_raster_f32: xr.DataArray, crs: MaybeCRS, resampling: str
+) -> None:
     xx = country_raster_f32
     assert isinstance(xx, xr.DataArray)
     assert xx.odc.crs == crs

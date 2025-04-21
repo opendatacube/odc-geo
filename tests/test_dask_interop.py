@@ -9,7 +9,7 @@ from odc.geo.gcp import GCPGeoBox, GCPMapping
 from odc.geo.geobox import CRS, GeoBox, GeoboxTiles
 
 
-def test_tokenize_geobox():
+def test_tokenize_geobox() -> None:
     gbox = GeoBox.from_bbox([0, 0, 1, 1], shape=(100, 100))
     tk = tokenize(gbox)
     print(tk)
@@ -34,7 +34,7 @@ def test_tokenize_geobox():
     assert tokenize(CRS("epsg:4326")) != tokenize(CRS("EPSG:3857"))
 
 
-def test_tokenize_gcpgeobox():
+def test_tokenize_gcpgeobox() -> None:
     pts = np.vstack([c.ravel() for c in np.meshgrid([0, 2, 3], [0, 1, 2, 5])]).T
     assert pts.shape[0] > 9
     assert pts.shape[1] == 2

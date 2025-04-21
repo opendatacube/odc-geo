@@ -36,7 +36,7 @@ from odc.geo.testutils import mkA
 NaN = float("nan")
 
 
-def test_math_ops():
+def test_math_ops() -> None:
     assert align_up(32, 16) == 32
     assert align_up(31, 16) == 32
     assert align_up(17, 16) == 32
@@ -72,7 +72,7 @@ def test_math_ops():
     assert is_almost_int(float("-inf"), 1e-6) is False
 
 
-def test_snap_scale():
+def test_snap_scale() -> None:
     assert snap_scale(0) == 0
 
     assert snap_scale(1 + 1e-6, 1e-2) == 1
@@ -87,7 +87,7 @@ def test_snap_scale():
     assert snap_scale(3.478, 1e-6) == 3.478
 
 
-def test_data_res():
+def test_data_res() -> None:
     xx = np.asarray([1, 2, 3, 4])
     assert data_resolution_and_offset(xx) == (1, 0.5)
     assert data_resolution_and_offset(xx[1:]) == (1, xx[1] - 1 / 2)
@@ -100,7 +100,7 @@ def test_data_res():
         data_resolution_and_offset(xx[:0])
 
 
-def test_affine_from_axis():
+def test_affine_from_axis() -> None:
     res = 10
     x0, y0 = 111, 212
     xx = np.arange(11) * res + x0 + res / 2
@@ -121,7 +121,7 @@ def test_affine_from_axis():
     )
 
 
-def _check_bin(b: Bin1D, idx, tol=1e-8, nsteps=10):
+def _check_bin(b: Bin1D, idx: int, tol: float = 1e-8, nsteps: int = 10) -> None:
     if isinstance(idx, int):
         idx = [idx]
 
@@ -131,7 +131,7 @@ def _check_bin(b: Bin1D, idx, tol=1e-8, nsteps=10):
             assert b.bin(x) == _idx
 
 
-def test_bin1d_basic():
+def test_bin1d_basic() -> None:
     b = Bin1D(sz=10, origin=20)
     assert b[0] == (20, 30)
     assert b[1] == (30, 40)
@@ -166,13 +166,13 @@ def test_bin1d_basic():
     assert Bin1D(10) != ["something"]
 
 
-def test_bin1d():
+def test_bin1d() -> None:
     _ii = [-3, -1, 0, 1, 2, 7]
     _check_bin(Bin1D(13.3, 23.5), _ii)
     _check_bin(Bin1D(13.3, 23.5, -1), _ii)
 
 
-def test_apply_affine():
+def test_apply_affine() -> None:
     A = mkA(rot=10, scale=(3, 1.3), translation=(-100, +2.3))
     xx, yy = np.meshgrid(np.arange(13), np.arange(11))
 
@@ -187,17 +187,17 @@ def test_apply_affine():
     np.testing.assert_array_almost_equal(xy_expect, xy_got)
 
 
-def test_split_translation():
+def test_split_translation() -> None:
     def verify(
         a: Tuple[XY[float], XY[float]],
         b: Tuple[XY[float], XY[float]],
-    ):
+    ) -> None:
         assert a[0].xy == pytest.approx(b[0].xy)
         assert a[1].xy == pytest.approx(b[1].xy)
 
     def tt(
         tx: float, ty: float, e_whole: Tuple[float, float], e_part: Tuple[float, float]
-    ):
+    ) -> None:
         expect = xy_(e_whole), xy_(e_part)
         rr = split_translation(xy_(tx, ty))
         verify(rr, expect)
@@ -213,7 +213,7 @@ def test_split_translation():
     # fmt: on
 
 
-def test_snap_affine():
+def test_snap_affine() -> None:
     A = mkA(rot=0.1)
     assert snap_affine(A) is A
 
@@ -251,15 +251,15 @@ def test_snap_affine():
         (20, 30, -10, 3, (33, 2)),
     ],
 )
-def test_snap_grid(left, right, res, off, expect):
+def test_snap_grid(left, right, res, off, expect) -> None:
     assert snap_grid(left, right, res, off / abs(res)) == expect
 
 
-def test_snap_grid_tol():
+def test_snap_grid_tol() -> None:
     assert snap_grid(0.95, 10.12, 1, 0, 0.1) == (1.0, 10)
 
 
-def test_res_affine():
+def test_res_affine() -> None:
     assert resolution_from_affine(mkA(scale=(2, 3))).xy == (2, 3)
     assert resolution_from_affine(mkA(rot=10, scale=(2, 3))).xy == pytest.approx((2, 3))
     assert resolution_from_affine(mkA(rot=-45, scale=(10, -10))).xy == pytest.approx(
@@ -280,7 +280,7 @@ def test_res_affine():
         (float("inf"), float("inf"), 0),
     ],
 )
-def test_split_float(ab, expect_a, expect_b):
+def test_split_float(ab, expect_a, expect_b) -> None:
     a, b = split_float(ab)
 
     assert b == pytest.approx(expect_b)
@@ -299,7 +299,7 @@ def test_split_float(ab, expect_a, expect_b):
 @pytest.mark.parametrize("ny", [30, 101])
 @pytest.mark.parametrize("nx", [20, 104])
 @pytest.mark.parametrize("offset", [0, 1, 103])
-def test_quasi_random_r2(n, ny, nx, offset):
+def test_quasi_random_r2(n, ny, nx, offset: int) -> None:
     xx = quasi_random_r2(n)
     assert xx.shape == (n, 2)
     assert xx.min() >= 0
@@ -332,7 +332,7 @@ def test_quasi_random_r2(n, ny, nx, offset):
         quasi_random_r2(3, offset=20),
     ],
 )
-def test_poly2d(pts):
+def test_poly2d(pts) -> None:
     N = pts.shape[0]
     x, y = pts.T
 
@@ -362,7 +362,7 @@ def test_poly2d(pts):
     np.testing.assert_array_almost_equal(y, yy)
 
 
-def test_poly2d_not_enough_points():
+def test_poly2d_not_enough_points() -> None:
     pts = quasi_random_r2(2)
 
     with pytest.raises(ValueError):
@@ -377,7 +377,7 @@ def test_poly2d_not_enough_points():
         *[2**n + 1 for n in range(20)],
     ],
 )
-def test_align_up_pow2(x: int):
+def test_align_up_pow2(x: int) -> None:
     y = align_up_pow2(x)
     assert isinstance(y, int)
     assert y >= x
@@ -392,7 +392,7 @@ def test_align_up_pow2(x: int):
         *[2**n + 1 for n in range(20)],
     ],
 )
-def test_align_down_pow2(x: int):
+def test_align_down_pow2(x: int) -> None:
     y = align_down_pow2(x)
     assert isinstance(y, int)
     assert y <= x
@@ -418,7 +418,7 @@ def test_align_down_pow2(x: int):
         (-99.99, "float64", -99.99),
     ],
 )
-def test_resolve_nodata(nodata, dtype, expect):
+def test_resolve_nodata(nodata, dtype, expect) -> None:
     npt.assert_equal(resolve_nodata(nodata, dtype), expect)
     assert resolve_nodata("auto", dtype, 13) == 13
 
@@ -436,11 +436,11 @@ def test_resolve_nodata(nodata, dtype, expect):
         (None, None, "uint8", 0),
     ],
 )
-def test_resolve_fill_value(dst_nodata, src_nodata, dtype, expect):
+def test_resolve_fill_value(dst_nodata, src_nodata, dtype, expect) -> None:
     npt.assert_equal(resolve_fill_value(dst_nodata, src_nodata, dtype), expect)
 
 
-def test_empty():
+def test_empty() -> None:
     assert is_nodata_empty(None) is True
     assert is_nodata_empty(NaN) is True
     assert is_nodata_empty(np.nan) is True

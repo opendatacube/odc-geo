@@ -37,15 +37,21 @@ def diff_affine(A: Affine, B: Affine) -> float:
     return math.sqrt(sum((a - b) ** 2 for a, b in zip(A, B)))
 
 
-def test_affine_checks():
+def test_affine_checks() -> None:
     assert is_affine_st(mkA(scale=(1, 2), translation=(3, -10))) is True
     assert is_affine_st(mkA(scale=(1, -2), translation=(-3, -10))) is True
     assert is_affine_st(mkA(rot=0.1)) is False
     assert is_affine_st(mkA(shear=0.4)) is False
 
 
-def test_affine_rsw():
-    def run_test(a, scale, shear=0, translation=(0, 0), tol=1e-8):
+def test_affine_rsw() -> None:
+    def run_test(
+        a: float,
+        scale,
+        shear: float = 0.0,
+        translation: tuple[float, float] = (0.0, 0.0),
+        tol: float = 1e-8,
+    ) -> None:
         A = mkA(a, scale=scale, shear=shear, translation=translation)
 
         R, W, S = decompose_rws(A)
@@ -69,8 +75,8 @@ def test_affine_rsw():
     run_test(-33, (3, -1), 10, translation=(100, -333))
 
 
-def test_fit():
-    def run_test(A, n, tol=1e-5):
+def test_fit() -> None:
+    def run_test(A, n, tol: float = 1e-5) -> None:
         X = [xy_(uniform(0, 1), uniform(0, 1)) for _ in range(n)]
         Y = [xy_(A * pt.xy) for pt in X]
         A_ = affine_from_pts(X, Y)
@@ -86,7 +92,7 @@ def test_fit():
     run_test(mkA(), 10)
 
 
-def test_scale_at_point():
+def test_scale_at_point() -> None:
     def mk_transform(sx, sy):
         A = mkA(37, scale=(sx, sy), translation=(2127, 93891))
         return LinearPointTransform(A)
@@ -104,7 +110,7 @@ def test_scale_at_point():
         assert abs(sy - sy_) < tol
 
 
-def test_pix_transform():
+def test_pix_transform() -> None:
     pt = tuple(
         int(x / 10) * 10
         for x in geom.point(145, -35, epsg4326).to_crs(epsg3577).coords[0]
@@ -155,7 +161,7 @@ def test_pix_transform():
     np.testing.assert_almost_equal(stack_xy(pts_src), stack_xy(pts_src_))
 
 
-def test_compute_reproject_roi():
+def test_compute_reproject_roi() -> None:
     src = AlbersGS.tile_geobox((15, -40))
     dst = GeoBox.from_geopolygon(
         src.extent.to_crs(epsg3857).buffer(10), resolution=src.resolution
@@ -210,14 +216,14 @@ def test_compute_reproject_roi():
     assert rr.read_shrink == 2
 
 
-def test_compute_reproject_roi_paste():
+def test_compute_reproject_roi_paste() -> None:
     src = GeoBox(
         wh_(1000, 2000),
         mkA(scale=(10, -10), translation=(10 * 123, -10 * 230)),
         epsg3857,
     )
 
-    def _check(src: GeoBox, dst: GeoBox, rr: ReprojectInfo):
+    def _check(src: GeoBox, dst: GeoBox, rr: ReprojectInfo) -> None:
         assert rr.read_shrink >= 1
 
         if roi_is_empty(rr.roi_src):
@@ -255,12 +261,12 @@ def test_compute_reproject_roi_paste():
 
         assert _src.intersection(_dst).area > 0
 
-    def _yes(src: GeoBox, dst: GeoBox, **kw):
+    def _yes(src: GeoBox, dst: GeoBox, **kw) -> None:
         rr = compute_reproject_roi(src, dst, **kw)
         assert rr.paste_ok is True
         _check(src, dst, rr)
 
-    def _no_(src: GeoBox, dst: GeoBox, **kw):
+    def _no_(src: GeoBox, dst: GeoBox, **kw) -> None:
         rr = compute_reproject_roi(src, dst, **kw)
         assert rr.paste_ok is False
         _check(src, dst, rr)
@@ -300,7 +306,7 @@ def test_compute_reproject_roi_paste():
     _yes(src, src[8:, 3:].zoom_out(4), ttol=0.5)
 
 
-def test_compute_reproject_roi_issue647():
+def test_compute_reproject_roi_issue647() -> None:
     """In some scenarios non-overlapping geoboxes will result in non-empty
     `roi_dst` even though `roi_src` is empty.
 
@@ -321,7 +327,7 @@ def test_compute_reproject_roi_issue647():
     assert roi_is_empty(rr.roi_dst)
 
 
-def test_compute_reproject_roi_issue1047():
+def test_compute_reproject_roi_issue1047() -> None:
     """`compute_reproject_roi(geobox, geobox[roi])` sometimes returns
     `src_roi != roi`, when `geobox` has (1) tiny pixels and (2) oddly
     sized `alignment`.
@@ -343,7 +349,7 @@ def test_compute_reproject_roi_issue1047():
     assert rr.roi_dst == np.s_[0:10, 0:20]
 
 
-def test_compute_reproject_roi_overhang():
+def test_compute_reproject_roi_overhang() -> None:
     """
     Images with global coverage in epsg:4326 often have slightly
     wrong georegistration that causes image boundaries to reach outside
@@ -371,7 +377,7 @@ def test_compute_reproject_roi_overhang():
     assert dst_geobox[rr.roi_dst] == dst_geobox
 
 
-def test_axis_overlap():
+def test_axis_overlap() -> None:
     s_ = np.s_
 
     # Source overlaps destination fully
@@ -418,7 +424,7 @@ def test_axis_overlap():
     assert compute_axis_overlap(40, 10, 1, -11) == s_[0:0, 10:10]
 
 
-def test_can_paste():
+def test_can_paste() -> None:
     assert _can_paste(mkA(translation=(10, -20))) == (True, None)
     assert _can_paste(mkA(scale=(10, 10))) == (True, None)
     assert _can_paste(mkA(scale=(-10, 10), translation=(0, -4 * 10))) == (True, None)
@@ -442,7 +448,7 @@ def test_can_paste():
     assert _can_paste(mkA(translation=(0.4, 0))) == (False, "sub-pixel translation")
 
 
-def test_compute_output_geobox():
+def test_compute_output_geobox() -> None:
     # sentinel2 over Gibraltar strait
     src = GeoBox.from_bbox(
         [199980, 3890220, 309780, 4000020], "EPSG:32630", resolution=10

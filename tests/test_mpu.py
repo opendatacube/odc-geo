@@ -60,7 +60,7 @@ class FakeWriter:
         return self
 
 
-def etag(data):
+def etag(data) -> str:
     return f'"{md5(data).hexdigest()}"'
 
 
@@ -72,7 +72,7 @@ def _mk_fake_data(sz: int) -> bytes:
     return np.random.bytes(sz)
 
 
-def _split(data: bytes, offsets=List[int]) -> Tuple[bytes, ...]:
+def _split(data: bytes, offsets: List[int]) -> Tuple[bytes, ...]:
     parts = []
 
     for sz in offsets:
@@ -330,7 +330,7 @@ def test_lhs_keep(write: FakeWriter) -> None:
 
 
 @pytest.mark.parametrize("spill_sz", [10, 11, 10_000, 0])
-def test_dask_parts(spill_sz: int):
+def test_dask_parts(spill_sz: int) -> None:
     pytest.importorskip("dask")
     from dask import bag
     from dask.delayed import Delayed

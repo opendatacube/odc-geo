@@ -89,7 +89,7 @@ def las_test_data(data_dir, request):
     )
 
 
-def test_las_load(las_test_data):
+def test_las_load(las_test_data) -> None:
     src = las_test_data.src
     expected_crs = test_crss.get(las_test_data.expected_crs, las_test_data.expected_crs)
     xx = load_las(src)
@@ -119,7 +119,7 @@ def test_las_load(las_test_data):
 
 
 @pytest.mark.parametrize("force_crs", ["EPSG:4326", "EPSG:3857"])
-def test_force_crs(las_test_data, force_crs):
+def test_force_crs(las_test_data, force_crs: str) -> None:
     src = las_test_data.src
 
     xx = load_las(src)
@@ -129,6 +129,6 @@ def test_force_crs(las_test_data, force_crs):
     assert yy.odc.crs == force_crs
 
 
-def test_have_laspy():
+def test_have_laspy() -> None:
     assert have.laspy is True
     assert have.copc is True

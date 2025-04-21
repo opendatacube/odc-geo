@@ -10,7 +10,7 @@ will have an ROI that can be constructed with :py:func:`numpy.s_` like this: ``s
 """
 import math
 from collections import abc
-from typing import List, Optional, Protocol, Sequence, Tuple, Union, overload
+from typing import Hashable, List, Optional, Protocol, Sequence, Tuple, Union, overload
 
 import numpy as np
 
@@ -77,7 +77,7 @@ class RoiTiles(Protocol):
 
     def locate(self, pix: SomeIndex2d) -> Tuple[int, int]: ...
 
-    def __dask_tokenize__(self): ...
+    def __dask_tokenize__(self) -> Hashable: ...
 
 
 def norm_slice_2d(
@@ -88,7 +88,7 @@ def norm_slice_2d(
     return roi_normalise(iyx_(idx).yx, shape)
 
 
-def _fmt_shape(shape):
+def _fmt_shape(shape) -> str:
     n1, n2 = shape.yx
     if max(n1, n2) > 10_000:
         return f"{n1:_d}x{n2:_d}"

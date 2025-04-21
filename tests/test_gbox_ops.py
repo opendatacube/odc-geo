@@ -12,7 +12,7 @@ from odc.geo.geobox import GeoBox
 from odc.geo.testutils import epsg3857
 
 
-def test_gbox_ops():
+def test_gbox_ops() -> None:
     s = GeoBox(wh_(1000, 100), Affine(10, 0, 12340, 0, -10, 316770), epsg3857)
     assert s.shape == (100, 1000)
 

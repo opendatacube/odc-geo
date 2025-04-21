@@ -79,7 +79,7 @@ def __dir__():
     return [*__all__, "is_dask_collection"]
 
 
-def __getattr__(name):
+def __getattr__(name: str):
     if name == "is_dask_collection":
         if have.dask:
             import dask

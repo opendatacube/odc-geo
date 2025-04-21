@@ -43,7 +43,7 @@ class GCPMapping:
         pix: SomePointSet,
         wld: SomePointSet,
         crs: MaybeCRS = None,
-    ):
+    ) -> None:
         pix, _ = _points_to_array(pix)
         wld, _crs = _points_to_array(wld)
 
@@ -143,7 +143,7 @@ class GCPGeoBox(GeoBoxBase):
 
     def __init__(
         self, shape: SomeShape, mapping: GCPMapping, affine: Optional[Affine] = None
-    ):
+    ) -> None:
         if affine is None:
             affine = Affine.identity()
         GeoBoxBase.__init__(self, shape, affine, mapping.crs)
@@ -182,7 +182,7 @@ class GCPGeoBox(GeoBoxBase):
         return False
 
     @property
-    def axis_aligned(self):
+    def axis_aligned(self) -> bool:
         return False
 
     @property
@@ -279,7 +279,7 @@ class GCPGeoBox(GeoBoxBase):
         _shape, _affine = self.compute_zoom_to(shape, resolution=resolution)
         return GCPGeoBox(_shape, self._mapping, _affine)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.__repr__()
 
     def __repr__(self) -> str:

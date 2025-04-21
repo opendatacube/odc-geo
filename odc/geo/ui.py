@@ -1,6 +1,7 @@
 import itertools
 import math
 from functools import lru_cache
+from os import PathLike
 from textwrap import dedent
 from typing import Any, Optional, Tuple
 
@@ -43,7 +44,7 @@ def pick_grid_step(N: int, at_least: int = 4, no_more: int = 11) -> int:
 
 
 @lru_cache
-def _ocean_svg_path(ndecimal=3, clip_bbox=None):
+def _ocean_svg_path(ndecimal: int = 3, clip_bbox=None):
     from .data import ocean_geom
 
     g = ocean_geom(bbox=clip_bbox)
@@ -75,23 +76,23 @@ def _compute_display_box(
 
 def svg_base_map(
     *extras,
-    fill="#CCCCCC",
-    opacity=1,
-    stroke_width=1,
-    stroke="#555555",
-    stroke_opacity=0.9,
-    bbox=None,
-    sz=360,
-    map_svg_path=None,
-    target=None,
-):
+    fill: str = "#CCCCCC",
+    opacity: float = 1.0,
+    stroke_width: float = 1.0,
+    stroke: str = "#555555",
+    stroke_opacity: float = 0.9,
+    bbox: geom.BoundingBox | None = None,
+    sz: int = 360,
+    map_svg_path: PathLike | None = None,
+    target: tuple[int, int] | None = None,
+) -> str:
     clip_bbox = None
     if bbox is not None:
         clip_bbox = geom.bbox_intersection(
             [geom.BoundingBox(*bbox).buffered(1), geom.BoundingBox(-180, -90, 180, 90)]
         ).bbox
     else:
-        bbox = (-180, -90, 180, 90)
+        bbox = geom.BoundingBox(-180, -90, 180, 90)
 
     if map_svg_path is None:
         map_svg_path = _ocean_svg_path(clip_bbox=clip_bbox)
@@ -137,12 +138,12 @@ def svg_base_map(
 
 def make_svg(
     *extras,
-    stroke_width=1,
-    bbox=None,
-    sz=360,
-):
+    stroke_width: float = 1.0,
+    bbox: geom.BoundingBox | None = None,
+    sz: int = 360,
+) -> str:
     if bbox is None:
-        bbox = (0, 0, sz, sz)
+        bbox = geom.BoundingBox(0, 0, sz, sz)
 
     x0, y0, x1, y1 = bbox
     shape, s = _compute_display_box(xy_(x1 - x0, y1 - y0), sz, min(40, sz))
@@ -303,7 +304,7 @@ class PixelGridDisplay:
         pad_deg = max(bbox.span_x, bbox.span_y) * pad_fraction
         return bbox.buffered(pad_deg)
 
-    def _render_svg(self, sz=360):
+    def _render_svg(self, sz: int = 360):
         if self._crs is None:
             bbox = self._src.extent.boundingbox
             margin = 0.1 * max(bbox.span_x, bbox.span_y)

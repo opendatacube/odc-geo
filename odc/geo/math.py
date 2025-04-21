@@ -653,7 +653,9 @@ class Bin1D:
 
     __slots__ = ("sz", "origin", "direction")
 
-    def __init__(self, sz: float, origin: float = 0.0, direction: Literal[1, -1] = 1):
+    def __init__(
+        self, sz: float, origin: float = 0.0, direction: Literal[1, -1] = 1
+    ) -> None:
         """
         Construct :py:class:`~odc.geo.math.Bin1D` object.
 

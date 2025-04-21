@@ -25,7 +25,7 @@ from odc.geo.testutils import epsg3577, epsg3857, epsg4326
 from odc.geo.types import Unset, xy_
 
 
-def test_common_crs():
+def test_common_crs() -> None:
     assert common_crs([]) is None
     assert (
         common_crs([geom.point(0, 0, epsg4326), geom.line([(0, 0), (1, 1)], epsg4326)])
@@ -37,7 +37,7 @@ def test_common_crs():
 
 
 class TestCRSEqualityComparisons:
-    def test_comparison_edge_cases(self):
+    def test_comparison_edge_cases(self) -> None:
         a = epsg4326
         none_crs = None
         assert a == a
@@ -46,7 +46,7 @@ class TestCRSEqualityComparisons:
         assert (a == []) is False
         assert (a == TestCRSEqualityComparisons) is False
 
-    def test_australian_albers_comparison(self):
+    def test_australian_albers_comparison(self) -> None:
         a = CRS(
             """PROJCS["GDA94_Australian_Albers",GEOGCS["GCS_GDA_1994",
                             DATUM["Geocentric_Datum_of_Australia_1994",SPHEROID["GRS_1980",6378137,298.257222101]],
@@ -67,7 +67,7 @@ class TestCRSEqualityComparisons:
         assert a != epsg4326
 
 
-def test_no_epsg():
+def test_no_epsg() -> None:
     c = CRS("+proj=longlat +no_defs +ellps=GRS80")
     b = CRS(
         """GEOGCS["GRS 1980(IUGG, 1980)",DATUM["unknown",SPHEROID["GRS80",6378137,298.257222101]],
@@ -79,7 +79,7 @@ def test_no_epsg():
     assert c.authority == ("", "")
 
 
-def test_crs():
+def test_crs() -> None:
     custom_crs = CRS(
         """PROJCS["unnamed",
                            GEOGCS["Unknown datum based upon the custom spheroid",
@@ -145,7 +145,7 @@ def test_crs():
         assert str(epsg3857) == epsg3857.crs_str
 
 
-def test_crs_compat():
+def test_crs_compat() -> None:
     crs = CRS("epsg:3577")
     assert crs.epsg == 3577
     assert crs.authority == ("EPSG", 3577)
@@ -185,7 +185,7 @@ def test_crs_compat():
 
 
 @pytest.mark.parametrize("epsg", [4326, 3577, 3587])
-def test_crs_int(epsg):
+def test_crs_int(epsg) -> None:
     assert CRS(epsg) == CRS(f"EPSG:{epsg}")
     assert CRS(epsg).epsg == epsg
 
@@ -196,7 +196,7 @@ def test_crs_int(epsg):
     assert crs1.proj is crs3.proj
 
 
-def test_crs_hash():
+def test_crs_hash() -> None:
     crs = CRS("epsg:3577")
     crs2 = CRS(crs)
 
@@ -204,7 +204,7 @@ def test_crs_hash():
     assert len({crs, crs2}) == 1
 
 
-def test_crs_units_per_degree():
+def test_crs_units_per_degree() -> None:
     assert crs_units_per_degree("EPSG:3857", (0, 0)) == crs_units_per_degree(
         "EPSG:3857", 0, 0
     )
@@ -217,7 +217,7 @@ def test_crs_units_per_degree():
     assert crs_units_per_degree("EPSG:3857", -180, 0) == approx(111319.49, 0.5)
 
 
-def test_rio_crs__no_epsg():
+def test_rio_crs__no_epsg() -> None:
     rio_crs = rasterio.crs.CRS.from_wkt(
         'PROJCS["unnamed",GEOGCS["Unknown datum based upon the custom spheroid",'
         'DATUM["Not specified (based on custom spheroid)",'
@@ -230,7 +230,7 @@ def test_rio_crs__no_epsg():
     assert CRS(rio_crs).epsg is None
 
 
-def test_norm_crs():
+def test_norm_crs() -> None:
     assert norm_crs(None) is None
     assert norm_crs(Unset()) is None
 
@@ -256,7 +256,7 @@ def test_norm_crs():
         (geom.BoundingBox(5, 10, 8, 20), 32632),
     ],
 )
-def test_crs_utm(x, expected_epsg):
+def test_crs_utm(x, expected_epsg) -> None:
     if isinstance(x, tuple):
         crs = CRS.utm(*x)
     else:
@@ -282,7 +282,7 @@ def test_crs_utm(x, expected_epsg):
         _ = CRS.utm(x, datum_name="no such datum")
 
 
-def test_crs_units_issue_120():
+def test_crs_units_issue_120() -> None:
     compound_crs_wkt = """COMPOUNDCRS["GDA94 / MGA zone 50 + Instantaneous Water Level Height",
     PROJCRS["GDA94 / MGA zone 50",
         BASEGEOGCRS["GDA94",

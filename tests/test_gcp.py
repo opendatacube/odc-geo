@@ -22,7 +22,7 @@ def au_gcp_geobox(au_gcp_rio):
     yield GCPGeoBox.from_rio(au_gcp_rio)
 
 
-def test_gcp_geobox_from_rio(au_gcp_rio):
+def test_gcp_geobox_from_rio(au_gcp_rio) -> None:
     src = au_gcp_rio
     assert src.gcps != ([], None)
     gbox = GCPGeoBox.from_rio(src)
@@ -32,7 +32,7 @@ def test_gcp_geobox_from_rio(au_gcp_rio):
     assert src.height == gbox.height
 
 
-def test_gcp_geobox_basics(au_gcp_geobox: GCPGeoBox):
+def test_gcp_geobox_basics(au_gcp_geobox: GCPGeoBox) -> None:
     gbox = au_gcp_geobox
 
     assert gbox.linear is False
@@ -107,7 +107,7 @@ def test_gcp_geobox_basics(au_gcp_geobox: GCPGeoBox):
     assert gbox.anchor == AnchorEnum.FLOATING
 
 
-def test_gcp_geobox_xr(au_gcp_geobox: GCPGeoBox):
+def test_gcp_geobox_xr(au_gcp_geobox: GCPGeoBox) -> None:
     gbox = au_gcp_geobox
     xx = xr_zeros(gbox)
     _gbox = xx.odc.geobox
@@ -130,7 +130,7 @@ def test_gcp_geobox_xr(au_gcp_geobox: GCPGeoBox):
     assert yy.odc.uncached.geobox is None
 
 
-def test_gcp_reproject(au_gcp_geobox: GCPGeoBox):
+def test_gcp_reproject(au_gcp_geobox: GCPGeoBox) -> None:
     # smoke-test only
     gbox = au_gcp_geobox
     xx = xr_zeros(gbox, time=["2020-02-20", "2021-01-21"], dtype="uint8", nodata=255)
@@ -148,7 +148,7 @@ def test_gcp_reproject(au_gcp_geobox: GCPGeoBox):
     assert set(np.unique(yy.values).tolist()) == set([255, 0])
 
 
-def test_gcp_mapping():
+def test_gcp_mapping() -> None:
     gbox0 = GeoBox.from_bbox([0, 0, 20, 10], crs="epsg:4326", resolution=1)
     assert gbox0.shape.wh == (20, 10)
     assert gbox0.crs == "epsg:4326"
@@ -186,7 +186,7 @@ def test_gcp_mapping():
 
 
 @pytest.mark.parametrize("n", [3, 4, 8])
-def test_gcp_few_points(n):
+def test_gcp_few_points(n) -> None:
     gbox0 = GeoBox.from_bbox([0, 0, 20, 10], crs="epsg:4326", resolution=1)
     if n <= 4:
         corners = gbox0.boundary(2)[:n]

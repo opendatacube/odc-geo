@@ -351,7 +351,7 @@ def _mk_tile_compressor(
     )
 
 
-def _compress_cog_tile(encoder, block, idx):
+def _compress_cog_tile(encoder, block, idx: int) -> list[tuple]:
     return [(encoder(block), idx)]
 
 

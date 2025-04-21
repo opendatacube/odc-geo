@@ -18,7 +18,7 @@ from odc.geo.testutils import epsg3857
 )
 def test_geoboxtiles_intersect(
     country: geom.Geometry, resolution: float, crs: MaybeCRS
-):
+) -> None:
     assert isinstance(country, geom.Geometry)
     assert country.crs == crs
 
@@ -48,7 +48,7 @@ def test_geoboxtiles_intersect(
 
 
 @pytest.mark.parametrize("use_chunks", [False, True])
-def test_gbox_tiles(use_chunks):
+def test_gbox_tiles(use_chunks) -> None:
     A = Affine.identity()
     H, W = (300, 200)
     h, w = (10, 20)
@@ -127,7 +127,7 @@ def test_gbox_tiles(use_chunks):
 
 
 @pytest.mark.parametrize("use_chunks", [False, True])
-def test_gbox_tiles_roi(use_chunks):
+def test_gbox_tiles_roi(use_chunks) -> None:
     A = Affine.identity()
     H, W = (300, 200)
     h, w = (10, 20)

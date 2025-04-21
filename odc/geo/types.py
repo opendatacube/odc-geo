@@ -482,7 +482,7 @@ class _Func2Map(Mapping[TK, TV]):
 
     __slots__ = ("_func", "_keys")
 
-    def __init__(self, func: Callable[[TK], TV], keys: Sequence[TK]):
+    def __init__(self, func: Callable[[TK], TV], keys: Sequence[TK]) -> None:
         self._func = func
         self._keys = keys
 

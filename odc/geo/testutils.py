@@ -46,7 +46,12 @@ SAMPLE_WKT_WITHOUT_AUTHORITY = """PROJCS["unnamed",
 """
 
 
-def mkA(rot=0, scale=(1, 1), shear=0, translation=(0, 0)):
+def mkA(
+    rot: float = 0.0,
+    scale=(1, 1),
+    shear: float = 0.0,
+    translation: tuple[float, float] = (0.0, 0.0),
+):
     return (
         Affine.translation(*translation)
         * Affine.rotation(rot)
@@ -108,7 +113,7 @@ def xy_norm(
     return x, y, ~A
 
 
-def to_fixed_point(a, dtype="uint16"):
+def to_fixed_point(a, dtype: str | np.dtype | type = "uint16"):
     """
     Convert normalised ([0,1]) floating point image to integer fixed point fractional.
 

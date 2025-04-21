@@ -58,7 +58,7 @@ def xx_epsg4326(geobox_epsg4326: GeoBox, xx_time, xx_chunks):
     yield xr_zeros(geobox_epsg4326, dtype="uint16", chunks=xx_chunks, time=xx_time)
 
 
-def test_geobox_xr_coords():
+def test_geobox_xr_coords() -> None:
     A = mkA(0, scale=(10, -10), translation=(-48800, -2983006))
 
     w, h = 512, 256
@@ -107,7 +107,7 @@ def test_geobox_xr_coords():
     assert isinstance(cc["spatial_ref"].attrs["grid_mapping_name"], str)
 
 
-def test_xr_zeros(geobox_epsg4326: GeoBox):
+def test_xr_zeros(geobox_epsg4326: GeoBox) -> None:
     # missing CRS for GeoBox
     gbox = geobox_epsg4326
     xx = xr_zeros(gbox, dtype="uint16")
@@ -154,7 +154,7 @@ def test_xr_zeros(geobox_epsg4326: GeoBox):
     assert xx.odc.xdim == 2
 
 
-def test_purge_crs_info(xx_epsg4326: xr.DataArray):
+def test_purge_crs_info(xx_epsg4326: xr.DataArray) -> None:
     xx = xx_epsg4326
     assert xx.odc.crs is not None
     assert purge_crs_info(xx).odc.crs is None
@@ -164,7 +164,7 @@ def test_purge_crs_info(xx_epsg4326: xr.DataArray):
     assert xx.encoding == {}
 
 
-def test_set_nodata(xx_epsg4326: xr.DataArray):
+def test_set_nodata(xx_epsg4326: xr.DataArray) -> None:
     xx = xx_epsg4326
 
     assert xx.odc.nodata is None
@@ -183,7 +183,7 @@ def test_set_nodata(xx_epsg4326: xr.DataArray):
         assert xx.attrs == {}
 
 
-def test_nodata_nan(xx_epsg4326: xr.DataArray):
+def test_nodata_nan(xx_epsg4326: xr.DataArray) -> None:
     xx = xx_epsg4326.astype("float32")
     assert isinstance(xx.odc, ODCExtensionDa)
 
@@ -208,7 +208,7 @@ def test_nodata_nan(xx_epsg4326: xr.DataArray):
     assert np.isnan(xx.attrs["nodata"])
 
 
-def test_odc_extension(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox):
+def test_odc_extension(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox) -> None:
     gbox = geobox_epsg4326
     xx = xx_epsg4326
 
@@ -267,7 +267,7 @@ def test_odc_extension(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox):
         _ = _xx.XX.odc.xdim
 
 
-def test_odc_extension_ds(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox):
+def test_odc_extension_ds(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox) -> None:
     gbox = geobox_epsg4326
     xx = xx_epsg4326.to_dataset(name="band")
 
@@ -301,7 +301,7 @@ def test_odc_extension_ds(xx_epsg4326: xr.DataArray, geobox_epsg4326: GeoBox):
     assert _xx.XX.odc.crs == gbox.crs
 
 
-def test_assign_crs(xx_epsg4326: xr.DataArray):
+def test_assign_crs(xx_epsg4326: xr.DataArray) -> None:
     xx = purge_crs_info(xx_epsg4326)
     assert xx.odc.crs is None
     assert xx.odc.grid_mapping is None
@@ -316,7 +316,7 @@ def test_assign_crs(xx_epsg4326: xr.DataArray):
     assert yy.odc.crs == "epsg:3857"
 
 
-def test_assign_crs_ds(xx_epsg4326: xr.DataArray):
+def test_assign_crs_ds(xx_epsg4326: xr.DataArray) -> None:
     xx = purge_crs_info(xx_epsg4326).to_dataset(name="band")
     assert xx.odc.crs is None
     yy = xx.odc.assign_crs("epsg:4326")
@@ -331,7 +331,7 @@ def test_assign_crs_ds(xx_epsg4326: xr.DataArray):
     assert yy.odc.crs == "epsg:3857"
 
 
-def test_corrupt_inputs(xx_epsg4326: xr.DataArray):
+def test_corrupt_inputs(xx_epsg4326: xr.DataArray) -> None:
     xx = xx_epsg4326.copy()
     assert xx.odc.crs == "epsg:4326"
 
@@ -390,7 +390,7 @@ def test_corrupt_inputs(xx_epsg4326: xr.DataArray):
         assert _crs in (epsg3577, "epsg:4326")
 
 
-def test_geobox_hook(xx_epsg4326: xr.DataArray):
+def test_geobox_hook(xx_epsg4326: xr.DataArray) -> None:
     register_geobox()
     xx = xx_epsg4326
     assert xx.odc.crs == "epsg:4326"
@@ -401,7 +401,7 @@ def test_geobox_hook(xx_epsg4326: xr.DataArray):
     assert purge_crs_info(xx)[:1, :1].to_dataset(name="xx").geobox is None
 
 
-def test_wrap_xr():
+def test_wrap_xr() -> None:
     gbox = GeoBox.from_bbox([0, -10, 100, 20], "epsg:4326", tight=True, shape=(13, 29))
     data = np.zeros(gbox.shape, dtype="uint16")
 
@@ -445,7 +445,7 @@ def test_wrap_xr():
 @pytest.mark.parametrize("gbox", TEST_GEOBOXES_SMALL_AXIS_ALIGNED)
 @pytest.mark.parametrize("nprefix", [0, 1, 2])
 @pytest.mark.parametrize("npostfix", [0, 1, 2])
-def test_wrap_xr_nd(gbox: GeoBox, nprefix: int, npostfix: int):
+def test_wrap_xr_nd(gbox: GeoBox, nprefix: int, npostfix: int) -> None:
     shape = (1,) * nprefix + gbox.shape + (3,) * npostfix
     data = np.zeros(shape, dtype="uint16")
     xx = wrap_xr(data, gbox, axis=nprefix)
@@ -469,7 +469,7 @@ def test_wrap_xr_nd(gbox: GeoBox, nprefix: int, npostfix: int):
 
 @pytest.mark.parametrize("xx_time", [None, ["2020-01-30"]])
 @pytest.mark.parametrize("xx_chunks", [None, (-1, -1), (4, 4)])
-def test_xr_reproject(xx_epsg4326: xr.DataArray):
+def test_xr_reproject(xx_epsg4326: xr.DataArray) -> None:
     assert isinstance(xx_epsg4326.odc, ODCExtensionDa)
     xx0 = xx_epsg4326
     xx0.attrs["crs"] = "epsg:4326"
@@ -541,7 +541,7 @@ def test_xr_reproject(xx_epsg4326: xr.DataArray):
         _ = xr.Dataset().odc.reproject("utm")
 
 
-def test_xr_rasterize():
+def test_xr_rasterize() -> None:
     gg = ocean_geom()
     xx = rasterize(gg, 1)
     assert xx.odc.geobox.crs == gg.crs
@@ -568,7 +568,7 @@ def test_xr_rasterize():
     assert xx.any().item() is False
 
 
-def test_is_dask_collection():
+def test_is_dask_collection() -> None:
     import dask
 
     import odc.geo._interop
@@ -585,7 +585,7 @@ def test_is_dask_collection():
         "1 2 3 4 5 not-a-float",
     ],
 )
-def test_extract_transform(geobox, bad_geo_transform: str):
+def test_extract_transform(geobox, bad_geo_transform: str) -> None:
     xx = xr_zeros(geobox, dtype="int16")
     assert xx.odc.geobox == geobox
     assert _extract_geo_transform(xx.spatial_ref) == geobox.affine
@@ -596,7 +596,7 @@ def test_extract_transform(geobox, bad_geo_transform: str):
 
 
 @pytest.mark.parametrize("geobox", TEST_GEOBOXES_SMALL_AXIS_ALIGNED)
-def test_reload(geobox):
+def test_reload(geobox) -> None:
     xx = xr_zeros(geobox, dtype="int16")
     assert xx.odc.geobox == geobox
     assert xx.odc.reload() is xx
@@ -625,7 +625,7 @@ def test_reload(geobox):
         np.s_[1:, 3:4],
     ],
 )
-def test_geobox_1px(geobox: GeoBox, roi: ROI):
+def test_geobox_1px(geobox: GeoBox, roi: ROI) -> None:
     assert geobox.axis_aligned
     assert min(geobox.shape) > 1
     assert max(geobox.shape) < 1000
@@ -652,7 +652,7 @@ def test_geobox_1px(geobox: GeoBox, roi: ROI):
         np.s_[1:1, 1:1],
     ],
 )
-def test_geobox_0px(geobox: GeoBox, roi: ROI):
+def test_geobox_0px(geobox: GeoBox, roi: ROI) -> None:
     assert geobox.axis_aligned
     assert min(geobox.shape) > 1
     assert max(geobox.shape) < 1000
@@ -711,7 +711,7 @@ def test_geobox_0px(geobox: GeoBox, roi: ROI):
         ),
     ],
 )
-def test_crop(xx_epsg4326, poly, expected_fail):
+def test_crop(xx_epsg4326, poly, expected_fail) -> None:
     xx = xx_epsg4326
 
     # If fail is expected, pass test
@@ -762,7 +762,7 @@ def test_crop(xx_epsg4326, poly, expected_fail):
         ),
     ],
 )
-def test_mask(xx_epsg4326, poly):
+def test_mask(xx_epsg4326, poly) -> None:
     # Create test data and replace values with random integers so we can
     # reliably test that pixel values are the same before and after masking
     xx = xx_epsg4326
@@ -794,7 +794,7 @@ def test_mask(xx_epsg4326, poly):
     assert xx_ds_masked.test.isnull().any()
 
 
-def test_spatial_dims():
+def test_spatial_dims() -> None:
     gbox = GeoBox.from_bbox([0, -10, 100, 20], "epsg:4326", tight=True, shape=(13, 29))
     xx0 = xr_zeros(gbox, "int16", always_yx=True, time=["2020-01-01", "2020-01-02"])
     assert spatial_dims(xx0) == ("y", "x")

@@ -49,7 +49,7 @@ class BoundingBox(Sequence[float]):
 
     def __init__(
         self, left: float, bottom: float, right: float, top: float, crs: MaybeCRS = None
-    ):
+    ) -> None:
         self._box = (left, bottom, right, top)
         self._crs = norm_crs(crs)
 
@@ -77,7 +77,7 @@ class BoundingBox(Sequence[float]):
     def bbox(self) -> Tuple[float, float, float, float]:
         return self._box
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator:
         return self._box.__iter__()
 
     def __eq__(self, other: Any) -> bool:
@@ -498,7 +498,7 @@ class Geometry(SupportsCoords[float]):
         self,
         geom: Union[base.BaseGeometry, Dict[str, Any], "Geometry"],
         crs: MaybeCRS = None,
-    ):
+    ) -> None:
         if isinstance(geom, Geometry):
             assert crs is None
             self.crs: Optional[CRS] = geom.crs
@@ -924,10 +924,10 @@ class Geometry(SupportsCoords[float]):
             and self.geom == other.geom
         )
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Geometry({self.__geo_interface__}, {self.crs!r})"
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Geometry({self.geom}, {self.crs})"
 
     # Implement pickle/unpickle
@@ -936,8 +936,8 @@ class Geometry(SupportsCoords[float]):
     def __getstate__(self):
         return {"geom": self.json, "crs": self.crs}
 
-    def __setstate__(self, state):
-        self.__init__(**state)
+    def __setstate__(self, state) -> None:
+        self.__init__(**state)  # type: ignore[misc]
 
     @property
     def is_multi(self) -> bool:
@@ -1094,7 +1094,7 @@ def projected_lon(
     return line(pts, crs)
 
 
-def clip_lon180(geom: Geometry, tol=1e-6) -> Geometry:
+def clip_lon180(geom: Geometry, tol: float = 1e-6) -> Geometry:
     """
     Tweak Geometry in the vicinity of longitude discontinuity.
 

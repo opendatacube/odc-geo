@@ -12,7 +12,7 @@ from .types import Nodata
 # pylint: disable=import-outside-toplevel
 
 
-def is_rgb(x: xr.DataArray):
+def is_rgb(x: xr.DataArray) -> bool:
     """
     Check if array is RGB(A).
     """
@@ -177,7 +177,7 @@ def _matplotlib_colorize(
     vmin=None,
     vmax=None,
     nodata: Nodata = None,
-    robust=False,
+    robust: bool = False,
 ):
     from matplotlib import colormaps
     from matplotlib.colors import Normalize

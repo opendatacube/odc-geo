@@ -2,7 +2,7 @@ from odc.geo.geobox import GeoBox
 from odc.geo.ui import make_svg, svg_base_map
 
 
-def test_svg_base_smoke_only():
+def test_svg_base_smoke_only() -> None:
     gbox = GeoBox.from_bbox((110, -45, 160, -10), resolution=0.05)
     assert "<svg" in svg_base_map()
 
@@ -18,7 +18,7 @@ def test_svg_base_smoke_only():
     assert "</svg>" in svg_base_map(target=(0, 10))
 
 
-def test_make_svg_smoke_only():
+def test_make_svg_smoke_only() -> None:
     gbox = GeoBox.from_bbox((110, -45, 160, -10), resolution=0.05)
 
     assert "</svg>" in make_svg()

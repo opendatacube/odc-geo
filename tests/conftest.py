@@ -35,12 +35,12 @@ def ocean_raster_ds(ocean_raster: xr.DataArray) -> xr.Dataset:
 
 
 @pytest.fixture()
-def iso3():
+def iso3() -> str:
     return "AUS"
 
 
 @pytest.fixture()
-def crs():
+def crs() -> str:
     return "epsg:3857"
 
 

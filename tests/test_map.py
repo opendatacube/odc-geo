@@ -14,7 +14,7 @@ cmap = np.asarray(
 )
 
 
-def test_add_to(ocean_raster: xr.DataArray):
+def test_add_to(ocean_raster: xr.DataArray) -> None:
     # Check map safe range first
     xx = ocean_raster.copy()[20:-20]
     assert isinstance(xx.odc, ODCExtensionDa)
@@ -41,7 +41,7 @@ def test_add_to(ocean_raster: xr.DataArray):
 
 
 @pytest.mark.skipif(have.folium is False, reason="No folium installed")
-def test_add_to_folium(ocean_raster: xr.DataArray):
+def test_add_to_folium(ocean_raster: xr.DataArray) -> None:
     import folium
 
     xx = ocean_raster.copy()[20:-20]
@@ -53,7 +53,7 @@ def test_add_to_folium(ocean_raster: xr.DataArray):
 
 
 @pytest.mark.skipif(have.ipyleaflet is False, reason="No ipyleaflet installed")
-def test_add_to_ipyleaflet(ocean_raster: xr.DataArray):
+def test_add_to_ipyleaflet(ocean_raster: xr.DataArray) -> None:
     import ipyleaflet
 
     xx = ocean_raster.copy()[20:-20]
@@ -65,7 +65,7 @@ def test_add_to_ipyleaflet(ocean_raster: xr.DataArray):
 
 
 @pytest.mark.skipif(have.folium is False, reason="No folium installed")
-def test_explore_xr(ocean_raster: xr.DataArray, ocean_raster_ds: xr.Dataset):
+def test_explore_xr(ocean_raster: xr.DataArray, ocean_raster_ds: xr.Dataset) -> None:
     import folium
     from folium.raster_layers import ImageOverlay
 

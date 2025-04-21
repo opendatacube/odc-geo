@@ -8,7 +8,7 @@ from odc.geo.geom import point
 from odc.geo.types import func2map
 
 
-def test_basics():
+def test_basics() -> None:
     assert xy_(0, 2) == xy_([0, 2])
     assert xy_(0, 2) == xy_(tuple([0, 2]))
     assert yx_(0, 2) == xy_(2, 0)
@@ -57,7 +57,7 @@ def test_basics():
     assert repr(res_(10)) == "Resolution(x=10, y=-10)"
 
 
-def test_shape2d():
+def test_shape2d() -> None:
     assert wh_(3, 2) == shape_((2, 3))
     assert wh_(3, 2) == (2, 3)
     wh34 = wh_(3, 4)
@@ -92,7 +92,7 @@ def test_shape2d():
     assert repr(wh34) == "Shape2d(x=3, y=4)"
 
 
-def test_bad_inputs():
+def test_bad_inputs() -> None:
     # shape is valid of ints only
     with pytest.raises(ValueError):
         _ = xy_(3.1, 2).shape
@@ -113,12 +113,12 @@ def test_bad_inputs():
         _ = shape_(3)
 
 
-def test_map():
+def test_map() -> None:
     assert xy_(1, 2).map(lambda x: x + 1) == xy_(2, 3)
     assert xy_(1, 2).map(lambda x: [x]) == xy_([1], [2])
 
 
-def test_geom_interop():
+def test_geom_interop() -> None:
     assert xy_(1.0, 2.0) == xy_(point(1.0, 2.0, "epsg:4326"))
 
 
