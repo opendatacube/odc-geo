@@ -34,14 +34,14 @@ from odc.geo.testutils import (
 )
 
 
-def test_pickleable():
+def test_pickleable() -> None:
     poly = geom.polygon([(10, 20), (20, 20), (20, 10), (10, 20)], crs=epsg4326)
     pickled = pickle.dumps(poly, pickle.HIGHEST_PROTOCOL)
     unpickled = pickle.loads(pickled)
     assert poly == unpickled
 
 
-def test_props():
+def test_props() -> None:
     crs = epsg4326
 
     box1 = geom.box(10, 10, 30, 30, crs=crs)
@@ -89,7 +89,7 @@ def test_props():
         geom.Geometry(object())
 
 
-def test_tests():
+def test_tests() -> None:
     box1 = geom.box(10, 10, 30, 30, crs=epsg4326)
     box2 = geom.box(20, 10, 40, 30, crs=epsg4326)
     box3 = geom.box(30, 10, 50, 30, crs=epsg4326)
@@ -123,7 +123,7 @@ def test_tests():
     assert not box1.within(box4)
 
 
-def test_ops():
+def test_ops() -> None:
     box1 = geom.box(10, 10, 30, 30, crs=epsg4326)
     box2 = geom.box(20, 10, 40, 30, crs=epsg4326)
     box3 = geom.box(20, 10, 40, 30, crs=epsg4326)
@@ -249,7 +249,7 @@ def test_ops():
     assert lines[3] == geom.line([(11, 2), (1, 2)], epsg4326)
 
 
-def test_geom_split():
+def test_geom_split() -> None:
     box = geom.box(0, 0, 10, 30, epsg4326)
     line = geom.line([(5, 0), (5, 30)], epsg4326)
     bb = list(box.split(line))
@@ -261,7 +261,7 @@ def test_geom_split():
         list(box.split(geom.line([(5, 0), (5, 30)], epsg3857)))
 
 
-def test_multigeom():
+def test_multigeom() -> None:
     p1, p2 = (0, 0), (1, 2)
     p3, p4 = (3, 4), (5, 6)
     b1 = geom.box(*p1, *p2, epsg4326)
@@ -307,7 +307,7 @@ def test_multigeom():
     assert multigeom([gg]).geom_type == "GeometryCollection"
 
 
-def test_shapely_wrappers():
+def test_shapely_wrappers() -> None:
     poly = geom.polygon([(0, 0), (0, 5), (10, 5)], epsg4326)
 
     assert isinstance(poly.svg(), str)
@@ -332,7 +332,7 @@ def test_shapely_wrappers():
     assert (poly - poly).is_empty
 
 
-def test_to_crs():
+def test_to_crs() -> None:
     poly = geom.polygon([(0, 0), (0, 5), (10, 5)], epsg4326)
     src_num_points = len(poly.exterior.xy[0])
 
@@ -365,7 +365,7 @@ def test_to_crs():
         poly.to_crs(epsg3857)
 
 
-def test_to_crs_with_check():
+def test_to_crs_with_check() -> None:
     crs = "+proj=ortho +lat0=40"
     gg = geom.line([[-180, 0], [180, 0]], 4326).segmented(5)
     assert gg.to_crs(crs).is_valid is False
@@ -377,7 +377,7 @@ def test_to_crs_with_check():
     assert gg.to_crs(crs, check_and_fix=True).is_valid is True
 
 
-def test_to_crs_utm():
+def test_to_crs_utm() -> None:
     poly = geom.box(0.1, 43, 1.3, 44, epsg4326)
     assert poly.to_crs("utm").crs.epsg == 32631
     assert poly.to_crs("utm") == poly.to_crs(32631)
@@ -388,7 +388,7 @@ def test_to_crs_utm():
     assert poly.to_crs("utm") == poly.to_crs(32731)
 
 
-def test_densify():
+def test_densify() -> None:
     s_x10 = [(0, 0), (10, 0)]
     assert densify(s_x10, 20) == s_x10
     assert densify(s_x10, 200) == s_x10
@@ -396,7 +396,7 @@ def test_densify():
     assert densify(s_x10, 4) == [(0, 0), (4, 0), (8, 0), (10, 0)]
 
 
-def test_unary_union():
+def test_unary_union() -> None:
     box1 = geom.box(10, 10, 30, 30, crs=epsg4326)
     box2 = geom.box(20, 10, 40, 30, crs=epsg4326)
     box3 = geom.box(30, 10, 50, 30, crs=epsg4326)
@@ -427,7 +427,7 @@ def test_unary_union():
         geom.unary_union([box1, box1.to_crs(epsg3577)])
 
 
-def test_unary_intersection():
+def test_unary_intersection() -> None:
     box1 = geom.box(10, 10, 30, 30, crs=epsg4326)
     box2 = geom.box(15, 10, 35, 30, crs=epsg4326)
     box3 = geom.box(20, 10, 40, 30, crs=epsg4326)
@@ -462,7 +462,7 @@ def test_unary_intersection():
     assert inter6.is_empty
 
 
-def test_gen_test_image_xy():
+def test_gen_test_image_xy() -> None:
     gbox = GeoBox(wh_(3, 7), Affine.translation(10, 1000), epsg3857)
 
     xy, denorm = gen_test_image_xy(gbox, "float64")
@@ -519,7 +519,7 @@ def test_gen_test_image_xy():
     assert isinstance(A, Affine)
 
 
-def test_fixed_point():
+def test_fixed_point() -> None:
     aa = np.asarray([0, 0.5, 1])
     uu = to_fixed_point(aa, "uint8")
     assert uu.dtype == "uint8"
@@ -544,12 +544,12 @@ def test_fixed_point():
     assert (dd < 1.0 / 0x7FFF).all()
 
 
-def test_projected_lon():
+def test_projected_lon() -> None:
     assert projected_lon(epsg3857, 180).crs is epsg3857
     assert projected_lon("EPSG:3577", 100).crs == epsg3577
 
 
-def test_chop():
+def test_chop() -> None:
     poly = geom.box(618300, -1876800, 849000, -1642500, "EPSG:32660")
 
     chopped = chop_along_antimeridian(poly)
@@ -565,7 +565,7 @@ def test_chop():
         chop_along_antimeridian(geom.box(0, 1, 2, 3, None))
 
 
-def test_clip_lon180():
+def test_clip_lon180() -> None:
     err = 1e-9
 
     def b(rside):
@@ -586,7 +586,7 @@ def test_clip_lon180():
     assert bb_[1] == b_neg(-180)
 
 
-def test_wrap_dateline():
+def test_wrap_dateline() -> None:
     albers_crs = epsg3577
     geog_crs = epsg4326
 
@@ -634,7 +634,7 @@ def test_wrap_dateline():
         ],
     ],
 )
-def test_wrap_dateline_sinusoidal(pts):
+def test_wrap_dateline_sinusoidal(pts) -> None:
     sinus_crs = geom.CRS(
         """PROJCS["unnamed",
                            GEOGCS["Unknown datum based upon the custom spheroid",
@@ -655,7 +655,7 @@ def test_wrap_dateline_sinusoidal(pts):
     assert not wrapped.intersects(geom.line([(0, -90), (0, 90)], crs=epsg4326))
 
 
-def test_wrap_dateline_utm():
+def test_wrap_dateline_utm() -> None:
     poly = geom.box(618300, -1876800, 849000, -1642500, "EPSG:32660")
 
     wrapped = poly.to_crs(epsg4326)
@@ -666,7 +666,7 @@ def test_wrap_dateline_utm():
     assert not wrapped.intersects(geom.line([(0, -90), (0, 90)], crs=epsg4326))
 
 
-def test_3d_geometry_converted_to_2d_geometry():
+def test_3d_geometry_converted_to_2d_geometry() -> None:
     coordinates = [
         (115.8929714190001, -28.577007674999948, 0.0),
         (115.90275429200005, -28.57698532699993, 0.0),
@@ -686,7 +686,7 @@ def test_3d_geometry_converted_to_2d_geometry():
     assert g_2d == g_3d  # 3D geometry has been converted to a 2D by dropping the Z axis
 
 
-def test_3d_point_converted_to_2d_point():
+def test_3d_point_converted_to_2d_point() -> None:
     point = (-35.5029340, 145.9312455, 0.0)
 
     point_3d = {"coordinates": point, "type": "Point"}
@@ -700,7 +700,7 @@ def test_3d_point_converted_to_2d_point():
     assert p_2d == p_3d
 
 
-def test_mid_longitude():
+def test_mid_longitude() -> None:
     assert geom.mid_longitude(geom.point(10, 3, "epsg:4326")) == approx(10)
     assert geom.mid_longitude(geom.point(10, 3, "epsg:4326").buffer(3)) == approx(10)
     assert geom.mid_longitude(
@@ -708,7 +708,7 @@ def test_mid_longitude():
     ) == approx(10)
 
 
-def test_point_transformer():
+def test_point_transformer() -> None:
     tr = epsg3857.transformer_to_crs(epsg4326)
     tr_back = epsg4326.transformer_to_crs(epsg3857)
 
@@ -740,7 +740,7 @@ def test_point_transformer():
     assert np.isnan(y_).all()
 
 
-def test_base_internals():
+def test_base_internals() -> None:
     no_epsg_crs = CRS(SAMPLE_WKT_WITHOUT_AUTHORITY)
     assert no_epsg_crs.epsg is None
 
@@ -755,7 +755,7 @@ def test_base_internals():
     assert _round_to_res(0.05, 1.0) == 0
 
 
-def test_geom_clone():
+def test_geom_clone() -> None:
     b = geom.box(0, 0, 10, 20, epsg4326)
     assert b == b.clone()
     assert b.geom is not b.clone().geom
@@ -766,7 +766,7 @@ def test_geom_clone():
 
 @pytest.mark.parametrize("crs", [None, epsg4326])
 @pytest.mark.parametrize("nside", [3, 7, 10])
-def test_bbox_boundary(crs, nside):
+def test_bbox_boundary(crs, nside) -> None:
     n_pts_expect = (nside - 1) * 4
     bbox = geom.BoundingBox(0, 20, 11, 29, crs)
     poly = bbox.polygon
@@ -783,7 +783,7 @@ def test_bbox_boundary(crs, nside):
     assert (bbox.boundary() - poly).is_empty
 
 
-def test_lonlat_bounds():
+def test_lonlat_bounds() -> None:
     # example from landsat scene: spans lon=180
     poly = geom.box(618300, -1876800, 849000, -1642500, "EPSG:32660")
 
@@ -816,7 +816,7 @@ def test_lonlat_bounds():
     assert geom.lonlat_bounds(multi_geom_projected, resolution="auto") == expect
 
 
-def test_geojson():
+def test_geojson() -> None:
     b = geom.box(0, 0, 10, 20, epsg4326)
     gjson = b.geojson()
     assert set(list(gjson)) == set(["type", "geometry", "properties"])
@@ -890,14 +890,14 @@ def test_geojson():
 @pytest.mark.xfail(
     True, reason="Bounds computation for large geometries in safe mode is broken"
 )
-def test_lonalt_bounds_more_than_180():
+def test_lonalt_bounds_more_than_180() -> None:
     poly = geom.box(-150, -30, 150, 30, epsg4326).to_crs(epsg3857, math.inf)
 
     assert geom.lonlat_bounds(poly, "quick") == approx((-150, -30, 150, 30))
     assert geom.lonlat_bounds(poly, "safe") == approx((-150, -30, 150, 30))
 
 
-def test_mul_affine():
+def test_mul_affine() -> None:
     g = geom.point(1, 2, epsg4326)
     x10 = Affine.scale(10)
 
@@ -921,7 +921,7 @@ def test_mul_affine():
         assert x10 * mg == mg.transform(x10)
 
 
-def test_deprecation_warnings():
+def test_deprecation_warnings() -> None:
     g = geom.point(1, 2, epsg4326)
     mg = g | g.buffer(10).boundary
     assert mg.is_multi
@@ -931,11 +931,11 @@ def test_deprecation_warnings():
             pass
 
 
-def test_filter():
-    def _keep(x, y):
+def test_filter() -> None:
+    def _keep(x, y) -> bool:
         return True
 
-    def _drop(x, y):
+    def _drop(x, y) -> bool:
         return False
 
     pt = geom.point(1, 2, epsg4326)
@@ -966,10 +966,10 @@ def test_filter():
 @pytest.mark.parametrize("crs", [None, "epsg:4326"])
 @pytest.mark.parametrize("n", [10, 100, 23])
 @pytest.mark.parametrize("with_edges", [False, True])
-def test_qr2sample(crs, n, with_edges):
+def test_qr2sample(crs, n, with_edges) -> None:
     bbox = geom.BoundingBox(10, 33, 21, 55, crs)
 
-    def run_checks(g: geom.Geometry):
+    def run_checks(g: geom.Geometry) -> None:
         assert g.crs == bbox.crs
         assert (g - bbox.polygon).is_empty
         assert g.is_multi
@@ -991,7 +991,7 @@ def test_qr2sample(crs, n, with_edges):
 
 
 @pytest.mark.parametrize("crs", [None, "epsg:4326"])
-def test_triangulate(crs):
+def test_triangulate(crs) -> None:
     bbox = geom.BoundingBox(0, 0, 1, 1, crs)
 
     gg = triangulate(bbox.boundary())
@@ -1033,7 +1033,7 @@ def test_triangulate(crs):
         },
     ],
 )
-def test_explore_geom(geom_json):
+def test_explore_geom(geom_json) -> None:
     from folium import GeoJson, Map
 
     # Create Geometry

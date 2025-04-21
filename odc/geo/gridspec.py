@@ -54,7 +54,7 @@ class GridSpec:
         origin: Optional[XY[float]] = None,
         flipx: bool = False,
         flipy: bool = False,
-    ):
+    ) -> None:
         tile_shape = shape_(tile_shape)
         resolution = res_(resolution)
 

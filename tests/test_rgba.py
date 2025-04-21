@@ -13,7 +13,7 @@ except ImportError:
     matplotlib = None
 
 
-def test_colorize(ocean_raster: xr.DataArray):
+def test_colorize(ocean_raster: xr.DataArray) -> None:
     xx = ocean_raster
 
     assert isinstance(xx.odc, ODCExtensionDa)
@@ -52,7 +52,7 @@ def test_colorize(ocean_raster: xr.DataArray):
 
 
 @pytest.mark.skipif(matplotlib is None, reason="Needs matplotlib")
-def test_colorize_matplotlib(ocean_raster: xr.DataArray):
+def test_colorize_matplotlib(ocean_raster: xr.DataArray) -> None:
     xx = ocean_raster
     cc = xx.odc.colorize("jet")
     assert isinstance(cc.odc, ODCExtensionDa)
@@ -73,7 +73,7 @@ def test_colorize_matplotlib(ocean_raster: xr.DataArray):
     assert cc.shape == (*xx.shape, 4)
 
 
-def test_rgba(ocean_raster_ds: xr.Dataset):
+def test_rgba(ocean_raster_ds: xr.Dataset) -> None:
     xx = ocean_raster_ds
     assert xx.red.dtype == "int16"
     assert isinstance(xx.odc, ODCExtensionDs)

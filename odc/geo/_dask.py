@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, Optional, Sequence, Tuple, Union, Mapping
+from typing import Any, Literal, Optional, Sequence, Tuple, Union, Mapping
 from uuid import uuid4
 
 import dask.array as da
@@ -22,7 +22,7 @@ def _do_chunked_reproject(
     *blocks: np.ndarray,
     axis: int = 0,
     dtype=None,
-    casting="same_kind",
+    casting: Literal["no", "equiv", "safe", "same_kind", "unsafe"] | None = "same_kind",
     resampling: Resampling = "nearest",
     src_nodata: Nodata = None,
     dst_nodata: Nodata = None,
@@ -118,7 +118,7 @@ def dask_rio_reproject(
     )
     src_block_keys = src.__dask_keys__()
 
-    def _src(idx):
+    def _src(idx: dict):
         a = src_block_keys
         for i in idx:
             a = a[i]

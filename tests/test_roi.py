@@ -26,7 +26,7 @@ from odc.geo.roi import (
 )
 
 
-def test_roi_tools():
+def test_roi_tools() -> None:
     s_ = np.s_
 
     assert roi_shape(s_[2:4, 3:4]) == (2, 1)
@@ -76,7 +76,7 @@ def test_roi_tools():
     assert roi_center(s_[0:2, 0:6]) == (1, 3)
 
 
-def test_roi_from_points():
+def test_roi_from_points() -> None:
     roi = np.s_[0:2, 4:13]
     xy = roi_boundary(roi)
 
@@ -107,7 +107,7 @@ def test_roi_from_points():
         np.s_[10:13, 14:17],
     ],
 )
-def test_slice_intersect3(a: slice, b: slice):
+def test_slice_intersect3(a: slice, b: slice) -> None:
     assert isinstance(a.stop, int)
     assert isinstance(b.stop, int)
     _a, _b, _ab = slice_intersect3(a, b)
@@ -128,7 +128,7 @@ def test_slice_intersect3(a: slice, b: slice):
     np.testing.assert_array_equal(X[a][_a], X[_ab])
 
 
-def test_roi_intersect():
+def test_roi_intersect() -> None:
     s_ = np.s_
     roi = s_[0:2, 4:13]
 
@@ -140,7 +140,7 @@ def test_roi_intersect():
     assert roi_intersect(s_[4:7, 5:6], s_[0:1, 7:8]) == s_[4:4, 6:6]
 
 
-def test_roi_pad():
+def test_roi_pad() -> None:
     s_ = np.s_
     assert roi_pad(s_[0:4], 1, 4) == s_[0:4]
     assert roi_pad(s_[0:4], 1, (4,)) == s_[0:4]
@@ -151,7 +151,7 @@ def test_roi_pad():
     assert roi_pad(s_[3, 0, :2], 1, (100, 100, 100)) == s_[2:5, 0:2, 0:3]
 
 
-def test_norm_slice_or_error():
+def test_norm_slice_or_error() -> None:
     s_ = np.s_
     assert _norm_slice_or_error(s_[0]) == s_[0:1]
     assert _norm_slice_or_error(s_[3]) == s_[3:4]
@@ -163,7 +163,7 @@ def test_norm_slice_or_error():
             _ = _norm_slice_or_error(bad)
 
 
-def test_window_from_slice():
+def test_window_from_slice() -> None:
     s_ = np.s_
 
     assert w_[None] is None
@@ -176,7 +176,7 @@ def test_window_from_slice():
             _ = w_[roi]
 
 
-def test_polygon_path():
+def test_polygon_path() -> None:
     pp = polygon_path([0, 1])
     assert pp.shape == (2, 5)
     assert set(pp.ravel()) == {0, 1}
@@ -189,7 +189,7 @@ def test_polygon_path():
     assert set(pp[1].ravel()) == {2, 3}
 
 
-def test_tiles():
+def test_tiles() -> None:
     tt = Tiles((10, 20), (3, 7))
     assert tt.tile_shape((0, 0)) == (3, 7)
     assert tt.tile_shape((3, 2)) == (1, 6)
@@ -243,7 +243,7 @@ def test_tiles():
         ((1, 10, 3), (2, 5, 7, 11, 2)),
     ],
 )
-def test_varsz_tiles(chunks):
+def test_varsz_tiles(chunks) -> None:
     iy, ix = chunks
     tt = VariableSizedTiles(chunks)
 
@@ -296,7 +296,7 @@ def test_varsz_tiles(chunks):
         np.s_[-1:, 0],
     ],
 )
-def test_tiles_crop(tile, roi):
+def test_tiles_crop(tile, roi) -> None:
     assert isinstance(tile.crop(roi), type(tile))
 
     # tile.chunks[roi] == tile[roi].chunks
@@ -313,7 +313,7 @@ def test_tiles_crop(tile, roi):
         Tiles((104, 201), (11, 23)),
     ],
 )
-def test_clip_tiles(tiles: RoiTiles):
+def test_clip_tiles(tiles: RoiTiles) -> None:
     ny, nx = tiles.shape.yx
     tl, tr, br, bl = (0, 0), (0, nx - 1), (ny - 1, nx - 1), (ny - 1, 0)
 
@@ -331,7 +331,7 @@ def test_clip_tiles(tiles: RoiTiles):
         Tiles((104, 201), (11, 23)),
     ],
 )
-def test_locate(tiles: RoiTiles):
+def test_locate(tiles: RoiTiles) -> None:
     NY, NX = tiles.base.yx
     ny, nx = tiles.shape.yx
 

@@ -19,7 +19,7 @@ def countries_geodataframe():
     yield Countries()._instance
 
 
-def test_from_geopandas(countries_geodataframe):
+def test_from_geopandas(countries_geodataframe) -> None:
     df = countries_geodataframe
     gg = from_geopandas(df)
     assert isinstance(gg, list)
@@ -35,7 +35,7 @@ def test_from_geopandas(countries_geodataframe):
     assert from_geopandas(df.CONTINENT) == []
 
 
-def test_have():
+def test_have() -> None:
     assert isinstance(have.geopandas, bool)
     assert isinstance(have.rasterio, bool)
     assert isinstance(have.xarray, bool)
@@ -52,7 +52,7 @@ def test_have():
         have.check_or_error("xarray", "noSuchLibaBCD")
 
 
-def test_extract_gcps(data_dir: Path):
+def test_extract_gcps(data_dir: Path) -> None:
     with rasterio.open(data_dir / "au-gcp.tif") as src:
         assert src.gcps != ([], None)
         pix1, wld_native = extract_gcps(src)
@@ -69,7 +69,7 @@ def test_extract_gcps(data_dir: Path):
 
 
 @pytest.mark.parametrize("fname", ["au-gcp.tif", "au-3577.tif", "au-3577-rotated.tif"])
-def test_rio_geobox(data_dir: Path, fname: str):
+def test_rio_geobox(data_dir: Path, fname: str) -> None:
     with rasterio.open(data_dir / fname) as rdr:
         pts, _ = rdr.gcps
         gbox = rio_geobox(rdr)
@@ -83,7 +83,7 @@ def test_rio_geobox(data_dir: Path, fname: str):
             assert isinstance(gbox, GeoBox)
 
 
-def test_map_crs():
+def test_map_crs() -> None:
     proj_3031 = "+proj=stere +lat_0=-90 +lat_ts=-71 +lon_0=0 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +type=crs"
     assert map_crs(MagicMock(crs="EPSG4326")).epsg == 4326
     assert map_crs(MagicMock(crs=dict(name="EPSG3857"))).epsg == 3857

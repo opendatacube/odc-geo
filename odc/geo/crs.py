@@ -95,7 +95,7 @@ class CRS:
 
     __slots__ = ("_crs", "_epsg", "_str")
 
-    def __init__(self, crs_spec: Any):
+    def __init__(self, crs_spec: Any) -> None:
         """
         Construct CRS object from *something*.
 
@@ -122,8 +122,8 @@ class CRS:
     def __getstate__(self):
         return {"crs_str": self._str}
 
-    def __setstate__(self, state):
-        self.__init__(state["crs_str"])
+    def __setstate__(self, state) -> None:
+        self.__init__(state["crs_str"])  # type: ignore[misc]
 
     def to_wkt(self, pretty: bool = False, version: Optional[WktVersion] = None) -> str:
         """

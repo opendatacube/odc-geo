@@ -7,7 +7,7 @@ from odc.geo.geom import bbox_intersection, bbox_union
 from odc.geo.testutils import epsg3857
 
 
-def test_boundingbox():
+def test_boundingbox() -> None:
     bb = BoundingBox(0, 3, 2, 4)
     assert bb.width == 2
     assert bb.height == 1
@@ -63,13 +63,13 @@ def test_boundingbox():
         (wh_(10, 30), Affine(1, -1, 30, 1, 1, 0), (0, 0, 40, 40)),
     ],
 )
-def test_bbox_from_transform(shape, transform, expect):
+def test_bbox_from_transform(shape, transform, expect) -> None:
     assert BoundingBox.from_transform(shape, transform).bbox == expect
     assert BoundingBox.from_transform(shape, transform, epsg3857).crs == epsg3857
 
 
 @pytest.mark.parametrize("crs", [None, "epsg:4326", epsg3857])
-def test_bbox_union(crs):
+def test_bbox_union(crs) -> None:
     b1 = BoundingBox(0, 1, 10, 20, crs)
     b2 = BoundingBox(5, 6, 11, 22, crs)
 
@@ -87,7 +87,7 @@ def test_bbox_union(crs):
 
 
 @pytest.mark.parametrize("crs", [None, "epsg:4326", epsg3857])
-def test_bbox_intersection(crs):
+def test_bbox_intersection(crs) -> None:
     b1 = BoundingBox(0, 1, 10, 20, crs)
     b2 = BoundingBox(3, -10, 12, 8, crs)
 
@@ -107,7 +107,7 @@ def test_bbox_intersection(crs):
         (*["epsg:4326"] * 4, "epsg:3857"),
     ],
 )
-def test_bbox_crs_mismatch(crss):
+def test_bbox_crs_mismatch(crss) -> None:
     with pytest.raises(ValueError):
         _ = bbox_union(BoundingBox(0, 0, 1, 1, crs) for crs in crss)
 
@@ -115,7 +115,7 @@ def test_bbox_crs_mismatch(crss):
         _ = bbox_intersection(BoundingBox(0, 0, 1, 1, crs) for crs in crss)
 
 
-def test_map_bounds():
+def test_map_bounds() -> None:
     bbox = BoundingBox(-180, -90, 180, 90, "epsg:4326")
     assert bbox.map_bounds() == ((-90, -180), (90, 180))
 
@@ -126,7 +126,7 @@ def test_map_bounds():
     assert bbox.to_crs("epsg:3857").map_bounds() == ((-20, -10), (0, 24))
 
 
-def test_bbox_to_crs():
+def test_bbox_to_crs() -> None:
     bbox = BoundingBox(-10, -20, 100, 0, "epsg:4326")
     assert bbox.to_crs("epsg:3857") == bbox.polygon.to_crs("epsg:3857").boundingbox
 
@@ -141,7 +141,7 @@ def test_bbox_to_crs():
     ],
 )
 @pytest.mark.parametrize("crs", ["epsg:4326", None, "epsg:3857"])
-def test_round(bb, expect, crs):
+def test_round(bb, expect, crs) -> None:
     expect = BoundingBox(*expect, crs)
     bbox = BoundingBox(*bb, crs)
 

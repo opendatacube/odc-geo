@@ -117,7 +117,7 @@ def _get_crs_from_attrs(obj: XarrayObject, sdims: Tuple[str, str]) -> Optional[C
     """
     crs_set: Set[CRS] = set()
 
-    def _add_candidate(crs):
+    def _add_candidate(crs) -> None:
         if crs is None:
             return
         if isinstance(crs, str):
@@ -132,11 +132,11 @@ def _get_crs_from_attrs(obj: XarrayObject, sdims: Tuple[str, str]) -> Optional[C
         else:
             warnings.warn(f"Ignoring crs attribute of type: {type(crs)}")
 
-    def process_attrs(attrs):
+    def process_attrs(attrs) -> None:
         _add_candidate(attrs.get("crs", None))
         _add_candidate(attrs.get("crs_wkt", None))
 
-    def process_datavar(x):
+    def process_datavar(x) -> None:
         process_attrs(x.attrs)
         for dim in sdims:
             if dim in x.coords:
@@ -1030,7 +1030,7 @@ class ODCExtension:
     Common accessors for both Array/Dataset.
     """
 
-    def __init__(self, state: GeoState):
+    def __init__(self, state: GeoState) -> None:
         self._state = state
 
     @property
@@ -1119,7 +1119,7 @@ class ODCExtensionDa(ODCExtension):
     ODC extension for :py:class:`xarray.DataArray`.
     """
 
-    def __init__(self, xx: xarray.DataArray):
+    def __init__(self, xx: xarray.DataArray) -> None:
         ODCExtension.__init__(self, _locate_geo_info(xx))
         self._xx = xx
 
@@ -1174,7 +1174,7 @@ class ODCExtensionDa(ODCExtension):
         return None
 
     @nodata.setter
-    def nodata(self, value: Nodata):
+    def nodata(self, value: Nodata) -> None:
         nodata = resolve_nodata(value, self._xx.dtype)
 
         if nodata is None:
@@ -1201,7 +1201,7 @@ class ODCExtensionDs(ODCExtension):
     ODC extension for :py:class:`xarray.Dataset`.
     """
 
-    def __init__(self, ds: xarray.Dataset):
+    def __init__(self, ds: xarray.Dataset) -> None:
         ODCExtension.__init__(self, _locate_geo_info(ds))
         self._xx = ds
 
@@ -1242,7 +1242,7 @@ def _xarray_geobox(xx: XarrayObject) -> Optional[GeoBox]:
     return None
 
 
-def register_geobox():
+def register_geobox() -> None:
     """
     Backwards compatiblity layer for datacube ``.geobox`` property.
     """
@@ -1350,7 +1350,7 @@ def wrap_xr(
 
 def xr_zeros(
     geobox: SomeGeoBox,
-    dtype="float64",
+    dtype: str = "float64",
     *,
     chunks: Optional[Union[Tuple[int, int], Tuple[int, int, int]]] = None,
     time=None,

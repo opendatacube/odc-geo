@@ -15,7 +15,7 @@ from odc.geo.gridspec import GridSpec
 from odc.geo.testutils import SAMPLE_WKT_WITHOUT_AUTHORITY
 
 
-def test_gridspec():
+def test_gridspec() -> None:
     gs = GridSpec(
         crs=CRS("EPSG:4326"),
         tile_shape=(10, 10),
@@ -75,7 +75,7 @@ def test_gridspec():
         GridSpec.from_sample_tile(poly)
 
 
-def test_non_square():
+def test_non_square() -> None:
     gs = GridSpec(
         crs=CRS("EPSG:4326"),
         tile_shape=(30, 10),
@@ -87,7 +87,7 @@ def test_non_square():
     assert gs.alignment == xy_(0.05, 0)
 
 
-def test_web_tiles():
+def test_web_tiles() -> None:
     TSZ0 = 6_378_137 * 2 * math.pi
     epsg3857 = CRS("epsg:3857")
 
@@ -109,7 +109,7 @@ def test_web_tiles():
         (GridSpec(4326, (360, 360), 0.01), [(0, 0), (1, 3), (2, 1)]),
     ],
 )
-def test_tiles_tight_query_issue_97(gs: GridSpec, tiles_to_check):
+def test_tiles_tight_query_issue_97(gs: GridSpec, tiles_to_check) -> None:
     for idx in tiles_to_check:
         bbox = gs[idx].boundingbox
         tiles = list(gs.tiles(bbox))
@@ -119,7 +119,7 @@ def test_tiles_tight_query_issue_97(gs: GridSpec, tiles_to_check):
         assert gs[idx] == gbox
 
 
-def test_geojson():
+def test_geojson() -> None:
     gs = GridSpec.web_tiles(3)
     gjson = gs.geojson()
 

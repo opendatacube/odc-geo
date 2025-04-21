@@ -15,7 +15,7 @@ def azure_mpu():
     return AzMultiPartUpload(account_url, "container", "some.blob", None)
 
 
-def test_mpu_init(azure_mpu):
+def test_mpu_init(azure_mpu) -> None:
     """Basic test for AzMultiPartUpload initialization."""
     assert azure_mpu.account_url == "https://account_name.blob.core.windows.net"
     assert azure_mpu.container == "container"
@@ -23,7 +23,7 @@ def test_mpu_init(azure_mpu):
     assert azure_mpu.credential is None
 
 
-def test_azure_multipart_upload():
+def test_azure_multipart_upload() -> None:
     """Test the full Azure AzMultiPartUpload functionality."""
     # Mock Azure Blob SDK client structure
     mock_blob_client = MagicMock()

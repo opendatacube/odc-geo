@@ -31,7 +31,7 @@ from odc.geo.testutils import (
 )
 
 
-def test_geobox_simple():
+def test_geobox_simple() -> None:
     t = GeoBox(
         (4000, 4000), Affine(0.00025, 0.0, 151.0, 0.0, -0.00025, -29.0), epsg4326
     )
@@ -95,7 +95,7 @@ def test_geobox_simple():
     assert len({t, t_copy, t_other}) == 2
 
 
-def test_xy_from_geobox():
+def test_xy_from_geobox() -> None:
     gbox = GeoBox(wh_(3, 7), Affine.translation(10, 1000), epsg3857)
     xx, yy = xy_from_gbox(gbox)
 
@@ -119,7 +119,7 @@ def test_xy_from_geobox():
     np.testing.assert_array_almost_equal(yy, YY)
 
 
-def test_geobox():
+def test_geobox() -> None:
     points_list = [
         [
             (148.2697, -35.20111),
@@ -250,7 +250,7 @@ def test_geobox():
         )
 
 
-def test_gbox_overlap_roi():
+def test_gbox_overlap_roi() -> None:
     gbox = GeoBox(wh_(100, 30), Affine.translation(0, 0), epsg4326)
     assert gbox.overlap_roi(gbox[3:7, 13:29]) == np.s_[3:7, 13:29]
     assert gbox[10:20, 5:10].overlap_roi(gbox) == np.s_[0:10, 0:5]
@@ -260,7 +260,7 @@ def test_gbox_overlap_roi():
     assert a.overlap_roi(b) == np.s_[1:10, 0:5]
 
 
-def test_gbox_boundary():
+def test_gbox_boundary() -> None:
     geobox = GeoBox(wh_(6, 2), Affine.translation(0, 0), epsg4326)
 
     bb = gbox_boundary(geobox, 3)
@@ -276,7 +276,7 @@ def test_gbox_boundary():
     assert geobox.map_bounds() == geobox.boundingbox.map_bounds()
 
 
-def test_geobox_scale_down():
+def test_geobox_scale_down() -> None:
     crs = CRS("EPSG:3857")
 
     A = mkA(0, (111.2, 111.2), translation=(125671, 251465))
@@ -310,7 +310,7 @@ def test_geobox_scale_down():
     ],
 )
 @pytest.mark.parametrize("shape", [256, (128, 128), (33, 11)])
-def test_zoom_to_shape(geobox: GeoBox, shape):
+def test_zoom_to_shape(geobox: GeoBox, shape) -> None:
     assert geobox.zoom_to(shape).crs == geobox.crs
 
     if isinstance(shape, int):
@@ -319,7 +319,7 @@ def test_zoom_to_shape(geobox: GeoBox, shape):
         assert geobox.zoom_to(shape).shape == shape
 
 
-def test_zoom_to_resolution():
+def test_zoom_to_resolution() -> None:
     geobox = GeoBox.from_bbox((-3, -4, 3, 4), epsg4326, resolution=1)
     assert geobox.shape == (8, 6) and geobox.resolution.xy == (1, -1)
     assert geobox.zoom_to(resolution=2).resolution.xy == (2, -2)
@@ -329,7 +329,7 @@ def test_zoom_to_resolution():
         geobox.zoom_to()
 
 
-def test_non_st():
+def test_non_st() -> None:
     A = mkA(rot=10, translation=(-10, 20), shear=0.3)
     assert is_affine_st(A) is False
 
@@ -342,7 +342,7 @@ def test_non_st():
         assert gbox.coordinates
 
 
-def test_from_polygon():
+def test_from_polygon() -> None:
     box = geom.box(1, 13, 17, 37, "epsg:4326")
     gbox = GeoBox.from_geopolygon(box, 0.1)
     assert gbox.crs == box.crs
@@ -370,14 +370,14 @@ def test_from_polygon():
     assert 32601 <= gbox.crs.epsg <= 32660
 
 
-def test_from_polygon_compat_align():
+def test_from_polygon_compat_align() -> None:
     box = geom.box(1, 13, 17, 37, "epsg:4326")
     assert GeoBox.from_geopolygon(box, 2, align=xy_(1, 1)) == GeoBox.from_geopolygon(
         box, 2, anchor=xy_(0.5, 0.5)
     )
 
 
-def test_from_bbox():
+def test_from_bbox() -> None:
     bbox = (1, 13, 17, 37)
     shape = (23, 47)
     gbox = GeoBox.from_bbox(bbox, tight=True, shape=shape)
@@ -458,7 +458,7 @@ def test_from_bbox():
         _ = GeoBox.from_bbox(bbox)
 
 
-def test_outline():
+def test_outline() -> None:
     gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
     assert gbox.outline() == gbox.outline("native")
     assert gbox.outline().crs == gbox.crs
@@ -468,14 +468,14 @@ def test_outline():
     assert gbox.outline(notch=0).geom_type == "GeometryCollection"
 
 
-def test_footprint():
+def test_footprint() -> None:
     gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
     assert gbox.footprint("epsg:4326").crs == "epsg:4326"
     assert gbox.footprint("utm").crs.proj.utm_zone is not None
     assert gbox.footprint("utm-s").crs.proj.utm_zone.endswith("S")
 
 
-def test_to_crs():
+def test_to_crs() -> None:
     gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
     assert gbox.to_crs("utm").crs == "epsg:32631"
     assert gbox.to_crs("utm") == gbox.to_crs("epsg:32631")
@@ -489,8 +489,8 @@ def test_to_crs():
     assert gbox.to_crs("utm-n").crs.proj.utm_zone == "31N"
 
 
-def test_snap_to():
-    def aligned(a, b):
+def test_snap_to() -> None:
+    def aligned(a, b) -> bool:
         try:
             _ = a & b
         except ValueError:
@@ -511,7 +511,7 @@ def test_snap_to():
     assert gbox.snap_to(gbox_).crs == gbox.crs
 
 
-def test_svg():
+def test_svg() -> None:
     # smoke test only
     gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
     assert isinstance(gbox.svg(), str)
@@ -526,7 +526,7 @@ def test_svg():
     assert isinstance((gbox[:3] & gbox[3:])._repr_svg_(), str)
 
 
-def test_html_repr():
+def test_html_repr() -> None:
     # smoke test only
     gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
     assert isinstance(gbox._repr_html_(), str)
@@ -555,7 +555,7 @@ def test_html_repr():
     assert isinstance((gbox[:0, :0])._repr_html_(), str)
 
 
-def test_lrtb():
+def test_lrtb() -> None:
     gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
 
     assert gbox.right.left == gbox
@@ -570,7 +570,7 @@ def test_lrtb():
     assert gbox.top == GeoBox.from_bbox([0, 10, 20, 20], gbox.crs, shape=gbox.shape)
 
 
-def test_compat():
+def test_compat() -> None:
     gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
     gbox_ = gbox.compat
     if gbox_ is None:  # no datacube in this environment
@@ -581,7 +581,7 @@ def test_compat():
     assert gbox.crs == str(gbox.crs)
 
 
-def test_project():
+def test_project() -> None:
     gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
 
     pix = gbox.outline("pixel", notch=0)
@@ -597,7 +597,7 @@ def test_project():
     assert gbox.project(wld.to_crs("epsg:4326")).buffer(0.001).contains(pix)
 
 
-def test_enclosing():
+def test_enclosing() -> None:
     gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
 
     assert (gbox.enclosing(gbox.center_pixel.geographic_extent)) | gbox == gbox
@@ -621,7 +621,7 @@ def test_enclosing():
 
 @pytest.mark.parametrize("n", [10, 100, 23])
 @pytest.mark.parametrize("with_edges", [False, True])
-def test_qr2sample(n, with_edges):
+def test_qr2sample(n, with_edges) -> None:
     gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
     xx1 = gbox.qr2sample(n, with_edges=with_edges)
     xx1_ = gbox.qr2sample(n, with_edges=with_edges)
@@ -645,7 +645,7 @@ _gbox = GeoBox((3, 17), mkA(scale=(10, -10), translation=(1000, -20)), epsg3857)
         (_gbox, (200, 100)),
     ],
 )
-def test_crop(gbox, shape):
+def test_crop(gbox, shape) -> None:
     assert gbox.crop(shape).shape == shape
     assert gbox.crop(shape).crs == gbox.crs
     assert gbox.crop(shape)[:1, :1] == gbox[:1, :1]
@@ -663,7 +663,7 @@ def test_crop(gbox, shape):
         ),
     ],
 )
-def test_explore_geobox(geobox):
+def test_explore_geobox(geobox) -> None:
     from folium import GeoJson, Map
 
     # Test explore on dataset input and verify that output is a folium map
@@ -696,7 +696,7 @@ def test_explore_geobox(geobox):
         pytest.param((-100, -100), False, id="both negative: not allowed"),
     ],
 )
-def test_shape(shape, allowed):
+def test_shape(shape, allowed) -> None:
     if allowed:
         GeoBox.from_bbox((-3, -4, 3, 4), epsg4326, shape=shape)
     else:
@@ -731,5 +731,5 @@ def test_shape(shape, allowed):
         ),
     ],
 )
-def test_geobox_anchor(gbox, expected_anchor):
+def test_geobox_anchor(gbox, expected_anchor) -> None:
     assert gbox.anchor == expected_anchor

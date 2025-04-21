@@ -5,7 +5,7 @@
 """
 Working with 2d+ chunks.
 """
-from typing import Any, Iterator, Mapping, Optional, Tuple
+from typing import Any, Iterator, Literal, Mapping, Optional, Tuple
 
 import numpy as np
 
@@ -123,7 +123,9 @@ class BlockAssembler:
         *,
         dtype=None,
         roi=None,
-        casting="same_kind",
+        casting: (
+            Literal["no", "equiv", "safe", "same_kind", "unsafe"] | None
+        ) = "same_kind",
     ) -> np.ndarray:
         """
         Paste all blocks together into one array possibly with type coercion.

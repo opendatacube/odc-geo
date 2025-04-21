@@ -194,7 +194,7 @@ def _write_cog(
 
     rio_opts.update(extra_rio_opts)
 
-    def _write(pix, band, dst):
+    def _write(pix, band, dst) -> None:
         if not use_windowed_writes:
             dst.write(pix, band)
         else:

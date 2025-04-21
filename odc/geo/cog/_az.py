@@ -43,7 +43,7 @@ class AzMultiPartUpload(AzureLimits, MultiPartUploadBase):
         blob: str,
         credential: Any = None,
         client: Any = None,
-    ):
+    ) -> None:
         """
         Initialise Azure multipart upload.
 
@@ -102,7 +102,7 @@ class AzMultiPartUpload(AzureLimits, MultiPartUploadBase):
         self.blob_client.commit_block_list(block_list)
         return self.blob_client.get_blob_properties().etag
 
-    def cancel(self, other: str = ""):
+    def cancel(self, other: str = "") -> None:
         """
         Cancel the upload by clearing the block list.
         """
@@ -143,7 +143,7 @@ class DelayedAzureWriter(AzureLimits):
     Dask-compatible writer for Azure Blob Storage multipart uploads.
     """
 
-    def __init__(self, mpu: AzMultiPartUpload, kw: dict[str, Any]):
+    def __init__(self, mpu: AzMultiPartUpload, kw: dict[str, Any]) -> None:
         """
         Initialise the Azure writer.
 

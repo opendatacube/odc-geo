@@ -11,7 +11,7 @@ rioxarray = pytest.importorskip("rioxarray")
 
 @pytest.mark.parametrize("fname", ["au-gcp.tif", "au-3577.tif", "au-3577-rotated.tif"])
 @pytest.mark.parametrize("parse_coordinates", [True, False])
-def test_rioxarray_interop(data_dir: Path, fname: str, parse_coordinates: bool):
+def test_rioxarray_interop(data_dir: Path, fname: str, parse_coordinates: bool) -> None:
     xx = rioxarray.open_rasterio(
         data_dir / fname, chunks=64, parse_coordinates=parse_coordinates
     )

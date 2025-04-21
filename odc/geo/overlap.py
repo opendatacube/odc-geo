@@ -53,7 +53,9 @@ class LinearPointTransform:
     Point transform within the same projection.
     """
 
-    def __init__(self, A: Affine, back: Optional["LinearPointTransform"] = None):
+    def __init__(
+        self, A: Affine, back: Optional["LinearPointTransform"] = None
+    ) -> None:
         self.A = A
         self._back = back
 
@@ -98,7 +100,7 @@ class GbxPointTransform:
         src: GeoBoxBase,
         dst: GeoBoxBase,
         back: Optional["GbxPointTransform"] = None,
-    ):
+    ) -> None:
         assert src.crs is not None and dst.crs is not None
         self._src = src
         self._dst = dst

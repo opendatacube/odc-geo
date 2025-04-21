@@ -2,7 +2,9 @@ from typing import Tuple
 
 import numpy as np
 import pytest
+from collections.abc import Iterable
 
+from odc.geo import SomeIndex2d
 from odc.geo._blocks import BlockAssembler
 from odc.geo.roi import RoiTiles, roi_normalise, roi_shape, roi_tiles
 
@@ -17,7 +19,7 @@ from odc.geo.roi import RoiTiles, roi_normalise, roi_shape, roi_tiles
     ],
 )
 @pytest.mark.parametrize("dtype", ["int8", "uint16", "float32"])
-def test_block_assembler(tiles: RoiTiles, idx, dtype):
+def test_block_assembler(tiles: RoiTiles, idx: Iterable[SomeIndex2d], dtype) -> None:
     dtype = np.dtype(dtype)
     Z = np.zeros(tiles.base.shape, dtype)
     for v, _i in enumerate(idx, start=1):
@@ -87,7 +89,7 @@ def test_block_assembler(tiles: RoiTiles, idx, dtype):
         np.s_[:4, -3:],
     ],
 )
-def test_block_planes(bshape: Tuple[int, ...], axis: int, yx_crop):
+def test_block_planes(bshape: Tuple[int, ...], axis: int, yx_crop) -> None:
     ny, nx = bshape[axis : axis + 2]
     NY = ny * 10 + 1
     NX = nx * 9 + min(nx - 1, 2)

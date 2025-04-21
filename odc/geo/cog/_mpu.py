@@ -111,7 +111,7 @@ class MPUChunk:
             s = f"{s} final"
         return s
 
-    def append(self, data: SomeData, chunk_id: Any = None):
+    def append(self, data: SomeData, chunk_id: Any = None) -> None:
         sz = len(data)
         self.observed.append((sz, chunk_id))
         self.data += data
@@ -368,7 +368,7 @@ def mpu_write(
     user_kw: dict[str, Any] | None = None,
     writes_per_chunk: int = 1,
     spill_sz: int = 20 * (1 << 20),
-    dask_name_prefix="mpufinalise",
+    dask_name_prefix: str = "mpufinalise",
 ) -> "Delayed":
     # pylint: disable=import-outside-toplevel,too-many-locals,too-many-arguments
     from dask.base import tokenize
@@ -502,7 +502,7 @@ def get_mpu_kwargs(
     mk_header=None,
     mk_footer=None,
     user_kw=None,
-    writes_per_chunk=1,
+    writes_per_chunk: int = 1,
     spill_sz=20 * (1 << 20),
     client=None,
 ) -> dict:

@@ -30,7 +30,7 @@ def _verify_can_compress(xx: xr.DataArray):
         )
 
 
-def _compress_image(im: np.ndarray, driver="PNG", **opts) -> bytes:
+def _compress_image(im: np.ndarray, driver: str = "PNG", **opts) -> bytes:
     if im.ndim > 2:
         im = np.squeeze(im)
 
@@ -67,7 +67,7 @@ def compress(
     xx,
     /,
     *args,
-    as_data_url=False,
+    as_data_url: bool = False,
     transparent: Optional[Tuple[int, int, int]] = None,
     **kw,
 ) -> Union[str, bytes]:

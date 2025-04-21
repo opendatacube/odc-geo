@@ -54,7 +54,7 @@ class _CachedGeoDataFrame:
     _lock = threading.Lock()
     _data_url = ""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Thread safe class-cached dataload
         if self._instance is None:
             with self._lock:

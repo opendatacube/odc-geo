@@ -1,7 +1,7 @@
 import itertools
 from io import BytesIO
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Sequence, Optional, Tuple
 
 import numpy as np
 import pytest
@@ -40,7 +40,7 @@ def gbox():
     return gs[2, 1]
 
 
-def test_write_cog(gbox: GeoBox, tmp_path: Path):
+def test_write_cog(gbox: GeoBox, tmp_path: Path) -> None:
     img = xr_zeros(gbox, dtype="uint16")
     assert img.odc.geobox == gbox
 
@@ -72,7 +72,7 @@ def test_write_cog(gbox: GeoBox, tmp_path: Path):
         (0.1, 999, None),
     ],
 )
-def test_write_metadata(gbox: GeoBox, scales, offsets, units):
+def test_write_metadata(gbox: GeoBox, scales, offsets, units) -> None:
     RANDOM = "random_value"
     img = xr_zeros(gbox, dtype="uint16")
     assert img.odc.geobox == gbox
@@ -110,7 +110,7 @@ def test_write_metadata(gbox: GeoBox, scales, offsets, units):
             assert (src.read() == img.data).all()
 
 
-def test_write_cog_ovr(gbox: GeoBox):
+def test_write_cog_ovr(gbox: GeoBox) -> None:
     img = xr_zeros(gbox, dtype="uint16")
     assert img.odc.geobox == gbox
     ovrs = [img[::2, ::2], img[::4, ::4]]
@@ -133,7 +133,7 @@ def test_write_cog_ovr(gbox: GeoBox):
         (512, 3_040_000, -1),
     ],
 )
-def test_num_overviews(block: int, dim: int, n_expect: int):
+def test_num_overviews(block: int, dim: int, n_expect: int) -> None:
     if n_expect >= 0:
         assert num_overviews(block, dim) == n_expect
     else:
@@ -153,7 +153,7 @@ def test_cog_spec(
     shape: Tuple[int, int],
     tshape: Tuple[int, int],
     max_pad: Optional[int],
-):
+) -> None:
     _shape, _tshape, nlevels = compute_cog_spec(shape, tshape, max_pad=max_pad)
     assert _shape[0] >= shape[0]
     assert _shape[1] >= shape[1]
@@ -182,7 +182,7 @@ def test_cog_spec(
     ],
 )
 @pytest.mark.parametrize("kw", [{}, {"tile": 256}, {"nlevels": 5}])
-def test_cog_gbox(gbox: GeoBox, kw):
+def test_cog_gbox(gbox: GeoBox, kw) -> None:
     _gbox = cog_gbox(gbox, **kw)
     assert _gbox[:1, :1] == gbox[:1, :1]
     assert _gbox.shape[0] >= gbox.shape[0]
@@ -217,7 +217,14 @@ def test_cog_gbox(gbox: GeoBox, kw):
         ("float32", "lerc_zstd", 1),
     ],
 )
-def test_empty_cog(shape, blocksize, expect_ax, dtype, compression, expect_predictor):
+def test_empty_cog(
+    shape,
+    blocksize: int | list[int | tuple[int, int]],
+    expect_ax,
+    dtype,
+    compression,
+    expect_predictor,
+) -> None:
     tifffile = pytest.importorskip("tifffile")
     gbox = GridSpec.web_tiles(0)[0, 0]
     if expect_ax == "SYX":
@@ -294,7 +301,7 @@ def test_empty_cog(shape, blocksize, expect_ax, dtype, compression, expect_predi
         CogMeta("SYX", wh_(500, 256), wh_(128, 128), 5, "float32", 8, 1),
     ],
 )
-def test_cog_meta(meta: CogMeta):
+def test_cog_meta(meta: CogMeta) -> None:
     for idx_flat, idx in enumerate(meta.tidx()):
         assert meta.flat_tile_idx(idx) == idx_flat
 
@@ -332,7 +339,7 @@ def test_cog_meta(meta: CogMeta):
             _ = meta.flat_tile_idx(bad_idx)
 
 
-def test_norm_compress():
+def test_norm_compress() -> None:
     predictor, compression, ca = _norm_compression_tifffile("int16")
     assert compression == "ADOBE_DEFLATE"
     assert predictor == 2
@@ -351,7 +358,7 @@ def test_norm_compress():
 )
 @pytest.mark.parametrize("nodata", ["auto", None, float("nan"), 0, -999])
 @pytest.mark.parametrize("gdal_metadata", [None, "<GDALMetadata></GDALMetadata>"])
-def test_geotiff_metadata(gbox: GeoBox, nodata, gdal_metadata: Optional[str]):
+def test_geotiff_metadata(gbox: GeoBox, nodata, gdal_metadata: Optional[str]) -> None:
     assert gbox.crs is not None
 
     geo_tags, md = geotiff_metadata(gbox, nodata=nodata, gdal_metadata=gdal_metadata)
@@ -422,11 +429,11 @@ def test_geotiff_metadata(gbox: GeoBox, nodata, gdal_metadata: Optional[str]):
         ),
     ],
 )
-def test_gdal_sample_description(sample: int, description: str, expected: str):
+def test_gdal_sample_description(sample: int, description: str, expected: str) -> None:
     assert _gdal_sample_description(sample, description) == expected
 
 
-def test_gdal_sample_descriptions():
+def test_gdal_sample_descriptions() -> None:
     assert _gdal_sample_descriptions(["red", "green", "blue"]) == [
         '<Item name="DESCRIPTION" sample="0" role="description">red</Item>',
         '<Item name="DESCRIPTION" sample="1" role="description">green</Item>',
@@ -434,7 +441,7 @@ def test_gdal_sample_descriptions():
     ]
 
 
-def test_band_names(gbox: GeoBox):
+def test_band_names(gbox: GeoBox) -> None:
     gbox = gbox.zoom_to(1024)
     dtype = "float32"
     n = 512
@@ -464,7 +471,7 @@ def test_band_names(gbox: GeoBox):
 
 
 @pytest.mark.parametrize("dtype", ["int16", "float32"])
-def test_cog_with_dask_smoke_test(gbox: GeoBox, tmp_path: Path, dtype):
+def test_cog_with_dask_smoke_test(gbox: GeoBox, tmp_path: Path, dtype) -> None:
     gbox = gbox.zoom_to(1024)
     assert gbox.shape == (1024, 1024)
     n = 512
@@ -565,7 +572,9 @@ def test_cog_with_dask_smoke_test(gbox: GeoBox, tmp_path: Path, dtype):
         ),
     ],
 )
-def test_stats_from_layer(array, nodata, minimum, maximum, mean, stddev, valid_percent):
+def test_stats_from_layer(
+    array, nodata, minimum, maximum, mean, stddev, valid_percent
+) -> None:
     x = da.from_array(array)
     stats = _stats_from_layer(x, nodata).compute()[0]
 
