@@ -30,6 +30,7 @@ dependencies = [
     "numpy",
     "pyproj>=3.0.0",
     "shapely",
+    "xarray>=0.19",
 ]
 
 [project.urls]
@@ -39,13 +40,13 @@ Documentation = "https://odc-geo.readthedocs.io/en/latest/"
 "Bug Reporting" = "https://github.com/opendatacube/odc-geo/issues"
 
 [project.optional-dependencies]
-xr = ["xarray>=0.19"]
+xr = [] # xarray is now a non-optional dependency
 warp = ["rasterio"]
-tiff = ["tifffile", "imagecodecs", "dask[array,distributed]", "rasterio", "xarray>=0.19"]
+tiff = ["tifffile", "imagecodecs", "dask[array,distributed]", "rasterio"]
 s3 = ["boto3"]
 az = ["azure-storage-blob"]
 las = ["laspy", "lazrs"]
-all = ["rasterio", "tifffile", "imagecodecs", "dask[array,distributed]", "xarray>=0.19", "boto3", "azure-storage-blob", "laspy", "lazrs"]
+all = ["rasterio", "tifffile", "imagecodecs", "dask[array,distributed]", "boto3", "azure-storage-blob", "laspy", "lazrs"]
 
 [build-system]
 requires = ["flit_core >=3.2,<4"]
