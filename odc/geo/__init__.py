@@ -42,6 +42,9 @@ from .geom import (
     Geometry,
 )
 
+from .geobox import GeoBox, GeoboxTiles
+from .gcp import GCPGeoBox, GCPMapping
+
 __all__ = [
     "AnchorEnum",
     "XY",
@@ -59,6 +62,10 @@ __all__ = [
     "Geometry",
     "MaybeCRS",
     "SomeCRS",
+    "GeoBox",
+    "GeoboxTiles",
+    "GCPGeoBox",
+    "GCPMapping",
     "Unset",
     "xy_",
     "yx_",
