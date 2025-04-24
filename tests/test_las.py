@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from odc.geo._interop import have
 from odc.geo.io import load_las
 
 pytest.importorskip("laspy")
@@ -126,3 +127,8 @@ def test_force_crs(las_test_data, force_crs):
 
     yy = load_las(src, force_crs=force_crs)
     assert yy.odc.crs == force_crs
+
+
+def test_have_laspy():
+    assert have.laspy is True
+    assert have.copc is True
