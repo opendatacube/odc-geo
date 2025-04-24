@@ -63,6 +63,7 @@ def xr_from_laspy(
     if _is_copc(src):
         data = src.query(**query)
     else:
+        query = {k: v for k, v in query.items() if v is not None}
         if len(query) > 0:
             warnings.warn("Query params are only supported for COPC files")
         data = src.read()
