@@ -45,8 +45,12 @@ def xr_from_laspy(
     channels: Sequence[str] | None = None,
     **query,
 ) -> xr.Dataset:
-    crs = CRS(src.header.parse_crs())
-    crs_coord = xr_crs_coord(crs)
+    maybe_crs_coord: dict[str, xr.DataArray] = {}
+    if (wkt := src.header.parse_crs()) is None:
+        warnings.warn(f"No CRS found in LAS: {_las_source_name(src)}")
+    else:
+        crs_coord = xr_crs_coord(wkt)
+        maybe_crs_coord[str(crs_coord.name)] = crs_coord
 
     if _is_copc(src):
         data = src.query(**query)
@@ -72,7 +76,7 @@ def xr_from_laspy(
             "z": xr.DataArray(Z, dims=["index"]),
             "time": xr.DataArray(T, dims=["index"]),
             "index": xr.DataArray(np.arange(len(data), dtype="uint32"), dims=["index"]),
-            crs_coord.name: crs_coord,
+            **maybe_crs_coord,
         },
     )
 
