@@ -31,7 +31,10 @@ def _las_source_name(src: LasSource) -> str:
 
     if isinstance(src, laspy.copc.CopcReader):
         return src.source.name
-    return src._source.name
+    if (src := getattr(src, "_source", None)) is not None:
+        return src.name
+
+    return "<unknown>"  # pragma: no cover
 
 
 def _is_copc(src: LasSource) -> bool:
