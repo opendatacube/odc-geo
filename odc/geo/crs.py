@@ -123,7 +123,7 @@ class CRS:
         return {"crs_str": self._str}
 
     def __setstate__(self, state) -> None:
-        self.__init__(state["crs_str"])  # type: ignore[misc]
+        self._crs, self._str, self._epsg = _make_crs(state["crs_str"])
 
     def to_wkt(self, pretty: bool = False, version: Optional[WktVersion] = None) -> str:
         """
