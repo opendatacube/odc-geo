@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Literal, Sequence, Union
 import numpy as np
 import xarray as xr
 
+from ..crs import MaybeCRS, norm_crs
 from ..xr import xr_crs_coord
 
 DriverMode = Union[Literal["copc"], Literal["laspy"], Literal["auto"]]
@@ -43,14 +44,21 @@ def _is_copc(src: LasSource) -> bool:
 def xr_from_laspy(
     src: LasSource,
     channels: Sequence[str] | None = None,
+    force_crs: MaybeCRS = None,
     **query,
 ) -> xr.Dataset:
     maybe_crs_coord: dict[str, xr.DataArray] = {}
-    if (wkt := src.header.parse_crs()) is None:
-        warnings.warn(f"No CRS found in LAS: {_las_source_name(src)}")
-    else:
-        crs_coord = xr_crs_coord(wkt)
+    force_crs = norm_crs(force_crs)
+
+    if force_crs is not None:
+        crs_coord = xr_crs_coord(force_crs)
         maybe_crs_coord[str(crs_coord.name)] = crs_coord
+    else:
+        if (wkt := src.header.parse_crs()) is None:
+            warnings.warn(f"No CRS found in LAS: {_las_source_name(src)}")
+        else:
+            crs_coord = xr_crs_coord(wkt)
+            maybe_crs_coord[str(crs_coord.name)] = crs_coord
 
     if _is_copc(src):
         data = src.query(**query)
@@ -89,6 +97,7 @@ def load_las(
     level: int | range | None = None,
     resolution: int | float | None = None,
     bounds: laspy.copc.Bounds | None = None,
+    force_crs: MaybeCRS = None,
 ) -> xr.Dataset:
     """Load LAS file as :py:class:`xarray.Dataset`.
 
@@ -122,6 +131,7 @@ def load_las(
         level=level,
         resolution=resolution,
         bounds=bounds,
+        force_crs=force_crs,
     )
 
 
