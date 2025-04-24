@@ -57,7 +57,7 @@ class _LibChecker:
 
     @property
     def copc(self) -> bool:
-        return self._check("laspy") and (self._check("lazrs") or self._check("laszip"))
+        return self._check("laspy") and self._check("lazrs")
 
     @staticmethod
     def _check(lib_name: str) -> bool:
