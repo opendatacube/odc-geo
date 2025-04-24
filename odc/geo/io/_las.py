@@ -5,35 +5,50 @@ Read point data from LAS/COPC files
 from __future__ import annotations
 
 import warnings
-from typing import Literal, Sequence, Union
+from typing import TYPE_CHECKING, Literal, Sequence, Union
 
-import laspy  # pylint: disable=import-error
-import laspy.copc  # pylint: disable=import-error
 import numpy as np
 import xarray as xr
 
-from odc.geo.geom import CRS
-from odc.geo.xr import xr_crs_coord
+from ..xr import xr_crs_coord
 
 DriverMode = Union[Literal["copc"], Literal["laspy"], Literal["auto"]]
+LasData = Union["laspy.ScaleAwarePointRecord", "laspy.LasData"]
+LasSource = Union["laspy.copc.CopcReader", "laspy.LasReader"]
 
 
-def _extract(data: laspy.ScaleAwarePointRecord | laspy.LasData, var: str) -> np.ndarray:
+def _extract(data: LasData, var: str) -> np.ndarray:
     xx = data[var]
     if isinstance(xx, np.ndarray):
         return xx
     return xx.copy()
 
 
+def _las_source_name(src: LasSource) -> str:
+    # pylint: disable=import-error,import-outside-toplevel,protected-access
+    import laspy.copc
+
+    if isinstance(src, laspy.copc.CopcReader):
+        return src.source.name
+    return src._source.name
+
+
+def _is_copc(src: LasSource) -> bool:
+    # pylint: disable=import-error,import-outside-toplevel
+    import laspy.copc
+
+    return isinstance(src, laspy.copc.CopcReader)
+
+
 def xr_from_laspy(
-    src: laspy.copc.CopcReader | laspy.LasReader,
+    src: LasSource,
     channels: Sequence[str] | None = None,
     **query,
 ) -> xr.Dataset:
     crs = CRS(src.header.parse_crs())
     crs_coord = xr_crs_coord(crs)
 
-    if isinstance(src, laspy.copc.CopcReader):
+    if _is_copc(src):
         data = src.query(**query)
     else:
         if len(query) > 0:
@@ -81,6 +96,10 @@ def load_las(
     :param resolution: alternative way to specify level.
     :param bounds: Spatially crop
     """
+    # pylint: disable=import-error,import-outside-toplevel
+    import laspy
+    import laspy.copc
+
     if driver == "auto":
         try:
             rdr = laspy.copc.CopcReader.open(src)
@@ -100,3 +119,9 @@ def load_las(
         resolution=resolution,
         bounds=bounds,
     )
+
+
+if TYPE_CHECKING:
+    # pylint: disable=import-error,import-outside-toplevel
+    import laspy
+    import laspy.copc
