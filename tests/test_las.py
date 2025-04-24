@@ -82,14 +82,14 @@ def las_test_data(data_dir, request):
     src = request.param
     crs_key = src.split("-")[0]
     return SimpleNamespace(
-        src=data_dir / src,
+        src=str(data_dir / src),
         expected_bands=AUTZEN_DATA_VARS,
         expected_crs=test_crss.get(crs_key, None),
     )
 
 
 def test_las_load(las_test_data):
-    src = str(las_test_data.src)
+    src = las_test_data.src
     expected_crs = test_crss.get(las_test_data.expected_crs, las_test_data.expected_crs)
     xx = load_las(src)
 
@@ -109,11 +109,11 @@ def test_las_load(las_test_data):
     assert set(yy.coords) == set(xx.coords)
     assert len(yy.time) == len(xx.time)
 
-    if ".copc." in las_test_data.src.name:
+    if ".copc." in src:
         xx0 = load_las(src, driver="copc", level=0)
         assert xx0.odc.crs == xx.odc.crs
         assert len(xx0.time) <= len(xx.time)
-
+    else:
         assert load_las(src, driver="laspy").odc.crs == xx.odc.crs
 
 
