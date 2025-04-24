@@ -40,6 +40,8 @@ dependencies:
   - ipython
   - rioxarray
   - azure-storage-blob
+  - laspy
+  - lazrs-python
 
   # for docs
   - sphinx
