@@ -10,7 +10,7 @@ will have an ROI that can be constructed with :py:func:`numpy.s_` like this: ``s
 """
 import math
 from collections import abc
-from typing import Hashable, List, Optional, Protocol, Sequence, Tuple, Union, overload
+from typing import List, Optional, Protocol, Sequence, Tuple, Union, overload
 
 import numpy as np
 
@@ -76,8 +76,6 @@ class RoiTiles(Protocol):
     def chunks(self) -> Chunks2d: ...
 
     def locate(self, pix: SomeIndex2d) -> Tuple[int, int]: ...
-
-    def __dask_tokenize__(self) -> Hashable: ...
 
 
 def norm_slice_2d(
