@@ -34,17 +34,6 @@ jobs:
           mv dist/* ./wheels/clean/
           find ./wheels/clean -type f
 
-      - name: Patch Package Versions
-        run: |
-          python ./scripts/patch_version.py ${GITHUB_RUN_NUMBER:-0} pyproject.toml
-
-      - name: Build Dev Packages
-        run: |
-          mkdir -p ./wheels/dev
-          python -m build
-          mv dist/* ./wheels/dev/
-          find ./wheels/dev -type f
-
   build-test-env-base:
     runs-on: ubuntu-latest
 
