@@ -1,12 +1,15 @@
+import mmap
+import pickle
 from types import SimpleNamespace
 
 import pytest
 
 from odc.geo._interop import have
 from odc.geo.io import load_las
+from odc.geo.io._las import ChunkExtractor
 
-pytest.importorskip("laspy")
-pytest.importorskip("lazrs")
+laspy = pytest.importorskip("laspy")
+lazrs = pytest.importorskip("lazrs")
 
 test_crss = {
     "autzen": """
@@ -89,6 +92,23 @@ def las_test_data(data_dir, request):
     )
 
 
+@pytest.fixture(params=["autzen-tiny.copc.laz"])
+def copc_test_data(data_dir, request):
+    src = request.param
+    crs_key = src.split("-")[0]
+    return SimpleNamespace(
+        src=str(data_dir / src),
+        expected_bands=AUTZEN_DATA_VARS,
+        expected_crs=test_crss.get(crs_key, None),
+    )
+
+
+@pytest.fixture
+def copc_reader(copc_test_data):
+    with laspy.copc.CopcReader.open(copc_test_data.src) as rdr:
+        yield rdr
+
+
 def test_las_load(las_test_data) -> None:
     src = las_test_data.src
     expected_crs = test_crss.get(las_test_data.expected_crs, las_test_data.expected_crs)
@@ -132,3 +152,37 @@ def test_force_crs(las_test_data, force_crs: str) -> None:
 def test_have_laspy() -> None:
     assert have.laspy is True
     assert have.copc is True
+
+
+def test_chunk_extractor(copc_reader) -> None:
+    mm = mmap.mmap(copc_reader.source.fileno(), 0, access=mmap.ACCESS_READ)
+
+    chunks = ChunkExtractor.load_chunk_metadata(copc_reader)
+    extractor = ChunkExtractor.from_copc_reader(copc_reader)
+
+    for chunk in chunks:
+        raw_bytes = bytes(mm[chunk.offset : chunk.offset + chunk.byte_size])
+        data = extractor(raw_bytes, chunk)
+        assert data is not None
+        assert len(data) == chunk.point_count
+
+        # check overloads
+        assert data == extractor(raw_bytes, [chunk])
+        assert data == extractor(raw_bytes, (chunk,))
+        assert data == extractor(raw_bytes, chunk.point_count)
+
+        # test bytes, [Entry, Entry]
+        data2 = extractor(raw_bytes + raw_bytes, (chunk, chunk))
+        assert data2[len(data) :] == data
+        assert data2[: len(data)] == data
+
+        assert extractor(raw_bytes + raw_bytes, [chunk, chunk]) == data2
+
+
+def test_chunk_extractor_pickle(copc_reader) -> None:
+    # must be safe to pickle for Dask
+    chunks = ChunkExtractor.load_chunk_metadata(copc_reader)
+    extractor = ChunkExtractor.from_copc_reader(copc_reader)
+
+    assert isinstance(pickle.loads(pickle.dumps(extractor)), ChunkExtractor)
+    assert len(pickle.dumps(chunks)) > 0
