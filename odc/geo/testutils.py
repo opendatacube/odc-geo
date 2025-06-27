@@ -2,6 +2,8 @@
 #
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
+from __future__ import annotations
+
 from typing import Callable, Tuple, Union
 
 import numpy as np
