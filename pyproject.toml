@@ -56,7 +56,7 @@ build-backend = "flit_core.buildapi"
 name = "odc.geo"
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 ignore_missing_imports = true
 allow_redefinition = true
 
