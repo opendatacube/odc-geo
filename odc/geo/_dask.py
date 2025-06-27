@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from functools import partial
-from typing import Any, Literal, Optional, Sequence, Tuple, Union, Mapping
+from typing import Any, Literal, Mapping, Optional, Sequence, Tuple, Union
 from uuid import uuid4
 
 import dask.array as da

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import itertools
 import math
 from functools import lru_cache
