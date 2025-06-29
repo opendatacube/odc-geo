@@ -269,7 +269,7 @@ class GeoBoxBase:
         if buffer != 0:
             buffer = buffer * max(*self.resolution.xy)
             ext = ext.buffer(buffer)
-        
+
         return ext.to_crs(crs, resolution=self._reproject_resolution(npoints), wrapdateline=wrapdateline).dropna()
 
     @property
@@ -1538,7 +1538,7 @@ class GeoboxTiles:
                     # Try using wrapdateline=True for more robust antimeridian handling
                     src_fp_4326 = src.base.footprint(4326, 2, wrapdateline=True)
                     self_fp_4326 = self.base.footprint(4326, 2, wrapdateline=True)
-                    
+
                     # Compute intersection in 4326 with antimeridian-aware geometries
                     intersection_4326 = src_fp_4326 & self_fp_4326
                     src_footprint = intersection_4326.to_crs(self.base.crs)
