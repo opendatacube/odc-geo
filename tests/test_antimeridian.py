@@ -54,7 +54,9 @@ def test_pacific_antimeridian_scenario() -> None:
     tiles = GeoboxTiles(pacific_geobox, tile_shape=(50, 50))
 
     # Target in Web Mercator
-    mercator_transform = Affine.translation(18000000, 1000000) * Affine.scale(10000, -10000)
+    mercator_transform = Affine.translation(18000000, 1000000) * Affine.scale(
+        10000, -10000
+    )
     mercator_geobox = GeoBox((100, 200), mercator_transform, epsg3857)
     mercator_tiles = GeoboxTiles(mercator_geobox, tile_shape=(25, 25))
 
