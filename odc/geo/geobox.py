@@ -253,7 +253,11 @@ class GeoBoxBase:
         return span / npoints
 
     def footprint(
-        self, crs: SomeCRS, buffer: float = 0, npoints: int = 100
+        self,
+        crs: SomeCRS,
+        buffer: float = 0,
+        npoints: int = 100,
+        wrapdateline: bool = False,
     ) -> Geometry:
         """
         Compute footprint in foreign CRS.
@@ -262,6 +266,7 @@ class GeoBoxBase:
         :param buffer: amount to buffer in source pixels before transforming
         :param npoints: number of points per-side to use, higher number
                         is slower but more accurate
+        :param wrapdateline: Handle geometries that cross the antimeridian
         """
         assert self.crs is not None
         ext = self.extent
@@ -269,7 +274,11 @@ class GeoBoxBase:
             buffer = buffer * max(*self.resolution.xy)
             ext = ext.buffer(buffer)
 
-        return ext.to_crs(crs, resolution=self._reproject_resolution(npoints)).dropna()
+        return ext.to_crs(
+            crs,
+            resolution=self._reproject_resolution(npoints),
+            wrapdateline=wrapdateline,
+        ).dropna()
 
     @property
     def geographic_extent(self) -> Geometry:
@@ -1518,6 +1527,7 @@ class GeoboxTiles:
         For every tile in this :py:class:`GeoboxTiles` find every tile in ``other`` that
         intersects with this ``tile``.
         """
+        # pylint: disable=too-many-branches
         A = self._check_linear(src)
         if A is not None:
             return self._grid_intersect_linear(src, A)
@@ -1526,9 +1536,47 @@ class GeoboxTiles:
             src_footprint = src.base.extent
         else:
             # compute "robust" source footprint in CRS of self via espg:4326
-            src_footprint = (
-                src.base.footprint(4326, 2) & self.base.footprint(4326, 2)
-            ).to_crs(self.base.crs)
+            try:
+                src_footprint = (
+                    src.base.footprint(4326, 2) & self.base.footprint(4326, 2)
+                ).to_crs(self.base.crs)
+            except Exception:  # pylint: disable=broad-exception-caught
+                # Handle antimeridian-spanning geometries that cause GEOSException
+                # or other projection issues
+                try:
+                    # Try using wrapdateline=True for more robust antimeridian handling
+                    src_fp_4326 = src.base.footprint(4326, 2, wrapdateline=True)
+                    self_fp_4326 = self.base.footprint(4326, 2, wrapdateline=True)
+
+                    # Compute intersection in 4326 with antimeridian-aware geometries
+                    intersection_4326 = src_fp_4326 & self_fp_4326
+                    src_footprint = intersection_4326.to_crs(self.base.crs)
+                except Exception:  # pylint: disable=broad-exception-caught
+                    # Final fallback: use source footprint directly without intersection
+                    # This is less efficient but avoids complete failure
+                    try:
+                        # Ensure we have a valid CRS before calling footprint
+                        if self.base.crs is not None:
+                            src_footprint = src.base.footprint(
+                                self.base.crs, 2, wrapdateline=True
+                            )
+                        else:
+                            # Fallback to using source extent if target CRS is None
+                            src_footprint = src.base.extent
+                    except Exception:  # pylint: disable=broad-exception-caught
+                        # Last resort: use extent directly if available
+                        if src.base.crs == self.base.crs:
+                            src_footprint = src.base.extent
+                        else:
+                            # Use a very conservative approach: full world bounds
+                            # This will be inefficient but won't crash
+                            world_bounds = geom.box(-180, -90, 180, 90, "EPSG:4326")
+                            if self.base.crs is not None:
+                                src_footprint = world_bounds.to_crs(self.base.crs)
+                            else:
+                                # If target CRS is None, use world bounds in
+                                # WGS84
+                                src_footprint = world_bounds
 
         xy_chunks_with_data = list(self.tiles(src_footprint))
         deps: Dict[Tuple[int, int], List[Tuple[int, int]]] = {}
