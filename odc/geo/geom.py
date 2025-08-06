@@ -28,7 +28,7 @@ from typing import (
 import numpy
 from affine import Affine
 from pyproj.aoi import AreaOfInterest
-from shapely import geometry, ops
+from shapely import geometry, ops, count_coordinates
 from shapely.coords import CoordinateSequence
 from shapely.geometry import base
 
@@ -849,6 +849,7 @@ class Geometry(SupportsCoords[float]):
         self,
         map: Optional[Any] = None,
         tiles: Any = "OpenStreetMap",
+        simplify: float | Literal["auto"] = "auto",
         attr: Optional[str] = None,
         map_kwds: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
@@ -864,6 +865,10 @@ class Geometry(SupportsCoords[float]):
             Map tileset to use for the map basemap. Supports any option
             supported by :py:mod:`folium`, including "OpenStreetMap",
             "CartoDB positron", "CartoDB dark_matter" or a custom XYZ URL.
+        :param simplify:
+            Optionally simplify geometries by tolerance in degrees.
+            By default if fewer than 100 points in geometry 0.0,
+            else min(0.05, res*0.1).
         :param attr:
             Map tile attribution; only required if passing custom tile URL.
         :param map_kwds:
@@ -884,9 +889,10 @@ class Geometry(SupportsCoords[float]):
 
         # Convert to GeoJSON with resolution based on approx 100
         # points per side for proper plotting/reprojection
-        bbox = self.boundingbox
-        res = max(bbox.span_x, bbox.span_y) / 100
-        geojson = self.geojson(resolution=res)
+        res = _auto_resolution(self)
+        if simplify == "auto":
+            simplify = _auto_simplify(self)
+        geojson = self.geojson(resolution=res, simplify=simplify)
 
         # Create layer and add to map
         layer = GeoJson(data=geojson, **kwargs)
@@ -1475,3 +1481,9 @@ def mid_longitude(geom: Geometry) -> float:
 def _auto_resolution(g: Geometry) -> float:
     # aim for ~100 points per side of a square
     return math.sqrt(g.area) * 4 / 100
+
+
+def _auto_simplify(g: Geometry) -> float:
+    r = _auto_resolution(g.to_crs(4326))
+    s = 0.0 if count_coordinates(g.geom) <= 100 else min(0.05, r * 0.1)
+    return s
