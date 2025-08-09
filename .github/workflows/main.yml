@@ -156,7 +156,8 @@ jobs:
 
   test-with-coverage:
     runs-on: ubuntu-latest
-
+    permissions:
+      id-token: write
     needs:
       - build-test-env-base
       - run-black-check
@@ -203,7 +204,7 @@ jobs:
         with:
           fail_ci_if_error: false
           verbose: false
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
 
   test-wheels:
     runs-on: ubuntu-latest
