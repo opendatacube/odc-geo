@@ -139,6 +139,6 @@ def dask_rio_reproject(
             b_shape = tuple(ch[i] for ch, i in zip(dst_chunks, idx))
             dsk[k] = (np.full, b_shape, fill_value, src.dtype)
 
-    dsk = HighLevelGraph.from_collections(name, dsk, dependencies=(src,))
+    dsk = HighLevelGraph.from_collections(name, dsk, dependencies=(src,))  # type: ignore
 
     return da.Array(dsk, name, chunks=dst_chunks, dtype=dtype, shape=dst_shape)
