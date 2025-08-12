@@ -47,7 +47,8 @@ dependencies:
   - sphinx
   - sphinx_rtd_theme >=1.2.0
   - sphinx-autodoc-typehints
-  - jupyter-sphinx >=0.4.0
+  - jupyter-sphinx >=0.5.3
+  - lxml-html-clean # fix for jupyter-sphinx with lxml>5
   - pip:
     - -e ../
     - types-shapely
