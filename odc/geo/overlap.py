@@ -385,6 +385,9 @@ def _can_paste(
 
     (sx, _, tx, _, sy, ty, *_) = A_  # tx, ty are in dst pixel space
 
+    if any(s < 0 for s in (sx, sy)):
+        return False, "flipped axis"
+
     # Expect identity for scale change
     if any(abs(abs(s) - 1) > stol for s in (sx, sy)):  # not equal scaling across axis?
         return False, "sx!=sy, probably"

@@ -427,20 +427,23 @@ def test_axis_overlap() -> None:
 def test_can_paste() -> None:
     assert _can_paste(mkA(translation=(10, -20))) == (True, None)
     assert _can_paste(mkA(scale=(10, 10))) == (True, None)
-    assert _can_paste(mkA(scale=(-10, 10), translation=(0, -4 * 10))) == (True, None)
+    assert _can_paste(mkA(scale=(-10, 10), translation=(0, -4 * 10))) == (
+        False,
+        "flipped axis",
+    )
 
     assert _can_paste(mkA(shear=0.3)) == (False, "has rotation or shear")
     assert _can_paste(mkA(rot=30)) == (False, "has rotation or shear")
 
-    assert _can_paste(mkA(scale=(-11.1, 11.1))) == (False, "non-integer scale")
+    assert _can_paste(mkA(scale=(11.1, 11.1))) == (False, "non-integer scale")
     assert _can_paste(mkA(scale=(0.5, 0.5))) == (False, "non-integer scale")
     assert _can_paste(mkA(scale=(2, 3))) == (False, "sx!=sy, probably")
 
-    assert _can_paste(mkA(scale=(-10, 10), translation=(0, -4))) == (
+    assert _can_paste(mkA(scale=(10, 10), translation=(0, -4))) == (
         False,
         "sub-pixel translation",
     )
-    assert _can_paste(mkA(scale=(-10, 10), translation=(-4, 10))) == (
+    assert _can_paste(mkA(scale=(10, 10), translation=(-4, 10))) == (
         False,
         "sub-pixel translation",
     )
