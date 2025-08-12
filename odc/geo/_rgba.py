@@ -157,7 +157,7 @@ def to_rgba(
         data = _np_to_rgba(r, g, b, nodata, vmin, vmax)
 
     coords = dict(_b.coords.items())
-    coords.update(band=xr.DataArray(data=["r", "g", "b", "a"], dims=("band",)))
+    coords.update(band=xr.DataArray(data=["r", "g", "b", "a"], dims=("band",)))  # type: ignore
 
     rgba = xr.DataArray(data, coords=coords, dims=dims)
     return rgba
