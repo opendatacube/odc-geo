@@ -6,7 +6,7 @@ on:
 jobs:
   publish-pypi:
     if: github.repository == 'opendatacube/odc-geo'
-
+    timeout-minutes: 15
     runs-on: ubuntu-latest
 
     steps:
