@@ -783,7 +783,7 @@ class Geometry(SupportsCoords[float]):
     def geojson(
         self,
         properties: Optional[Dict[str, Any]] = None,
-        simplify: float = 0.05,
+        simplify: float | Literal["auto"] = "auto",
         resolution: Optional[float] = None,
         wrapdateline: bool = False,
         **props,
@@ -791,22 +791,27 @@ class Geometry(SupportsCoords[float]):
         """
         Render geometry to GeoJSON.
 
-        Convert geometry to ``ESPG:4326`` and wrap it in GeoJSON Feature with supplied properties.
+        Convert geometry to ``ESPG:4326`` and wrap it in GeoJSON Feature with
+        supplied properties.
 
         :param properties:
             Properties to include in the GeoJSON output.
 
         :param simplify:
-            Tolerance in degrees for simplifying geometry after changing to lon/lat. Larger number
-            will result in a smaller (fewer points) and hence faster to display, but less precise
-            geometry. Default is ``0.05`` of a degree. To disable set to ``0``.
+            Tolerance in degrees for simplifying geometry after changing to
+            lon/lat. Larger number will result in a smaller (fewer points) and
+            hence faster to display, but less precise geometry. Default is
+            ``"auto"``, meaning no simplification for geometries with only few
+            points and ``0.05`` of a degree for geometries with many. To disable
+            set to ``0``.
 
         :param resolution:
-           When supplied, extra points will be added to the original geometry such that no segment
-           is longer than ``resolution`` units. Passed on to
-           :py:meth:`~odc.geo.geom.Geometry.to_crs`.
+           When supplied, extra points will be added to the original geometry
+           such that no segment is longer than ``resolution`` units. Passed on
+           to :py:meth:`~odc.geo.geom.Geometry.to_crs`.
 
-        :param wrapdateline: Passed on to :py:meth:`~odc.geo.geom.Geometry.to_crs`
+        :param wrapdateline: Passed on to
+            :py:meth:`~odc.geo.geom.Geometry.to_crs`
 
         :return: GeoJSON Feature dictionary
         """
@@ -832,7 +837,15 @@ class Geometry(SupportsCoords[float]):
         else:
             gg = self
 
-        if simplify > 0:
+        if simplify == "auto":
+            if count_coordinates(gg) < 100:
+                simplify = 0.0
+            else:
+                bbox = gg.boundingbox
+                simplify = min(0.05, max(bbox.span_x, bbox.span_y) / 100)
+
+        assert isinstance(simplify, (float, int))
+        if simplify > 0.0:
             gg = gg.simplify(simplify)
         if properties is None:
             properties = {**props}
