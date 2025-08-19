@@ -142,6 +142,7 @@ Shapely geometry classes with CRS information attached.
    chop_along_antimeridian
    clip_lon180
    common_crs
+   count_coordinates
    densify
    intersects
    lonlat_bounds
