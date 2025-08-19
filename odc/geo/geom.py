@@ -883,9 +883,13 @@ class Geometry(SupportsCoords[float]):
         :param map_kwds:
             Additional keyword arguments to pass to :py:class:`folium.Map`.
         :param kwargs:
-            Additional keyword arguments to pass to :py:class:`folium.GeoJson`.
+            Additional keyword arguments to pass to :py:meth:`odc.geo.geom.Geometry.geojson`
+            and :py:class:`folium.GeoJson`.
 
         :return: A :py:mod:`folium` map containing the plotted Geometry.
+
+        :seealso: :py:meth:`odc.geo.geom.Geometry.geojson` for more details on
+            the parameters.
         """
         # pylint: disable=import-outside-toplevel, redefined-builtin
         have.check_or_error("folium")
@@ -898,9 +902,15 @@ class Geometry(SupportsCoords[float]):
 
         # Convert to GeoJSON with resolution based on approx 100
         # points per side for proper plotting/reprojection
-        bbox = self.boundingbox
-        res = max(bbox.span_x, bbox.span_y) / 100
-        geojson = self.geojson(resolution=res)
+        gj_args = {}
+        for k in ("simplify", "wrapdateline", "resolution"):
+            if k in kwargs:
+                gj_args[k] = kwargs.pop(k)
+
+        if "resolution" not in gj_args:
+            bbox = self.boundingbox
+            gj_args["resolution"] = max(bbox.span_x, bbox.span_y) / 100
+        geojson = self.geojson(**gj_args)
 
         # Create layer and add to map
         layer = GeoJson(data=geojson, **kwargs)
