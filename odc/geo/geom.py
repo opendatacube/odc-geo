@@ -26,6 +26,7 @@ from typing import (
 )
 
 import numpy
+import shapely
 from affine import Affine
 from pyproj.aoi import AreaOfInterest
 from shapely import geometry, ops
@@ -1470,6 +1471,36 @@ def mid_longitude(geom: Geometry) -> float:
     """
     ((lon,), _) = geom.centroid.to_crs("epsg:4326").xy
     return lon
+
+
+def count_coordinates(g: Geometry | Iterable[Geometry] | BoundingBox) -> int:
+    """
+    Count the number of coordinates in a geometry.
+
+    :param g:
+       Geometry, iterable of geometries, or bounding box to count coordinates for
+    :return:
+       Number of coordinates in the input geometry(ies)
+
+    Examples:
+        >>> point = geom.point(10, 20, crs="EPSG:4326")
+        >>> count_coordinates(point)
+        1
+        >>> line = geom.line([(0, 0), (1, 1), (2, 2)], crs="EPSG:4326")
+        >>> count_coordinates(line)
+        3
+        >>> bbox = geom.BoundingBox(0, 0, 10, 10, crs="EPSG:4326")
+        >>> count_coordinates(bbox)
+        4
+        >>> geometries = [point, line]
+        >>> count_coordinates(geometries)
+        4
+    """
+    if isinstance(g, Geometry):
+        return shapely.count_coordinates(g.geom)
+    if isinstance(g, BoundingBox):
+        return 4
+    return shapely.count_coordinates([_g.geom for _g in g])
 
 
 def _auto_resolution(g: Geometry) -> float:

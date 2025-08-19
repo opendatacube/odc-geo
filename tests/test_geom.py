@@ -16,6 +16,7 @@ from odc.geo.geobox import GeoBox, _round_to_res
 from odc.geo.geom import (
     chop_along_antimeridian,
     clip_lon180,
+    count_coordinates,
     densify,
     force_2d,
     multigeom,
@@ -1055,3 +1056,49 @@ def test_explore_geom(geom_json) -> None:
     geometry.explore(map=m_external)
     assert isinstance(m_external, Map)
     assert any(isinstance(child, GeoJson) for child in m_external._children.values())
+
+
+def test_count_coordinates() -> None:
+    """Test count_coordinates function with various input types."""
+    crs = epsg4326
+
+    # Test with Geometry (Point)
+    point = geom.point(10, 20, crs)
+    assert count_coordinates(point) == 1
+
+    # Test with Geometry (LineString)
+    line = geom.line([(0, 0), (1, 1), (2, 2)], crs)
+    assert count_coordinates(line) == 3
+
+    # Test with Geometry (Polygon)
+    polygon = geom.polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)], crs)
+    assert count_coordinates(polygon) == 5
+
+    # Test with Geometry (MultiPoint)
+    multi_point = geom.multipoint([(0, 0), (1, 1), (2, 2)], crs)
+    assert count_coordinates(multi_point) == 3
+
+    # Test with BoundingBox
+    bbox = geom.BoundingBox(0, 0, 10, 10, crs)
+    assert count_coordinates(bbox) == 4
+
+    # Test with Iterable[Geometry]
+    geometries = [point, line, polygon]
+    assert count_coordinates(geometries) == 9  # 1 + 3 + 5
+
+    # Test with empty list
+    assert count_coordinates([]) == 0
+
+    # Test with single geometry in list
+    assert count_coordinates([point]) == 1
+
+    # Test with complex geometry (MultiPolygon)
+    multi_polygon = geom.multipolygon(
+        [
+            [[(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)]],
+            [[(2, 2), (3, 2), (3, 3), (2, 3), (2, 2)]],
+        ],
+        crs,
+    )
+    # MultiPolygon with 2 polygons, each with 5 coordinates
+    assert count_coordinates(multi_polygon) == 10
