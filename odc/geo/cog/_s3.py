@@ -110,11 +110,11 @@ class S3MultiPartUpload(S3Limits, MultiPartUploadBase):
             aws_session_token=creds.token,
         )
 
-    def initiate(self, **kw) -> str:
+    def initiate(self) -> str:
         """Initiate the S3 multipart upload."""
         assert self.uploadId == ""
         s3 = self.s3_client()
-        rr = s3.create_multipart_upload(Bucket=self.bucket, Key=self.key, **kw)
+        rr = s3.create_multipart_upload(Bucket=self.bucket, Key=self.key)
         self.uploadId = rr["UploadId"]
         return self.uploadId
 
@@ -253,7 +253,7 @@ class DelayedS3Writer(S3Limits):
             # Assume running locally with everyone sharing same self.mpu
             with _mpu_local_lock():
                 if not final_write:
-                    _ = mpu.initiate(**self.kw)
+                    _ = mpu.initiate()
                 return mpu
 
         from distributed import Lock as DLock
@@ -278,7 +278,7 @@ class DelayedS3Writer(S3Limits):
             # 1. Start upload
             # 2. Share UploadId with others
             if not final_write:
-                _ = mpu.initiate(**self.kw)
+                _ = mpu.initiate()
                 shared_state.set(mpu.uploadId)
 
         assert mpu.started or final_write
