@@ -4,6 +4,7 @@ S3 utils for COG to S3.
 
 from __future__ import annotations
 
+import inspect
 from threading import Lock
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -110,11 +111,16 @@ class S3MultiPartUpload(S3Limits, MultiPartUploadBase):
             aws_session_token=creds.token,
         )
 
-    def initiate(self) -> str:
+    def initiate(self, **kw) -> str:
         """Initiate the S3 multipart upload."""
         assert self.uploadId == ""
         s3 = self.s3_client()
-        rr = s3.create_multipart_upload(Bucket=self.bucket, Key=self.key)
+
+        # Filter kwargs to only include valid parameters for create_multipart_upload
+        valid_params = set(inspect.signature(s3.create_multipart_upload).parameters.keys())
+        filtered_kw = {k: v for k, v in kw.items() if k in valid_params}
+
+        rr = s3.create_multipart_upload(Bucket=self.bucket, Key=self.key, **filtered_kw)
         self.uploadId = rr["UploadId"]
         return self.uploadId
 
@@ -253,7 +259,7 @@ class DelayedS3Writer(S3Limits):
             # Assume running locally with everyone sharing same self.mpu
             with _mpu_local_lock():
                 if not final_write:
-                    _ = mpu.initiate()
+                    _ = mpu.initiate(**self.kw)
                 return mpu
 
         from distributed import Lock as DLock
@@ -278,7 +284,7 @@ class DelayedS3Writer(S3Limits):
             # 1. Start upload
             # 2. Share UploadId with others
             if not final_write:
-                _ = mpu.initiate()
+                _ = mpu.initiate(**self.kw)
                 shared_state.set(mpu.uploadId)
 
         assert mpu.started or final_write
