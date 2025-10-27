@@ -117,10 +117,10 @@ class S3MultiPartUpload(S3Limits, MultiPartUploadBase):
         s3 = self.s3_client()
 
         # Filter kwargs to only include valid parameters for create_multipart_upload
-        valid_params = set(inspect.signature(s3.create_multipart_upload).parameters.keys())
-        filtered_kw = {k: v for k, v in kw.items() if k in valid_params}
+        s3_params = set(inspect.signature(s3.create_multipart_upload).parameters.keys())
+        s3_kw = {k: v for k, v in kw.items() if k in s3_params}
 
-        rr = s3.create_multipart_upload(Bucket=self.bucket, Key=self.key, **filtered_kw)
+        rr = s3.create_multipart_upload(Bucket=self.bucket, Key=self.key, **s3_kw)
         self.uploadId = rr["UploadId"]
         return self.uploadId
 
