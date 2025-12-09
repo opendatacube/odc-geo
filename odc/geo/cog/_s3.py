@@ -4,6 +4,7 @@ S3 utils for COG to S3.
 
 from __future__ import annotations
 
+import inspect
 from threading import Lock
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -114,7 +115,12 @@ class S3MultiPartUpload(S3Limits, MultiPartUploadBase):
         """Initiate the S3 multipart upload."""
         assert self.uploadId == ""
         s3 = self.s3_client()
-        rr = s3.create_multipart_upload(Bucket=self.bucket, Key=self.key, **kw)
+
+        # Filter kwargs to only include valid parameters for create_multipart_upload
+        s3_params = set(inspect.signature(s3.create_multipart_upload).parameters.keys())
+        s3_kw = {k: v for k, v in kw.items() if k in s3_params}
+
+        rr = s3.create_multipart_upload(Bucket=self.bucket, Key=self.key, **s3_kw)
         self.uploadId = rr["UploadId"]
         return self.uploadId
 
