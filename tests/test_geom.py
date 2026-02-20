@@ -88,6 +88,11 @@ def test_props() -> None:
     # constructor with bad input should raise ValueError
     with pytest.raises(ValueError):
         geom.Geometry(object())
+    with pytest.raises(ValueError):  # Do not leak shapely exceptions.
+        geom.polygon(
+            [(np.nan, np.nan), (np.nan, np.nan), (np.nan, np.nan), (np.nan, np.nan)],
+            crs=epsg3857,
+        )
 
 
 def test_tests() -> None:
