@@ -1277,7 +1277,7 @@ def polygon_from_transform(
     Useful for computing footprints of a geo-registered raster images.
 
     :param shape: Shape of the raster in pixels
-    :param transform: Affine transfrom from pixel to CRS units
+    :param transform: Affine transform from pixel to CRS units
     :param crs: CRS
     """
     x1, y1 = shape_(shape).xy
