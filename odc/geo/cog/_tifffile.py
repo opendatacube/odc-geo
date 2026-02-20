@@ -5,6 +5,7 @@
 """
 Write Cloud Optimized GeoTIFFs from xarrays.
 """
+
 from __future__ import annotations
 
 import itertools

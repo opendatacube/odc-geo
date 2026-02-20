@@ -318,7 +318,7 @@ def box_overlap(
     src_shape = shape_(src_shape)
     dst_shape = shape_(dst_shape)
 
-    (sx, _, tx, _, sy, ty, *_) = ST
+    sx, _, tx, _, sy, ty, *_ = ST
 
     s0, d0 = compute_axis_overlap(src_shape.y, dst_shape.y, sy, ty)
     s1, d1 = compute_axis_overlap(src_shape.x, dst_shape.x, sx, tx)
@@ -383,7 +383,7 @@ def _can_paste(
     # A_ maps coords from `dst` to `src.overview[scale]`
     A_ = Affine.scale(1 / read_scale, 1 / read_scale) * A
 
-    (sx, _, tx, _, sy, ty, *_) = A_  # tx, ty are in dst pixel space
+    sx, _, tx, _, sy, ty, *_ = A_  # tx, ty are in dst pixel space
 
     if any(s < 0 for s in (sx, sy)):
         return False, "flipped axis"

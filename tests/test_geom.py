@@ -636,8 +636,7 @@ def test_wrap_dateline() -> None:
     ],
 )
 def test_wrap_dateline_sinusoidal(pts) -> None:
-    sinus_crs = geom.CRS(
-        """PROJCS["unnamed",
+    sinus_crs = geom.CRS("""PROJCS["unnamed",
                            GEOGCS["Unknown datum based upon the custom spheroid",
                            DATUM["Not specified (based on custom spheroid)", SPHEROID["Custom spheroid",6371007.181,0]],
                            PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433]],
@@ -645,8 +644,7 @@ def test_wrap_dateline_sinusoidal(pts) -> None:
                            PARAMETER["longitude_of_center",0],
                            PARAMETER["false_easting",0],
                            PARAMETER["false_northing",0],
-                           UNIT["Meter",1]]"""
-    )
+                           UNIT["Meter",1]]""")
 
     wrap = geom.polygon(pts, crs=sinus_crs)
     wrapped = wrap.to_crs(epsg4326)

@@ -8,6 +8,7 @@ Tools for dealing with ROIs (Regions of Interest).
 In this context ROI is a 2d slice of an image. For example a top left corner of 10 pixels square
 will have an ROI that can be constructed with :py:func:`numpy.s_` like this: ``s_[0:10, 0:10]``.
 """
+
 import math
 from collections import abc
 from typing import List, Optional, Protocol, Sequence, Tuple, Union, overload

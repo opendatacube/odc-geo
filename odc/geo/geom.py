@@ -1492,7 +1492,7 @@ def mid_longitude(geom: Geometry) -> float:
     """
     Compute longitude of the center point of a geometry.
     """
-    ((lon,), _) = geom.centroid.to_crs("epsg:4326").xy
+    (lon,), _ = geom.centroid.to_crs("epsg:4326").xy
     return lon
 
 
