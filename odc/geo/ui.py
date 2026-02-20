@@ -367,8 +367,7 @@ class PixelGridDisplay:
         )
         src_class_name = type(self._src).__name__
 
-        return dedent(
-            f"""\
+        return dedent(f"""\
         <style>{gbox_css()}</style>
         <div class="gbox-info">
         <h4>{src_class_name}</h4>
@@ -385,5 +384,4 @@ class PixelGridDisplay:
             <summary>WKT</summary>
             <div class="wkt">{wkt}</div>
         </details>
-        </div>"""
-        )
+        </div>""")

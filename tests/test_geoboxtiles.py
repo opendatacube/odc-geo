@@ -103,8 +103,8 @@ def test_gbox_tiles(use_chunks) -> None:
     assert list(tt.tiles(gbox[:h, :w].extent.boundingbox)) == [(0, 0)]
     assert list(tt.tiles(gbox[:h, :w].extent.to_crs("epsg:4326"))) == [(0, 0)]
 
-    (H, W) = (11, 22)
-    (h, w) = (10, 20)
+    H, W = (11, 22)
+    h, w = (10, 20)
     tt = GeoboxTiles(GeoBox(wh_(W, H), A, epsg3857), (h, w))
     assert tt.chunk_shape((0, 0)) == (h, w)
     assert tt.chunk_shape((0, 1)) == (h, 2)

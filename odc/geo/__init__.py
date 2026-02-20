@@ -3,6 +3,7 @@
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
 """Geometric shapes and operations on them"""
+
 # import order is important here
 #  _crs <-- _geom <-- _geobox <- other
 # isort: skip_file

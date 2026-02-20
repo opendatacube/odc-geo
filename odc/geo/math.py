@@ -7,6 +7,7 @@ Various mathy helpers.
 
 Minimal dependencies in this module.
 """
+
 from __future__ import annotations
 
 from math import ceil, floor, fmod, isfinite, log2
@@ -411,7 +412,7 @@ def is_affine_st(A: Affine, tol: float = 1e-10) -> bool:
     :return: ``True`` if Affine transform has scale and translation components only
     :return: ``False`` if there is non-zero rotation or skew
     """
-    (_, wx, _, wy, _, _, *_) = A
+    _, wx, _, wy, _, _, *_ = A
 
     return abs(wx) < tol and abs(wy) < tol
 
@@ -486,7 +487,7 @@ def decompose_rws(A: AffineX) -> Tuple[AffineX, AffineX, AffineX]:
             c, f = t
             return Affine(a, b, c, d, e, f)
 
-        (a, b, c, d, e, f, *_) = A
+        a, b, c, d, e, f, *_ = A
         R, W, S = decompose_rws(np.asarray([[a, b], [d, e]], dtype="float64"))
 
         return to_affine(R, (c, f)), to_affine(W), to_affine(S)

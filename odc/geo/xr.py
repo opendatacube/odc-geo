@@ -11,6 +11,7 @@ Importing this module enables `.odc.` extension on :py:class:`xarray.DataArray` 
 For more details see: :py:class:`~odc.geo.xr.ODCExtension` and
 :py:class:`~odc.geo.xr.ODCExtensionDs`.
 """
+
 from ._interop import have
 from ._xr_interop import (
     ODCExtension,

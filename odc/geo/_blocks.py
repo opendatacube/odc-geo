@@ -5,6 +5,7 @@
 """
 Working with 2d+ chunks.
 """
+
 from __future__ import annotations
 
 from typing import Any, Iterator, Literal, Mapping, Optional, Tuple

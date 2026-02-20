@@ -47,8 +47,7 @@ class TestCRSEqualityComparisons:
         assert (a == TestCRSEqualityComparisons) is False
 
     def test_australian_albers_comparison(self) -> None:
-        a = CRS(
-            """PROJCS["GDA94_Australian_Albers",GEOGCS["GCS_GDA_1994",
+        a = CRS("""PROJCS["GDA94_Australian_Albers",GEOGCS["GCS_GDA_1994",
                             DATUM["Geocentric_Datum_of_Australia_1994",SPHEROID["GRS_1980",6378137,298.257222101]],
                             PRIMEM["Greenwich",0],UNIT["Degree",0.017453292519943295]],
                             PROJECTION["Albers_Conic_Equal_Area"],
@@ -58,8 +57,7 @@ class TestCRSEqualityComparisons:
                             PARAMETER["longitude_of_center",132],
                             PARAMETER["false_easting",0],
                             PARAMETER["false_northing",0],
-                            UNIT["Meter",1]]"""
-        )
+                            UNIT["Meter",1]]""")
         b = epsg3577
 
         assert a == b
@@ -80,8 +78,7 @@ def test_no_epsg() -> None:
 
 
 def test_crs() -> None:
-    custom_crs = CRS(
-        """PROJCS["unnamed",
+    custom_crs = CRS("""PROJCS["unnamed",
                            GEOGCS["Unknown datum based upon the custom spheroid",
                            DATUM["Not specified (based on custom spheroid)", SPHEROID["Custom spheroid",6371007.181,0]],
                            PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433]],
@@ -89,8 +86,7 @@ def test_crs() -> None:
                            PARAMETER["longitude_of_center",0],
                            PARAMETER["false_easting",0],
                            PARAMETER["false_northing",0],
-                           UNIT["Meter",1]]"""
-    )
+                           UNIT["Meter",1]]""")
 
     crs = epsg3577
     assert crs.geographic is False
