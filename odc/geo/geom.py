@@ -31,6 +31,7 @@ from affine import Affine
 from pyproj.aoi import AreaOfInterest
 from shapely import geometry, ops
 from shapely.coords import CoordinateSequence
+from shapely.errors import GEOSException
 from shapely.geometry import base
 
 from ._interop import have
@@ -518,7 +519,10 @@ class Geometry(SupportsCoords[float]):
         if isinstance(geom, base.BaseGeometry):
             self.geom = geom
         elif isinstance(geom, dict):
-            self.geom = _geojson_to_shapely(geom)
+            try:
+                self.geom = _geojson_to_shapely(geom)
+            except GEOSException as e:
+                raise ValueError(e) from None
         else:
             raise ValueError(f"Unexpected type {type(geom)}")
 
@@ -1277,7 +1281,7 @@ def polygon_from_transform(
     Useful for computing footprints of a geo-registered raster images.
 
     :param shape: Shape of the raster in pixels
-    :param transform: Affine transfrom from pixel to CRS units
+    :param transform: Affine transform from pixel to CRS units
     :param crs: CRS
     """
     x1, y1 = shape_(shape).xy
