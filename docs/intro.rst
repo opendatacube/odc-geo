@@ -1,7 +1,7 @@
 Overview
 ########
 
-The ``odc-geo`` library provides powerful tools for geospatial data manipulation in Python, including working
+The `odc-geo <https://github.com/opendatacube/odc-geo>`_ library provides powerful tools for geospatial data manipulation in Python, including working
 with coordinate reference systems, grid definitions, and spatial transformations.
 
 The library integrates closely with the Python geospatial ecosystem (including shapely_ and pyproj_),
