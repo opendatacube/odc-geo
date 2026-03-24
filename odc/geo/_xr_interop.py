@@ -606,7 +606,6 @@ def _extract_transform(
     crs_coord: xarray.DataArray | None,
     gcp: bool,
 ) -> Optional[Affine]:
-
     def is_1d(coord) -> bool:
         if coord is None:
             return False
@@ -752,6 +751,7 @@ def xr_reproject(
     anchor: GeoboxAnchor = "default",
     tol: float = 0.01,
     round_resolution: Union[None, bool, Callable[[float, str], float]] = None,
+    always_yx: bool = False,
     **kw,
 ) -> XrT:
     """
@@ -804,6 +804,10 @@ def xr_reproject(
     :param round_resolution:
       ``round_resolution(res: float, units: str) -> float``
 
+    :param always_yx:
+       If True, always use names ``y,x`` for spatial coordinates even for
+       geographic geoboxes.
+
     This method uses :py:mod:`rasterio`.
 
     .. seealso:: :py:meth:`odc.geo.overlap.compute_output_geobox`
@@ -816,6 +820,7 @@ def xr_reproject(
         "anchor": anchor,
         "tol": tol,
         "round_resolution": round_resolution,
+        "always_yx": always_yx,
         **kw,
     }
     if isinstance(src, xarray.DataArray):
@@ -1014,9 +1019,17 @@ def _xr_reproject_da(
         return sdims.isdisjoint(coord.dims)
 
     coords = {k: coord for k, coord in src.coords.items() if should_keep(coord)}
-    coords.update(xr_coords(dst_geobox))
 
-    dims = (*src.dims[:ydim], *dst_geobox.dimensions, *src.dims[ydim + 2 :])
+    always_yx = kw.get("always_yx", False)
+    coords.update(xr_coords(dst_geobox, always_yx=always_yx))
+
+    # Force dimensions if needed
+    if always_yx:
+        gbx_dims = ("y", "x")
+    else:
+        gbx_dims = dst_geobox.dimensions
+
+    dims = (*src.dims[:ydim], *gbx_dims, *src.dims[ydim + 2 :])
 
     out = xarray.DataArray(dst, coords=coords, dims=dims, attrs=attrs)
     out.encoding["grid_mapping"] = _DEFAULT_CRS_COORD_NAME
