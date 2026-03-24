@@ -541,6 +541,33 @@ def test_xr_reproject(xx_epsg4326: xr.DataArray) -> None:
         _ = xr.Dataset().odc.reproject("utm")
 
 
+def test_xr_reproject_always_xy(xx_epsg4326: xr.DataArray) -> None:
+    xx_3857 = xx_epsg4326.odc.reproject("epsg:3857")
+
+    # Assert the dimensions are x/y by default for projected rasters
+    assert xx_3857.dims == (
+        "y",
+        "x",
+    ), "Projected rasters should have 'y', 'x' dimensions"
+
+    # Assert the dimensions are latitude/longitude by default for geographic rasters
+    xx_4326_back = xx_3857.odc.reproject("epsg:4326")
+    assert xx_4326_back.dims == (
+        "latitude",
+        "longitude",
+    ), "Geographic rasters should have 'latitude', 'longitude' dimensions by default"
+
+    # Assert the dimensions are x/y as wanted
+    xx_4326_back_xy = xx_3857.odc.reproject("epsg:4326", always_yx=True)
+    assert xx_4326_back_xy.dims == (
+        "y",
+        "x",
+    ), "Geographic rasters should have 'y', 'x' dimensions if specified"
+
+    # Assert that the two reprojected rasters are the same, even if the dimensions are different
+    np.testing.assert_array_equal(xx_4326_back.data, xx_4326_back_xy.data)
+
+
 def test_xr_rasterize() -> None:
     gg = ocean_geom()
     xx = rasterize(gg, 1)
