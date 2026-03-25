@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 import numpy as np
 import xarray as xr
@@ -101,7 +101,7 @@ def xy_norm(
         s = 1.0 / v.max()
         v *= s
 
-        return (s, -vmin * s)
+        return s, -vmin * s
 
     A_rot = Affine.rotation(deg)
     x, y = apply_affine(A_rot, x, y)
@@ -162,10 +162,7 @@ def gen_test_image_xy(
 
     xy = np.stack([x, y])
 
-    if dtype.kind == "f":
-        xy = xy.astype(dtype)
-    else:
-        xy = to_fixed_point(xy, dtype)
+    xy = xy.astype(dtype) if dtype.kind == "f" else to_fixed_point(xy, dtype)
 
     def denorm(xy=None, y=None, nodata=None):
         if xy is None:
@@ -176,10 +173,11 @@ def gen_test_image_xy(
         missing_mask = None
 
         if nodata is not None:
-            if np.isnan(nodata):
-                missing_mask = np.isnan(x) + np.isnan(y)
-            else:
-                missing_mask = (x == nodata) + (y == nodata)
+            missing_mask = (
+                np.isnan(x) + np.isnan(y)
+                if np.isnan(nodata)
+                else (x == nodata) + (y == nodata)
+            )
 
         if x.dtype.kind != "f":
             x = from_fixed_point(x)
@@ -193,7 +191,6 @@ def gen_test_image_xy(
 
         if stacked:
             return np.stack([x, y])
-
         return x, y
 
     return xy, denorm
