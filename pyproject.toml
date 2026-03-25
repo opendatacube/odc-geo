@@ -113,4 +113,5 @@ dev = [
     "xarray>=0.19",
     "laspy>=2.5.4",
     "lazrs>=0.6.2",
+    "types-cachetools",
 ]
