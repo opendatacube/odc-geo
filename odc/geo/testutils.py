@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
-from typing import Callable, Tuple, Union
+from typing import Callable
 
 import numpy as np
 import xarray as xr
@@ -50,10 +50,10 @@ SAMPLE_WKT_WITHOUT_AUTHORITY = """PROJCS["unnamed",
 
 def mkA(
     rot: float = 0.0,
-    scale=(1, 1),
+    scale: tuple[int, int] = (1, 1),
     shear: float = 0.0,
     translation: tuple[float, float] = (0.0, 0.0),
-):
+) -> Affine:
     return (
         Affine.translation(*translation)
         * Affine.rotation(rot)
@@ -62,7 +62,7 @@ def mkA(
     )
 
 
-def xy_from_gbox(gbox: GeoBox) -> Tuple[np.ndarray, np.ndarray]:
+def xy_from_gbox(gbox: GeoBox) -> tuple[np.ndarray, np.ndarray]:
     """
     :returns: Two images with X and Y coordinates for centers of pixels
     """
@@ -77,7 +77,7 @@ def xy_from_gbox(gbox: GeoBox) -> Tuple[np.ndarray, np.ndarray]:
 
 def xy_norm(
     x: np.ndarray, y: np.ndarray, deg: float = 33.0
-) -> Tuple[np.ndarray, np.ndarray, Affine]:
+) -> tuple[np.ndarray, np.ndarray, Affine]:
     """
     Transform output of xy_from_geobox with a reversible linear transform. On
     output x,y are in [0,1] range. Reversible Affine transform includes
@@ -93,7 +93,6 @@ def xy_norm(
     - (x, y) == A*(x', y')
     - [x|y]'.min() == 0
     - [x|y]'.max() == 1
-
     """
 
     def norm_v(v):
@@ -140,8 +139,8 @@ def from_fixed_point(a):
 
 
 def gen_test_image_xy(
-    gbox: GeoBox, dtype: Union[str, np.dtype, type] = "float32", deg: float = 33.0
-) -> Tuple[np.ndarray, Callable]:
+    gbox: GeoBox, dtype: str | np.dtype | type = "float32", deg: float = 33.0
+) -> tuple[np.ndarray, Callable]:
     """
     Generate test image that captures pixel coordinates in pixel values.
     Useful for testing reprojections/reads.
@@ -155,7 +154,6 @@ def gen_test_image_xy(
     :returns: 2xWxH ndarray encoding X,Y coordinates of pixel centers in some
               normalised space, and a callable that can convert from normalised
               space back to coordinate space.
-
     """
     dtype = np.dtype(dtype)
 
