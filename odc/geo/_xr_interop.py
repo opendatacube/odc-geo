@@ -927,7 +927,18 @@ def _xr_reproject_ds(
             **kw,
         )
 
-    return src.map(_maybe_reproject)
+    data_vars = {
+        name: _maybe_reproject(da)
+        for name, da in src.data_vars.items()
+    }
+    attrs = {name: value for name, value in src.attrs if name not in SPATIAL_ATTRIBUTES}
+    dst = xarray.Dataset(data_vars, attrs=attrs)
+    coords = dst.coords
+    for src_coord_name, src_coord in src.coords.items():
+        if src_coord_name not in dst.coords:
+            coords[src_coord_name] = src_coord
+    dst.assign_coords(coords)
+    return dst
 
 
 def _xr_reproject_da(
