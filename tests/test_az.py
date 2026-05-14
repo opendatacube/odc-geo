@@ -2,6 +2,7 @@
 
 import base64
 from unittest.mock import MagicMock
+
 import pytest
 
 pytest.importorskip("azure.storage.blob")

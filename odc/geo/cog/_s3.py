@@ -15,10 +15,9 @@ from ._multipart import MultiPartUploadBase
 
 if TYPE_CHECKING:
     import dask.bag
+    import distributed
     from botocore.credentials import ReadOnlyCredentials
     from dask.delayed import Delayed
-
-    import distributed
 
 _state: dict[str, Any] = {}
 

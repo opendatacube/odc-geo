@@ -116,7 +116,7 @@ def svg_base_map(
     if target is not None:
         target_x, target_y = target
         more_svg += (
-            f'<path stroke="{stroke}" stroke-width="{stroke_width}" stroke-opacity="{stroke_opacity*0.8}"'
+            f'<path stroke="{stroke}" stroke-width="{stroke_width}" stroke-opacity="{stroke_opacity * 0.8}"'
             f' d="M{target_x},{target_y} V90zV-90zH180zH-180z"/>'
         )
 
@@ -127,7 +127,7 @@ def svg_base_map(
      width="{w:d}" height="{h:d}"
      viewBox="0 0 {w:d} {h:d}"
      preserveAspectRatio="xMinYMin meet">
-<g transform="matrix({s},0,0,{-s},{-x0*s},{y1*s})">
+<g transform="matrix({s},0,0,{-s},{-x0 * s},{y1 * s})">
 <path fill-rule="evenodd"
   fill="{fill}"
   opacity="{opacity}"
@@ -168,7 +168,7 @@ def make_svg(
      width="{w:d}" height="{h:d}"
      viewBox="0 0 {w:d} {h:d}"
      preserveAspectRatio="xMinYMin meet">
-<g transform="matrix({s},0,0,{-s},{-x0*s},{y1*s})">
+<g transform="matrix({s},0,0,{-s},{-x0 * s},{y1 * s})">
 {more_svg}
 </g></svg>"""
 
@@ -212,7 +212,7 @@ class PixelGridDisplay:
 
         grid_svg = (
             '<path fill="none" opacity="0.8"'
-            f' stroke-width="{0.8*scale_factor}"'
+            f' stroke-width="{0.8 * scale_factor}"'
             f' stroke="{grid_stroke}"'
             f' d="{grids.svg_path()}" />'
         )

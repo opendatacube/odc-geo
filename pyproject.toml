@@ -72,9 +72,6 @@ exclude_lines = [
   "^ *\\.\\.\\.$",
 ]
 
-[tool.isort]
-profile = "black"
-
 [tool.pylint.messages_control]
 
 max-line-length = 120
@@ -94,6 +91,11 @@ disable = [
   "unsubscriptable-object",
 ]
 
+[tool.ruff.lint]
+select = [
+    "I",  # Isort
+]
+
 [dependency-groups]
 dev = [
     "azure-storage-blob>=12.25.0",
@@ -109,6 +111,7 @@ dev = [
     "pytest-cov>=6.0.0",
     "pytest-timeout>=2.3.1",
     "rasterio>=1.4.3",
+    "ruff",
     "tifffile>=2024.8.30",
     "xarray>=0.19",
     "laspy>=2.5.4",

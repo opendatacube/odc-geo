@@ -24,11 +24,10 @@ dependencies:
   ## linting tools
   - autopep8
   - autoflake
-  - black >=25.1
-  - isort
   - mypy
   - pycodestyle
   - pylint =3
+  - ruff
   - docutils
 
   ## test

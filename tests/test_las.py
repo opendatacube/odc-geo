@@ -8,7 +8,8 @@ from odc.geo.io import load_las
 pytest.importorskip("laspy")
 pytest.importorskip("lazrs")
 
-test_crss = {"autzen": """
+test_crss = {
+    "autzen": """
 COMPOUNDCRS["NAD83 / Oregon GIC Lambert (ft) + NAVD88 height (ftUS)",
     PROJCRS["NAD83 / Oregon GIC Lambert (ft)",
         BASEGEOGCRS["NAD83",
@@ -53,7 +54,8 @@ COMPOUNDCRS["NAD83 / Oregon GIC Lambert (ft) + NAVD88 height (ftUS)",
             AXIS["gravity-related height",up,
                 LENGTHUNIT["US survey foot",0.304800609601219]],
         ID["EPSG",6360]]]
-"""}
+"""
+}
 
 AUTZEN_DATA_VARS = (
     "user_data",
