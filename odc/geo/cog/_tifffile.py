@@ -9,16 +9,15 @@ Write Cloud Optimized GeoTIFFs from xarrays.
 from __future__ import annotations
 
 import itertools
+import math
 from functools import partial
 from io import BytesIO
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 from urllib.parse import urlparse
 from xml.sax.saxutils import escape as xml_escape
 
-import math
 import numpy as np
 import xarray as xr
-
 
 from .._interop import have
 from ..geobox import GeoBox
@@ -27,7 +26,6 @@ from ..types import Shape2d, SomeNodata, Unset, shape_
 from ._mpu import mpu_write
 from ._mpu_fs import MPUFileSink
 from ._multipart import MultiPartUploadBase
-
 from ._shared import (
     GDAL_COMP,
     GEOTIFF_TAGS,

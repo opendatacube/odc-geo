@@ -1,7 +1,7 @@
 import itertools
 from io import BytesIO
 from pathlib import Path
-from typing import Sequence, Optional, Tuple
+from typing import Optional, Sequence, Tuple
 
 import numpy as np
 import pytest

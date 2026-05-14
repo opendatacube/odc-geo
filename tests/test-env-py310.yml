@@ -20,11 +20,10 @@ dependencies:
   ## linting tools
   - autopep8
   - autoflake
-  - black >=25.1.0
-  - isort
   - mypy
   - pycodestyle
   - pylint =3
+  - ruff
   - types-cachetools
   - types-certifi
 

@@ -409,6 +409,7 @@ class CRSMismatchError(ValueError):
 SomeCRS = Union[str, int, CRS, _CRS, Dict[str, Any]]
 MaybeCRS = Union[SomeCRS, Unset, None]
 
+
 # fmt: off
 @overload
 def norm_crs(crs: SomeCRS) -> CRS: ...

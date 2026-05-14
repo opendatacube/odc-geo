@@ -16,7 +16,7 @@ pip install -e .
 
 ```json
 {
-    "python.formatting.provider": "black",
+    "python.formatting.provider": "ruff",
     "python.linting.flake8Enabled": true,
     "python.linting.flake8Args": [
         "--ignore=E731,W503",

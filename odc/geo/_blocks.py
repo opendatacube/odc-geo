@@ -64,7 +64,7 @@ class BlockAssembler:
             if state is None:
                 if b.ndim < axis + 2:
                     raise ValueError(
-                        f"Too few dimensions for `axis={axis}` ({b.ndim} < {axis+2})"
+                        f"Too few dimensions for `axis={axis}` ({b.ndim} < {axis + 2})"
                     )
                 state = (b.ndim, b.shape[:axis], b.shape[axis + 2 :])
 

@@ -1,8 +1,8 @@
+from collections.abc import Iterable
 from typing import Tuple
 
 import numpy as np
 import pytest
-from collections.abc import Iterable
 
 from odc.geo import SomeIndex2d
 from odc.geo._blocks import BlockAssembler
