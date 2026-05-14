@@ -935,11 +935,13 @@ def _xr_reproject_ds(
     }
     attrs = {name: value for name, value in src.attrs if name not in SPATIAL_ATTRIBUTES}
     dst = xarray.Dataset(data_vars, attrs=attrs)
-    coords = dst.coords
     for src_coord_name, src_coord in src.coords.items():
-        if src_coord_name not in dst.coords:
-            coords[src_coord_name] = src_coord
-    dst.assign_coords(coords)
+        if (
+            src_coord_name not in dst.coords
+            and not set(src_coord.dims).issubset(src.odc.spatial_dims)
+            and not src_coord_name == src.odc.crs_coord
+        ):
+            dst.coords[src_coord_name] = src_coord
     return dst
 
 
