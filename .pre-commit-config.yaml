@@ -6,3 +6,8 @@ repos:
         - id: trailing-whitespace
         - id: check-added-large-files
         - id: check-merge-conflict
+    - repo: https://github.com/astral-sh/uv-pre-commit
+      rev: 0.11.13
+      hooks:
+        # Ensure uv.lock is up-to-date if pyproject.toml has changed
+        - id: uv-lock
