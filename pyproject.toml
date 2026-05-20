@@ -103,7 +103,7 @@ dev = [
     "dask[array,distributed]>=2024.8.0",
     "folium>=0.19.5",
     "geopandas>=1.0.1",
-    "imagecodecs>=2024.12.30",
+    "imagecodecs>=2024.12.30,<2026.3.6",  # https://github.com/cgohlke/imagecodecs/issues/138 affects 2026.3.6
     "ipyleaflet>=0.19.2",
     "matplotlib>=3.9.4",
     "mypy",
