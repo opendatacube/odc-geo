@@ -43,11 +43,11 @@ Documentation = "https://odc-geo.readthedocs.io/en/latest/"
 [project.optional-dependencies]
 xr = [] # xarray is now a non-optional dependency
 warp = ["rasterio"]
-tiff = ["tifffile", "imagecodecs", "dask[array,distributed]", "rasterio"]
+tiff = ["tifffile", "imagecodecs>=2024.12.30,!=2026.3.6,!=2026.5.10", "dask[array,distributed]", "rasterio"]
 s3 = ["boto3"]
 az = ["azure-storage-blob"]
 las = ["laspy", "lazrs"]
-all = ["rasterio", "tifffile", "imagecodecs", "dask[array,distributed]", "boto3", "azure-storage-blob", "laspy", "lazrs"]
+all = ["rasterio", "tifffile", "imagecodecs>=2024.12.30,!=2026.3.6,!=2026.5.10", "dask[array,distributed]", "boto3", "azure-storage-blob", "laspy", "lazrs"]
 
 [build-system]
 requires = ["flit_core >=3.2,<4"]
@@ -103,7 +103,7 @@ dev = [
     "dask[array,distributed]>=2024.8.0",
     "folium>=0.19.5",
     "geopandas>=1.0.1",
-    "imagecodecs>=2024.12.30,<2026.3.6",  # https://github.com/cgohlke/imagecodecs/issues/138 affects 2026.3.6
+    "imagecodecs>=2024.12.30,!=2026.3.6,!=2026.5.10",  # https://github.com/cgohlke/imagecodecs/issues/138 affects 2026.3.6, 2026.5.10
     "ipyleaflet>=0.19.2",
     "matplotlib>=3.9.4",
     "mypy",
