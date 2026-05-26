@@ -885,6 +885,7 @@ def _xr_reproject_ds(
     dtype=None,
     **kw,
 ) -> xarray.Dataset:
+    # pylint: disable=too-many-locals
     assert isinstance(src, xarray.Dataset)
 
     if len(src.dims) == 1:
@@ -927,7 +928,20 @@ def _xr_reproject_ds(
             **kw,
         )
 
-    return src.map(_maybe_reproject)
+    data_vars = {name: _maybe_reproject(da) for name, da in src.data_vars.items()}
+    # Copy over non spatial-attrs and coords
+    attrs = {name: value for name, value in src.attrs if name not in SPATIAL_ATTRIBUTES}
+    dst = xarray.Dataset(data_vars, attrs=attrs)
+    src_spatial_dims: tuple = spatial_dims(src) or tuple()
+    src_crs_coords = _locate_crs_coords(src)
+    for src_coord_name, src_coord in src.coords.items():
+        if (
+            src_coord_name not in dst.coords
+            and not set(src_coord.dims).issubset(src_spatial_dims)
+            and src_coord not in src_crs_coords
+        ):
+            dst.coords[src_coord_name] = src_coord
+    return dst
 
 
 def _xr_reproject_da(
