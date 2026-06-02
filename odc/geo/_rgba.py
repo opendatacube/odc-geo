@@ -107,7 +107,7 @@ def to_rgba(
 
     if bands is None:
         try:
-            bands = _guess_rgb_names(list(ds.data_vars))
+            bands = _guess_rgb_names(list(str(dv) for dv in ds.data_vars))
         except ValueError as e:
             raise ValueError(
                 f"Unable to automatically guess RGB colours ({e}). "
