@@ -634,9 +634,11 @@ def test_reload(geobox) -> None:
     assert ds.odc.reload() is ds
     assert ds.odc.geobox == geobox
 
-    # change coords in-place
-    coord = xx[list(xx.coords)[0]]
-    coord.data[:] += 0.337
+    # change coords - copy as can be read-only
+    coord_name = list(xx.coords)[0]
+    coord = xx[coord_name]
+    new_coord = np.copy(coord.data)[:] + 0.337
+    xx = xx.assign_coords(coords={coord_name: new_coord})
     assert xx.odc.reload() is xx
     assert xx.odc.geobox != geobox
 
