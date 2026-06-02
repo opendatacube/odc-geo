@@ -1,7 +1,7 @@
 [project]
 name = "odc-geo"
 description = "Geometry Classes and Operations (opendatacube)"
-version = "0.5.1"
+dynamic = ["version"]
 authors = [
     {name = "Open Data Cube"},
 ]
@@ -50,11 +50,16 @@ las = ["laspy", "lazrs"]
 all = ["rasterio", "tifffile", "imagecodecs", "dask[array,distributed]", "boto3", "azure-storage-blob", "laspy", "lazrs"]
 
 [build-system]
-requires = ["flit_core >=3.2,<4"]
-build-backend = "flit_core.buildapi"
+requires = ["setuptools>=69", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
 
-[tool.flit.module]
-name = "odc.geo"
+[tool.setuptools.packages.find]
+exclude = ["tests"]
+include = ["odc*"]
+
+[tool.setuptools_scm]
+write_to = "odc/geo/_version.py"
+fallback_version = "0.5.2.dev0"
 
 [tool.mypy]
 python_version = "3.10"

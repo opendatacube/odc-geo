@@ -1902,7 +1902,6 @@ wheels = [
 
 [[package]]
 name = "odc-geo"
-version = "0.5.1"
 source = { editable = "." }
 dependencies = [
     { name = "affine" },
