@@ -911,11 +911,9 @@ wheels = [
 name = "imagecodecs"
 version = "2025.3.30"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version < '3.11'",
-]
 dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/de/bf/81c848ffe2b42fc141b6db3e4e8e650183b7aab8c4535498ebff25740a3b/imagecodecs-2025.3.30.tar.gz", hash = "sha256:29256f44a7fcfb8f235a3e9b3bae72b06ea2112e63bcc892267a8c01b7097f90", size = 9506573, upload-time = "2025-03-30T04:44:50.368Z" }
 wheels = [
@@ -943,42 +941,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/ef/86/21a7f96f5446595df83ba18d20a6f5d2e99eef37c8f0fee807e78bf7e4aa/imagecodecs-2025.3.30-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:bfa7b1c7d7af449c8153a040f7782d4296350245f8809e49dd4fb5bef4d740e6", size = 45213087, upload-time = "2025-03-30T04:44:35.243Z" },
     { url = "https://files.pythonhosted.org/packages/d3/be/e4aa5ed727ab4178362c695ea862d4c3e25988020ec1b05f8fedbef2ef5f/imagecodecs-2025.3.30-cp313-cp313-win_amd64.whl", hash = "sha256:1c51fef75fec66b4ea5e98b4ab47889942049389278749e1f96329c38f31c377", size = 28865173, upload-time = "2025-03-30T04:44:43.932Z" },
     { url = "https://files.pythonhosted.org/packages/d2/ad/5c21694d68a563a0dcbae97b460093ec165efbb795695ea02b24415d6c79/imagecodecs-2025.3.30-cp313-cp313-win_arm64.whl", hash = "sha256:eda70c0b9d2bcf225f7ae12dbefd0e3ab92ea7db30cdb56b292517fb61357ad7", size = 23731786, upload-time = "2025-03-30T04:44:47.697Z" },
-]
-
-[[package]]
-name = "imagecodecs"
-version = "2026.3.6"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.14' and sys_platform == 'win32'",
-    "python_full_version >= '3.14' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version >= '3.12' and python_full_version < '3.14' and sys_platform == 'win32'",
-    "python_full_version >= '3.12' and python_full_version < '3.14' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.12' and python_full_version < '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version == '3.11.*' and sys_platform == 'win32'",
-    "python_full_version == '3.11.*' and sys_platform == 'emscripten'",
-    "python_full_version == '3.11.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
-dependencies = [
-    { name = "numpy", version = "2.4.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/3b/8d/dc18623e5e926ad53c626e128c8baaf4ec42e41029cf0a07381cfef79289/imagecodecs-2026.3.6.tar.gz", hash = "sha256:471b8a4d1b3843cbf7179b45f7d7261f0c0b28809efc1ca6c47822477b143b85", size = 9565259, upload-time = "2026-03-07T01:26:41.183Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f3/db/873d063c99a726d772bf6f076288da59bb12e9f2af3518c2e4de5fde234d/imagecodecs-2026.3.6-cp311-abi3-macosx_10_15_x86_64.whl", hash = "sha256:44cfb3b609d941014f8ac7cf8611b15ccfd7119443bbb6b5e53916b242d31f9e", size = 13953250, upload-time = "2026-03-07T06:13:36.959Z" },
-    { url = "https://files.pythonhosted.org/packages/42/84/36c38a82f033ffbc9e706dad32be7148f130fc00e7bb417ab60e063897a0/imagecodecs-2026.3.6-cp311-abi3-macosx_11_0_arm64.whl", hash = "sha256:e64037f22980a211b17bf6bdf03f14ff459a7432eec24f7a58c342f6992132fa", size = 11697496, upload-time = "2026-03-07T01:25:56.412Z" },
-    { url = "https://files.pythonhosted.org/packages/45/fa/f67c4e644fdf06503e120f9d1c8d8654b99066dea7093a674b67704fa4a4/imagecodecs-2026.3.6-cp311-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:30fa140bb1a112a889926af36977214ed52a22e4557356043259b5e2f79cfba5", size = 25604431, upload-time = "2026-03-07T01:26:00.703Z" },
-    { url = "https://files.pythonhosted.org/packages/8f/29/93ea9cbab7f57b4e60480c51fc51d8e138e399d11797c981d5f6e79f9832/imagecodecs-2026.3.6-cp311-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:e30a14aa2e1c6c90e00375292726486c1d90bf003b1414d608ea4d1f62fd8a79", size = 26468592, upload-time = "2026-03-07T01:26:04.933Z" },
-    { url = "https://files.pythonhosted.org/packages/e8/a7/e3a89b2c516eaca7446e8f1335daeec90764b50888af5e073a2b6a987fcf/imagecodecs-2026.3.6-cp311-abi3-win32.whl", hash = "sha256:c972a45dfee1befbac048ba3492607003e9a185811e8febdc1ed531d48c07e75", size = 15597722, upload-time = "2026-03-07T01:26:08.106Z" },
-    { url = "https://files.pythonhosted.org/packages/22/c7/2b37a7fe9a2eb21011e50f046d62e68ac4e0f8d6ad94d7a10e9f8e8d685f/imagecodecs-2026.3.6-cp311-abi3-win_amd64.whl", hash = "sha256:e8fba5b9ac7be109ed35070208bc1683fa17cc381ed9535a4eae200c6d883bd8", size = 19177403, upload-time = "2026-03-07T01:26:11.718Z" },
-    { url = "https://files.pythonhosted.org/packages/c0/c7/94e930cef9e0a29a2df5e3ba3bacd2c2f1e34ca373fe48624b64af8ae91c/imagecodecs-2026.3.6-cp311-abi3-win_arm64.whl", hash = "sha256:fc4856913be6c8b3861223158920d934a0ae203149a435f585622dbbff8ed696", size = 15193605, upload-time = "2026-03-07T01:26:15.016Z" },
-    { url = "https://files.pythonhosted.org/packages/a3/0b/ba7ca5a14cf2ff744c47898ab9e98b6b96b364bce1459afcab5f4e5ea2bb/imagecodecs-2026.3.6-cp314-cp314t-macosx_10_15_x86_64.whl", hash = "sha256:ea2cd774854a3bfe1dc9508f98907edc877c02a78642ab371adbdec65a8865cc", size = 14335958, upload-time = "2026-03-07T06:13:39.726Z" },
-    { url = "https://files.pythonhosted.org/packages/18/d9/4750fb9739d474e399fa566b3a5c7033f2c9c0078bc869473b23d3e0d4b7/imagecodecs-2026.3.6-cp314-cp314t-macosx_11_0_arm64.whl", hash = "sha256:6efa104ce600f61fef03a43daab34fe2953c8adb4e4ee6eb9544825f5361e5ab", size = 12021474, upload-time = "2026-03-07T01:26:18.008Z" },
-    { url = "https://files.pythonhosted.org/packages/29/d3/f0a71c797f836021241500d4a459b0f93317f2b5c9bcc39fb1eaa50e01ea/imagecodecs-2026.3.6-cp314-cp314t-manylinux_2_28_aarch64.whl", hash = "sha256:16fd83dd25d9c888317bc8cbbc5d7490b78c84c58275d80fb71ea7b28645276a", size = 29606531, upload-time = "2026-03-07T01:26:22.058Z" },
-    { url = "https://files.pythonhosted.org/packages/0c/8c/a1b433418306636fc22a94b669d7ebbbde8e3b26aef7d693c08f9f8a65af/imagecodecs-2026.3.6-cp314-cp314t-manylinux_2_28_x86_64.whl", hash = "sha256:39fcf671537cc92dd24ba4dcba257d8aa47e6f58018e839a5216c626f03d4126", size = 30039276, upload-time = "2026-03-07T01:26:26.718Z" },
-    { url = "https://files.pythonhosted.org/packages/ac/96/1474c0e242fb11d68304f858298971370fdfcecc404dbd9993a3ea449b4f/imagecodecs-2026.3.6-cp314-cp314t-win32.whl", hash = "sha256:65110ff30723a6e0b79c6c74ff52909a34b131366c4f76b1b68084cca5fcd982", size = 16345843, upload-time = "2026-03-07T01:26:30.498Z" },
-    { url = "https://files.pythonhosted.org/packages/d5/13/d0e09d8aaafe6fac1aa1bd8c0dcc0f024998ea4a23477128db14a085b4cf/imagecodecs-2026.3.6-cp314-cp314t-win_amd64.whl", hash = "sha256:1b810efeeb06bdcca07ae410a81bdb5eb9fb38f91689baf0f0b75783f5119a40", size = 20230890, upload-time = "2026-03-07T01:26:33.78Z" },
-    { url = "https://files.pythonhosted.org/packages/9c/06/3a5fe853e4df9a3655f8be81c1eb48013aab282c1557341b8634dd718e32/imagecodecs-2026.3.6-cp314-cp314t-win_arm64.whl", hash = "sha256:a2363c64e346cee4136f02a207b1b645729142f5260d122ddc3d5ff9e32ac6b1", size = 15911854, upload-time = "2026-03-07T01:26:38.072Z" },
 ]
 
 [[package]]
@@ -1921,8 +1883,7 @@ all = [
     { name = "azure-storage-blob" },
     { name = "boto3" },
     { name = "dask", extra = ["array", "distributed"] },
-    { name = "imagecodecs", version = "2025.3.30", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "imagecodecs", version = "2026.3.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "imagecodecs" },
     { name = "laspy" },
     { name = "lazrs" },
     { name = "rasterio", version = "1.4.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -1942,8 +1903,7 @@ s3 = [
 ]
 tiff = [
     { name = "dask", extra = ["array", "distributed"] },
-    { name = "imagecodecs", version = "2025.3.30", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "imagecodecs", version = "2026.3.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "imagecodecs" },
     { name = "rasterio", version = "1.4.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "rasterio", version = "1.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "tifffile", version = "2025.5.10", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -1961,8 +1921,7 @@ dev = [
     { name = "dask", extra = ["array", "distributed"] },
     { name = "folium" },
     { name = "geopandas" },
-    { name = "imagecodecs", version = "2025.3.30", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "imagecodecs", version = "2026.3.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "imagecodecs" },
     { name = "ipyleaflet" },
     { name = "laspy" },
     { name = "lazrs" },
@@ -1991,8 +1950,8 @@ requires-dist = [
     { name = "cachetools" },
     { name = "dask", extras = ["array", "distributed"], marker = "extra == 'all'" },
     { name = "dask", extras = ["array", "distributed"], marker = "extra == 'tiff'" },
-    { name = "imagecodecs", marker = "extra == 'all'" },
-    { name = "imagecodecs", marker = "extra == 'tiff'" },
+    { name = "imagecodecs", marker = "extra == 'all'", specifier = ">=2024.12.30,!=2026.3.6,!=2026.5.10" },
+    { name = "imagecodecs", marker = "extra == 'tiff'", specifier = ">=2024.12.30,!=2026.3.6,!=2026.5.10" },
     { name = "laspy", marker = "extra == 'all'" },
     { name = "laspy", marker = "extra == 'las'" },
     { name = "lazrs", marker = "extra == 'all'" },
@@ -2016,7 +1975,7 @@ dev = [
     { name = "dask", extras = ["array", "distributed"], specifier = ">=2024.8.0" },
     { name = "folium", specifier = ">=0.19.5" },
     { name = "geopandas", specifier = ">=1.0.1" },
-    { name = "imagecodecs", specifier = ">=2024.12.30" },
+    { name = "imagecodecs", specifier = ">=2024.12.30,!=2026.3.6,!=2026.5.10" },
     { name = "ipyleaflet", specifier = ">=0.19.2" },
     { name = "laspy", specifier = ">=2.5.4" },
     { name = "lazrs", specifier = ">=0.6.2" },

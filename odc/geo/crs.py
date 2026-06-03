@@ -3,12 +3,12 @@
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
 import warnings
+from collections.abc import Hashable
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     Dict,
-    Hashable,
     List,
     Optional,
     Protocol,
