@@ -126,7 +126,7 @@ class BlockAssembler:
         *,
         dtype=None,
         roi=None,
-        casting: (Literal["no", "equiv", "safe", "same_kind", "unsafe"]) = "same_kind",
+        casting: Literal["no", "equiv", "safe", "same_kind", "unsafe"] = "same_kind",
     ) -> np.ndarray:
         """
         Paste all blocks together into one array possibly with type coercion.
