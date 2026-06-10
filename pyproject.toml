@@ -8,11 +8,10 @@ authors = [
 maintainers = [
     {name = "Open Data Cube"},
 ]
-license = {text = "Apache License 2.0"}
+license = "Apache-2.0"
 readme = "README.rst"
 keywords = ["gis", "geospatial", "opendatacube"]
 classifiers = [
-    "License :: OSI Approved :: Apache Software License",
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3.10",
