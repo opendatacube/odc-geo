@@ -50,7 +50,7 @@ las = ["laspy", "lazrs"]
 all = ["rasterio", "tifffile", "imagecodecs", "dask[array,distributed]", "boto3", "azure-storage-blob", "laspy", "lazrs"]
 
 [build-system]
-requires = ["setuptools>=69", "setuptools_scm[toml]>=6.2"]
+requires = ["setuptools>=69", "setuptools_scm[toml]>=8,<10"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
