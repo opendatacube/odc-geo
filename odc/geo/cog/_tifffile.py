@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import itertools
 import math
+import os
 from functools import partial
 from io import BytesIO
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 from urllib.parse import urlparse
 from xml.sax.saxutils import escape as xml_escape
@@ -619,7 +621,7 @@ def _gdal_sample_descriptions(descriptions: list[str]) -> list[str]:
 
 def save_cog_with_dask(
     xx: xr.DataArray,
-    dst: str = "",
+    dst: Union[str, Path] = "",
     *,
     compression: Union[str, Unset] = Unset(),
     compressionargs: Any = None,
@@ -659,7 +661,7 @@ def save_cog_with_dask(
       it's set to merge up to four of the highest overview layers.
 
     :param xx: Pixels as :py:class:`xarray.DataArray` backed by Dask.
-    :param dst: S3, Azure URL, or file path.
+    :param dst: S3, Azure URL, or file path (``str`` or :py:class:`~pathlib.Path`).
     :param compression: Compression to use, default is ``DEFLATE``.
     :param level: Compression “level”, depends on chosen compression.
     :param predictor: TIFF predictor setting.
@@ -686,6 +688,9 @@ def save_cog_with_dask(
     import dask.bag
 
     from ..xr import ODCExtensionDa
+
+    # Accept Path objects; everything downstream (urlparse, sinks) expects str
+    dst = os.fspath(dst)
 
     aws = aws or {}
     azure = azure or {}
