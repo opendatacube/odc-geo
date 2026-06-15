@@ -470,6 +470,17 @@ def test_band_names(gbox: GeoBox) -> None:
     assert _band_names(img) == ["red", "green", "blue", "alpha"]
 
 
+def test_cog_with_dask_path_dst(gbox: GeoBox, tmp_path: Path) -> None:
+    # dst as a Path object used to crash with AttributeError (issue #239)
+    gbox = gbox.zoom_to(256)
+    img = xr_zeros(gbox, "int16", chunks=(128, 128), nodata=-9999)
+    fname = tmp_path / "cog.tif"
+    fut = save_cog_with_dask(img, fname, compression="deflate", level=2)
+    rr = fut.compute()
+    assert str(rr) == str(fname)
+    assert fname.exists()
+
+
 @pytest.mark.parametrize("dtype", ["int16", "float32"])
 def test_cog_with_dask_smoke_test(gbox: GeoBox, tmp_path: Path, dtype) -> None:
     gbox = gbox.zoom_to(1024)
