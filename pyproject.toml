@@ -101,11 +101,8 @@ dev = [
     "azure-storage-blob>=12.25.0",
     "boto3>=1.37.21",
     "dask[array,distributed]>=2024.8.0",
-    "folium>=0.19.5",
-    "geopandas>=1.0.1",
     "imagecodecs>=2024.12.30,!=2026.3.6,!=2026.5.10",  # https://github.com/cgohlke/imagecodecs/issues/138 affects 2026.3.6, 2026.5.10
     "ipyleaflet>=0.19.2",
-    "matplotlib>=3.9.4",
     "mypy",
     "pytest>=8.3.5",
     "pytest-cov>=6.0.0",
@@ -117,4 +114,17 @@ dev = [
     "laspy>=2.5.4",
     "lazrs>=0.6.2",
     "types-cachetools",
+    {include-group = "doc"},
+]
+
+doc = [
+    "odc-geo[all]",
+    "folium>=0.19.5",
+    "geopandas>=1.0.1",
+    "ipykernel",
+    "jupyter_sphinx",
+    "matplotlib>=3.9.4",
+    "sphinx<9",
+    "sphinx_rtd_theme",
+    "sphinx-autodoc-typehints",
 ]
