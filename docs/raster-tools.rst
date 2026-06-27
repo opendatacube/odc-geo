@@ -51,7 +51,7 @@ Plotting on a map
       # Make some sample images
       def gen_sample(iso3, crs="epsg:3857", res=60_000, vmin=0, vmax=1000):
          xx = rasterize(country_geom(iso3, crs), res)
-         return xr.where(xx, uniform(vmin, vmax, size=xx.shape), float("nan")).astype("float32")
+         return xx.where(uniform(vmin, vmax, size=xx.shape), float("nan")).astype("float32")
 
       aus, png, nzl = [gen_sample(iso3) for iso3 in ["AUS", "PNG", "NZL"]]
 
