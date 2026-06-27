@@ -134,12 +134,12 @@ class BoundingBox(Sequence[float]):
 
     @property
     def span_x(self) -> float:
-        """Span of the bounding box along x axis."""
+        """Span of the bounding box along the x-axis."""
         return self.right - self.left
 
     @property
     def span_y(self) -> float:
-        """Span of the bounding box along y axis."""
+        """Span of the bounding box along the y-axis."""
         return self.top - self.bottom
 
     @property
@@ -1001,7 +1001,7 @@ class Geometry(SupportsCoords[float]):
         Produce SVG path text.
 
         This should work for polygons/rings/lines, doesn't really
-        makes sense for points.
+        make sense for points.
 
         Example usage: ``f'<path d="{g.svg_path(0)}" ... />'``
         """
@@ -1369,7 +1369,7 @@ def triangulate(pts: Geometry, **kw) -> Geometry:
 
      :param edges:
         If edges is False, a geometry collection of Polygons (triangles) will be returned (default).
-        Otherwise LineString edges are returned.
+        Otherwise, LineString edges are returned.
     """
     geom = geometry.GeometryCollection(ops.triangulate(pts.geom, **kw))
     return Geometry(geom, pts.crs)
@@ -1414,7 +1414,7 @@ def bbox_union(bbs: Iterable[BoundingBox]) -> BoundingBox:
 
 def bbox_intersection(bbs: Iterable[BoundingBox]) -> BoundingBox:
     """
-    Compute intersection of boudning boxes.
+    Compute intersection of bounding boxes.
 
     Given a stream of bounding boxes compute the overlap :py:class:`~odc.geo.geom.BoundingBox`.
     """

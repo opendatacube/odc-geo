@@ -511,7 +511,7 @@ class GeoBoxBase:
 class GeoBox(GeoBoxBase):
     """
     Defines the location and resolution of a rectangular grid of data,
-    including it's :py:class:`~odc.geo.crs.CRS`.
+    including its :py:class:`~odc.geo.crs.CRS`.
 
     :param shape: Shape in pixels ``(ny, nx)``
     :param crs: Coordinate Reference System
@@ -545,7 +545,7 @@ class GeoBox(GeoBoxBase):
         :param resolution: Use specified resolution
         :param tight: Supplying ``tight=True`` turns off pixel snapping.
         :param anchor:
-            By default snaps grid such that pixel edges fall on X/Y axis. Ignored when tight mode is
+            By default, snaps grid such that pixel edges fall on X/Y axis. Ignored when tight mode is
             used.
         :param tol:
             Fraction of a pixel that can be ignored, defaults to 1/100. Bounding box of the output
@@ -698,7 +698,7 @@ class GeoBox(GeoBoxBase):
         """
         Construct GeoBox from rasterio.
 
-        :param rdr: Openned :py:class:`rasterio.DatasetReader`
+        :param rdr: Opened :py:class:`rasterio.DatasetReader`
         :returns:
            :py:class:`~odc.geo.geobox.GeoBox`
         """
@@ -738,7 +738,7 @@ class GeoBox(GeoBoxBase):
             region = region.polygon
 
         if region.crs is None:
-            raise ValueError("Must supply geo-resgistered region")
+            raise ValueError("Must supply geo-registered region")
 
         pix_bbox = self.project(region).boundingbox.round()
         nx, ny = (max(1, int(span)) for span in (pix_bbox.span_x, pix_bbox.span_y))
@@ -866,8 +866,8 @@ class GeoBox(GeoBoxBase):
           roughly square pixels. Takes precedence over ``resolution=`` parameter.
 
         :param tight:
-          By default output pixel grid is adjusted to align pixel edges to X/Y
-          axis, suppling ``tight=True`` produces unaligned geobox on the output.
+          By default, output pixel grid is adjusted to align pixel edges to X/Y
+          axis, supplying ``tight=True`` produces unaligned geobox on the output.
 
         :param anchor:
             Control pixel snapping, default is to snap pixel edge to
@@ -1269,7 +1269,7 @@ def scaled_down_geobox(src_geobox: GeoBox, scaler: int) -> GeoBox:
 
     .. note::
 
-       We assume that pixel coordinates are ``0,0`` at the top-left corner of a top-left pixel.
+       We assume that pixel coordinates are ``0,0`` in the top-left corner of a top-left pixel.
 
     """
     assert scaler > 1

@@ -3,7 +3,7 @@
 # Copyright (c) 2015-2020 ODC Contributors
 # SPDX-License-Identifier: Apache-2.0
 """
-Xarray Intergration.
+Xarray Integration.
 
 Importing this module enables `.odc.` extension on :py:class:`xarray.DataArray` and
 :py:class:`xarray.Dataset` objects.
