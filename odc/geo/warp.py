@@ -179,7 +179,7 @@ def _rio_reproject(
         # Force GDAL into performing bilinear,cubic,lanczos with raidius=1px.
         # GDAL is trying to be smart and pick sampling radius based on scale
         # change, but does it without consideration for rotational component
-        # of the transform, leading to blury output in some situations
+        # of the transform, leading to blurry output in some situations
         # See also:
         #    https://github.com/opendatacube/datacube-core/issues/1448
         kwargs.update(XSCALE=1, YSCALE=1)

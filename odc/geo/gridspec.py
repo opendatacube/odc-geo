@@ -317,7 +317,7 @@ class GridSpec:
         """
         Construct :py:class:`~odc.geo.gridspec.GridSpec` that matches slippy tiles.
 
-        Tile with index ``(0, 0)`` is at the top left corner of the map, and tile with index
+        Tile with index ``(0, 0)`` is in the top left corner of the map, and tile with index
         ``(2^zoom - 1, 2^zoom - 1)`` is at the bottom right.
 
         :param zoom:

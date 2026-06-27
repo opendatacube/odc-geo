@@ -209,7 +209,7 @@ class GCPGeoBox(GeoBoxBase):
         """
         Project GCPs to a different CRS.
 
-        extra arguments undesrtood by GeoBox.to_crs are simply ignored, but we do
+        extra arguments understood by GeoBox.to_crs are simply ignored, but we do
         accept them to make generic code easier to write.
         """
         assert self._crs is not None
@@ -240,9 +240,10 @@ class GCPGeoBox(GeoBoxBase):
         """
         Possibly expand :py:class:`~odc.geo.geobox.GeoBox` by a few pixels.
 
-        Find nearest ``width``/``height`` that are multiples of the desired factor. And return a new
-        geobox that is slighly taller and/or wider covering roughly the same region. The new geobox
-        will have the same CRS and transform but possibly larger shape.
+        Find nearest ``width``/``height`` that are multiples of the desired factor.
+        And return a new geobox that is slightly taller and/or wider covering roughly
+        the same region. The new geobox will have the same CRS and transform but
+        possibly larger shape.
         """
         aligny = alignx if aligny is None else aligny
         ny, nx = (align_up(sz, n) for sz, n in zip(self._shape.yx, (aligny, alignx)))
@@ -271,7 +272,7 @@ class GCPGeoBox(GeoBoxBase):
         """
         Compute :py:class:`~odc.geo.geobox.GCPGeoBox` with changed resolution.
 
-        When supplied a single integer scale longest dimension to match that.
+        When supplied a single integer, scale the longest dimension to match that.
 
         :returns:
           GCPGeoBox covering the same region but with different number of pixels and therefore resolution.

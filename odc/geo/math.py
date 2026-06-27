@@ -281,7 +281,7 @@ def data_resolution_and_offset(
     data, fallback_resolution: Optional[float] = None
 ) -> Tuple[float, float]:
     """
-    Compute resolution and offset from x/y axis data.
+    Compute resolution and offset from x/y-axis data.
 
     Only uses first two coordinate values, assumes that data is regularly
     sampled.
@@ -407,7 +407,7 @@ def split_translation(t: XY[float]) -> Tuple[XY[float], XY[float]]:
 
 def is_affine_st(A: Affine, tol: float = 1e-10) -> bool:
     """
-    Check if transfrom is pure scale and translation.
+    Check if transform is pure scale and translation.
 
     :return: ``True`` if Affine transform has scale and translation components only
     :return: ``False`` if there is non-zero rotation or skew
@@ -643,7 +643,7 @@ def quasi_random_r2(
 
 class Bin1D:
     """
-    Class for translating continous coordinates to bin index.
+    Class for translating continuous coordinates to bin index.
 
     Binning is defined using following parameters:
 
@@ -758,7 +758,7 @@ class Poly2d:
         """
         Make a new transform by chaining a linear mapping ``A`` on input side.
 
-        usefull when cropping original image with GCPs.
+        useful when cropping original image with GCPs.
         """
         return Poly2d(self._cc, self._A * A)
 
