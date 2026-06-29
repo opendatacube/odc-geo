@@ -54,7 +54,7 @@ def _get_add_to_method(map):
 
 
 def add_to(
-    xx: Any,
+    xx: xr.DataArray,
     map: Any,
     *,
     name: Optional[str] = None,
@@ -155,7 +155,7 @@ def add_to(
     if gbox is not gbox0:
         xx = xx.odc.reproject(gbox, resampling=resampling)
 
-    if not is_rgb(xx):
+    if not is_rgb(xx):  # type: ignore[arg-type] # as reproject() return type hint is wrong
         xx = colorize(xx, cmap=cmap, clip=clip, vmin=vmin, vmax=vmax, robust=robust)
 
     compress_opts = [fmt]
@@ -163,7 +163,7 @@ def add_to(
         if (v := kw.pop(opt, None)) is not None:
             compress_opts.append(v)
 
-    url = xx.odc.compress(
+    url = xx.odc.compress(  # type: ignore[union-attr]
         *compress_opts, as_data_url=True, transparent=transparent_pixel
     )
     bounds = gbox.map_bounds()

@@ -21,11 +21,13 @@ from typing import (
     Tuple,
     TypeVar,
     Union,
+    overload,
 )
 
 import numpy as np
 from affine import Affine
 from numpy.polynomial.polynomial import polygrid2d, polyval2d
+from numpy.typing import NDArray
 
 from ._interop import is_dask_collection
 from .types import (
@@ -119,7 +121,15 @@ def snap_scale(s: float, tol: float = 1e-6) -> float:
     return 1 / s_inv_snapped
 
 
-def align_down(x: int, align: int) -> int:
+@overload
+def align_down(x: int, align: int) -> int: ...
+
+
+@overload
+def align_down(x: NDArray[np.integer], align: int) -> NDArray[np.integer]: ...
+
+
+def align_down(x: int | NDArray[np.integer], align: int) -> int | NDArray[np.integer]:
     """
     Align integer down.
 
@@ -129,7 +139,15 @@ def align_down(x: int, align: int) -> int:
     return x - (x % align)
 
 
-def align_up(x: int, align: int) -> int:
+@overload
+def align_up(x: int, align: int) -> int: ...
+
+
+@overload
+def align_up(x: NDArray[np.integer], align: int) -> NDArray[np.integer]: ...
+
+
+def align_up(x: int | NDArray[np.integer], align: int) -> int | NDArray[np.integer]:
     """
     Align integer up.
 
