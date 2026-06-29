@@ -10,6 +10,10 @@ inputs:
     description: "uv version to use"
     required: true
     default: "0.11.17"
+  enable-uv-cache:
+    description: "Enable uv dependency cache"
+    required: false
+    default: "true"
 
 runs:
   using: "composite"
@@ -22,7 +26,7 @@ runs:
       uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
       with:
         version: ${{ inputs.uv-version }}
-        enable-cache: "true"
+        enable-cache: ${{ inputs.enable-uv-cache }}
         cache-suffix: ${{ inputs.python-version }}
 
     - name: Install Python dependencies

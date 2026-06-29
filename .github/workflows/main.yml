@@ -63,6 +63,7 @@ jobs:
         uses: ./.github/actions/setup-python-env
         with:
           python-version: ${{ matrix.python-version }}
+          enable-uv-cache: ${{ !startsWith(github.ref, 'refs/tags/') }} # Disable cache on tags to prevent cache poisoning attack
 
       - name: Run tests
         run: uv run --python ${{ matrix.python-version }} pytest --cov=odc --cov-report=xml --durations=5 tests
