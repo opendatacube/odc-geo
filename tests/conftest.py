@@ -59,5 +59,6 @@ def country_raster(country, resolution):
 def country_raster_f32(country, resolution):
     geobox = GeoBox.from_geopolygon(country, resolution=resolution, tight=True)
     xx = rasterize(country, geobox)
-    xx = xx.where(np.random.uniform(0, 100, xx.shape), 0).astype("float32")
-    yield xx
+    yy = xr.where(xx, np.random.uniform(0, 100, xx.shape), 0).astype("float32")
+    yy.attrs = xx.attrs
+    yield yy
