@@ -1,7 +1,7 @@
 [project]
 name = "odc-geo"
 description = "Geometry Classes and Operations (opendatacube)"
-version = "0.5.1"
+version = "0.5.2"
 authors = [
     {name = "Open Data Cube"},
 ]
@@ -57,7 +57,7 @@ build-backend = "flit_core.buildapi"
 name = "odc.geo"
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.12"
 ignore_missing_imports = true
 allow_redefinition = true
 
@@ -104,6 +104,7 @@ dev = [
     "imagecodecs>=2024.12.30,!=2026.3.6,!=2026.5.10",  # https://github.com/cgohlke/imagecodecs/issues/138 affects 2026.3.6, 2026.5.10
     "ipyleaflet>=0.19.2",
     "mypy",
+    "pre-commit>=4.0.1",
     "pytest>=8.3.5",
     "pytest-cov>=6.0.0",
     "pytest-timeout>=2.3.1",

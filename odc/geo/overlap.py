@@ -184,7 +184,7 @@ class ReprojectInfo:
     scale: float
     """Scale change as a single number. (the min of scale2)"""
 
-    scale2: XY[float]
+    scale2: XY[float] | XY[int]
     """Full 2D Scale change as an XY."""
 
     transform: PointTransform

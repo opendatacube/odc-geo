@@ -24,7 +24,7 @@ def _do_chunked_reproject(
     *blocks: np.ndarray,
     axis: int = 0,
     dtype=None,
-    casting: Literal["no", "equiv", "safe", "same_kind", "unsafe"] | None = "same_kind",
+    casting: Literal["no", "equiv", "safe", "same_kind", "unsafe"] = "same_kind",
     resampling: Resampling = "nearest",
     src_nodata: Nodata = None,
     dst_nodata: Nodata = None,

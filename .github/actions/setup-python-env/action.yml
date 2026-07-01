@@ -1,0 +1,36 @@
+name: "Setup Python Environment"
+description: "Set up Python environment for the given Python version"
+
+inputs:
+  python-version:
+    description: "Python version to use"
+    required: true
+    default: "3.12"
+  uv-version:
+    description: "uv version to use"
+    required: true
+    default: "0.11.17"
+  enable-uv-cache:
+    description: "Enable uv dependency cache"
+    required: false
+    default: "true"
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      with:
+        version: ${{ inputs.uv-version }}
+        enable-cache: ${{ inputs.enable-uv-cache }}
+        cache-suffix: ${{ inputs.python-version }}
+
+    - name: Install Python dependencies
+      # --frozen: Sync without updating the uv.lock file
+      # --locked: Assert that the lockfile will remain unchanged
+      run: uv sync --frozen --all-extras --python ${{ inputs.python-version }}
+      shell: bash
