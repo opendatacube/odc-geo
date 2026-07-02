@@ -50,8 +50,9 @@ Plotting on a map
 
       # Make some sample images
       def gen_sample(iso3, crs="epsg:3857", res=60_000, vmin=0, vmax=1000):
-         xx = rasterize(country_geom(iso3, crs), res)
-         return xx.where(uniform(vmin, vmax, size=xx.shape), float("nan")).astype("float32")
+        mask = rasterize(country_geom(iso3, crs), res)
+        xx = xr.apply_ufunc(lambda a: uniform(vmin, vmax, size=a.shape), mask)
+        return xx.astype("float32").where(mask)
 
       aus, png, nzl = [gen_sample(iso3) for iso3 in ["AUS", "PNG", "NZL"]]
 
