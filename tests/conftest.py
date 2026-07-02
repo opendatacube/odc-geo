@@ -58,6 +58,10 @@ def country_raster(country, resolution):
 @pytest.fixture()
 def country_raster_f32(country, resolution):
     geobox = GeoBox.from_geopolygon(country, resolution=resolution, tight=True)
-    xx = rasterize(country, geobox)
-    xx = xx.where(np.random.uniform(0, 100, xx.shape), 0).astype("float32")
+    mask = rasterize(country, geobox)
+    xx = (
+        xr.apply_ufunc(lambda a: np.random.uniform(0, 100, size=a.shape), mask)
+        .astype("float32")
+        .where(mask)
+    )
     yield xx
