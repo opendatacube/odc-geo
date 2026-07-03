@@ -40,6 +40,12 @@ jobs:
           uv run mypy -p odc.geo
         shell: bash
 
+      - name: Build Docs
+        run: |
+          echo "🚀 Build Docs"
+          uv run make -C docs html
+        shell: bash
+
   run-tests:
     timeout-minutes: 15
     runs-on: ubuntu-latest
