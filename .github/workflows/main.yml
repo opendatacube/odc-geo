@@ -40,6 +40,24 @@ jobs:
           uv run mypy -p odc.geo
         shell: bash
 
+  docs:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up the environment
+        uses: ./.github/actions/setup-python-env
+
+      - name: Build Docs
+        run: |
+          echo "🚀 Build Docs"
+          uv run make -C docs html
+        shell: bash
+
   run-tests:
     timeout-minutes: 15
     runs-on: ubuntu-latest
