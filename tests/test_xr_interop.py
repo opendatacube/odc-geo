@@ -500,6 +500,7 @@ def test_xr_reproject(xx_epsg4326: xr.DataArray) -> None:
     assert yy_.a.odc.geobox == dst_gbox
     assert yy_.b.odc.geobox == dst_gbox
     assert (yy_.c == yy.c).all()
+    assert yy_.attrs["non_spatial_attr"] == yy.attrs["non_spatial_attr"]
 
     yy_ = yy.odc.reproject("utm")
     assert yy_.odc.geobox.crs.proj.utm_zone is not None
