@@ -488,7 +488,10 @@ def test_xr_reproject(xx_epsg4326: xr.DataArray) -> None:
 
     assert xx_epsg4326.odc.reproject(3857, dtype="float32").dtype == "float32"
 
-    yy = xr.Dataset({"a": xx0, "b": xx0 + 1, "c": xr.DataArray([2, 3, 4])})
+    yy = xr.Dataset(
+        {"a": xx0, "b": xx0 + 1, "c": xr.DataArray([2, 3, 4])},
+        attrs={"non_spatial_attr": 27},
+    )
     assert isinstance(yy.odc, ODCExtensionDs)
     assert yy.odc.geobox == xx0.odc.geobox
     yy_ = yy.odc.reproject(dst_gbox)
@@ -497,6 +500,7 @@ def test_xr_reproject(xx_epsg4326: xr.DataArray) -> None:
     assert yy_.a.odc.geobox == dst_gbox
     assert yy_.b.odc.geobox == dst_gbox
     assert (yy_.c == yy.c).all()
+    assert yy_.attrs["non_spatial_attr"] == yy.attrs["non_spatial_attr"]
 
     yy_ = yy.odc.reproject("utm")
     assert yy_.odc.geobox.crs.proj.utm_zone is not None
