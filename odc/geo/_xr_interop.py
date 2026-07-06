@@ -930,7 +930,11 @@ def _xr_reproject_ds(
 
     data_vars = {name: _maybe_reproject(da) for name, da in src.data_vars.items()}
     # Copy over non spatial-attrs and coords
-    attrs = {name: value for name, value in src.attrs if name not in SPATIAL_ATTRIBUTES}
+    attrs = {
+        name: value
+        for name, value in src.attrs.items()
+        if name not in SPATIAL_ATTRIBUTES
+    }
     dst = xarray.Dataset(data_vars, attrs=attrs)
     src_spatial_dims: tuple = spatial_dims(src) or tuple()
     src_crs_coords = _locate_crs_coords(src)
