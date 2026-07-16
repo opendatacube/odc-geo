@@ -942,7 +942,7 @@ def _xr_reproject_ds(
         if (
             src_coord_name not in dst.coords
             and not set(src_coord.dims).issubset(src_spatial_dims)
-            and src_coord not in src_crs_coords
+            and src_coord_name not in src_crs_coords
         ):
             dst.coords[src_coord_name] = src_coord
     return dst
