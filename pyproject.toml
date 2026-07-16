@@ -1,7 +1,7 @@
 [project]
 name = "odc-geo"
 description = "Geometry Classes and Operations (opendatacube)"
-version = "0.5.2"
+version = "0.5.3"
 authors = [
     {name = "Open Data Cube"},
 ]
