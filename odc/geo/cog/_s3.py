@@ -257,6 +257,8 @@ class DelayedS3Writer(S3Limits):
         if client is None:
             # Assume running locally with everyone sharing same self.mpu
             with _mpu_local_lock():
+                if mpu.started:
+                    return mpu
                 if not final_write:
                     _ = mpu.initiate(**self.kw)
                 return mpu
