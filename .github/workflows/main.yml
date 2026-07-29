@@ -24,18 +24,17 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: ~/.cache/pre-commit
-          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
-
       - name: Set up the environment
         uses: ./.github/actions/setup-python-env
 
       - name: Run Checks
         run: |
-          echo "🚀 Linting code: Running pre-commit"
-          uv run pre-commit run -a
+          echo "🚀 Linting code: Running ruff format"
+          uv run ruff format --diff
+          
+          echo "🚀 Linting code: Running ruff check"
+          uv run ruff check --fix --show-fixes --output-format grouped
+          
           echo "🚀 Static type checking: Running mypy"
           uv run mypy -p odc.geo
         shell: bash
