@@ -218,7 +218,7 @@ class GridSpec:
           Optional cache to re-use geoboxes instead of creating new one each turn: iterator of grid
           cells with :py:class:`odc.geo.geobox.GeoBox` tiles
         """
-        geopolygon = geopolygon.to_crs(self.crs, check_and_fix=True)
+        geopolygon = geopolygon.to_crs(self.crs, resolution="auto", check_and_fix=True)
         bbox = geopolygon.boundingbox
 
         for tile_index, tile_geobox in self.tiles(bbox, geobox_cache):

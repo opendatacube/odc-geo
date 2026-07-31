@@ -156,3 +156,75 @@ def test_gbox_tiles_roi(use_chunks) -> None:
         _idx = list(tt.tiles(bbox))
         assert len(_idx) == 1
         assert _idx[0] == idx
+
+
+# Grids in CRSs that only cover part of the planet, plus web mercator as a control
+# where projecting from lon/lat is already exact.
+LIMITED_AREA_GRIDS = [
+    ("epsg:3577", (-2e6, -5e6, 2.2e6, -1e6), 1_000),  # Australian Albers
+    ("epsg:32755", (0, 6e6, 8e5, 7e6), 1_000),  # UTM 55S
+    ("epsg:2193", (1e6, 4.7e6, 2.1e6, 6.2e6), 5_000),  # NZTM
+    ("epsg:5070", (-2.4e6, 2.5e5, 2.3e6, 3.2e6), 5_000),  # CONUS Albers
+    ("epsg:3413", (-3e6, -3e6, 3e6, 3e6), 20_000),  # NSIDC polar north
+    ("epsg:3857", (-2e7, -1e7, 2e7, 1e7), 40_000),  # control
+]
+
+
+def _grid(crs, bbox, resolution):
+    return GeoboxTiles(GeoBox.from_bbox(bbox, crs, resolution=resolution), (100, 100))
+
+
+def _nested_queries(gbt, n=6):
+    """Chain of lon/lat boxes growing from the grid's own footprint out to the world."""
+    b = gbt.base.footprint("epsg:4326").boundingbox
+    inner = (b.left, b.bottom, b.right, b.top)
+    outer = (-180, -90, 180, 90)
+    for i in range(n):
+        t = i / (n - 1)
+        yield geom.box(*(a + (z - a) * t for a, z in zip(inner, outer)), "epsg:4326")
+
+
+@pytest.mark.parametrize("crs, bbox, resolution", LIMITED_AREA_GRIDS)
+def test_tiles_cross_projection_monotonic(crs, bbox, resolution) -> None:
+    # A subset query can never select tiles a superset query misses. Projecting only
+    # the corners of a query broke this badly enough to return nothing at all for a
+    # global input (#87).
+    gbt = _grid(crs, bbox, resolution)
+    queries = list(_nested_queries(gbt))
+
+    prev = set(gbt.tiles(queries[0]))
+    assert len(prev) > 0
+    for inner, outer in zip(queries[:-1], queries[1:]):
+        assert inner.within(outer)
+        got = set(gbt.tiles(outer))
+        assert set(gbt.tiles(inner)) <= got, (crs, outer.boundingbox)
+        prev = got
+
+    # the grid's own footprint, and anything containing it, selects every tile
+    all_tiles = set(np.ndindex(gbt.shape.yx))
+    assert prev == all_tiles
+    assert set(gbt.tiles(geom.box(-180, -90, 180, 90, "epsg:4326"))) == all_tiles
+    assert gbt.range_from_bbox(geom.BoundingBox(-180, -90, 180, 90, "epsg:4326")) == (
+        range(gbt.shape[0]),
+        range(gbt.shape[1]),
+    )
+
+
+def test_tiles_global_query_australian_albers() -> None:
+    # the case from #87, with numbers: the grid is entirely inside the world box, so a
+    # world query has to return all of it
+    gbt = _grid(*LIMITED_AREA_GRIDS[0])
+    assert gbt.shape == (40, 42)
+
+    assert len(list(gbt.tiles(geom.box(-180, -90, 180, 90, "epsg:4326")))) == 1680
+    assert len(list(gbt.tiles(geom.box(-180, -60, 180, 10, "epsg:4326")))) == 1680
+
+    # a continent-sized query is not exempt either: the north edge of this box cuts
+    # through the top row of the grid, and every tile it touches must come back
+    aus = geom.box(100, -45, 160, -10, "epsg:4326")
+    assert (0, 7) in set(gbt.tiles(aus))
+
+    # controls: a query inside the safe region is untouched, and one on the other side
+    # of the planet still selects nothing
+    assert len(list(gbt.tiles(geom.box(130, -30, 140, -20, "epsg:4326")))) == 132
+    assert list(gbt.tiles(geom.box(-80, 20, -70, 30, "epsg:4326"))) == []

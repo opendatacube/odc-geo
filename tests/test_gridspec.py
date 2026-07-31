@@ -9,7 +9,7 @@ import numpy
 import pytest
 from pytest import approx
 
-from odc.geo import CRS, res_, resyx_, xy_, yx_
+from odc.geo import CRS, geom, res_, resyx_, xy_, yx_
 from odc.geo.geom import polygon
 from odc.geo.gridspec import GridSpec
 from odc.geo.testutils import SAMPLE_WKT_WITHOUT_AUTHORITY
@@ -138,3 +138,21 @@ def test_geojson() -> None:
     gs = GridSpec(crs, (10, 10), resolution=6_378_137 * 2 * math.pi)
     gjson = gs.geojson()
     assert len(gjson["features"]) > 0
+
+
+def test_tiles_from_geopolygon_cross_projection() -> None:
+    # projecting only the corners of the query makes the shape a chord approximation of
+    # the real footprint, which both misses and invents tiles (#87)
+    gs = GridSpec("epsg:3577", (1000, 1000), 1000)  # 1000km tiles
+
+    aus = geom.box(100, -45, 160, -10, "epsg:4326")
+    local = geom.box(130, -30, 140, -20, "epsg:4326")
+    assert local.within(aus)
+
+    tiles_aus = {idx for idx, _ in gs.tiles_from_geopolygon(aus)}
+    tiles_local = {idx for idx, _ in gs.tiles_from_geopolygon(local)}
+    assert tiles_local <= tiles_aus
+
+    # every tile handed back really does overlap the query
+    for idx, gbox in gs.tiles_from_geopolygon(aus):
+        assert not gbox.footprint("epsg:4326").disjoint(aus), idx
