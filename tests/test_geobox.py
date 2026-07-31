@@ -733,3 +733,17 @@ def test_shape(shape, allowed) -> None:
 )
 def test_geobox_anchor(gbox, expected_anchor) -> None:
     assert gbox.anchor == expected_anchor
+
+
+def test_from_geopolygon_cross_projection() -> None:
+    # the geobox has to cover the polygon it was built from, and the bounding box of
+    # the projected corners can be smaller than the projected polygon (#87)
+    aus = geom.box(100, -45, 160, -10, "epsg:4326")
+    gbox = GeoBox.from_geopolygon(aus, resolution=10_000, crs="epsg:3577")
+
+    footprint = aus.to_crs("epsg:3577", resolution=0.05, check_and_fix=True)
+    assert gbox.extent.contains(footprint)
+
+    # no reprojection, no change
+    same = GeoBox.from_geopolygon(aus, resolution=0.1)
+    assert same == GeoBox.from_geopolygon(aus, resolution=0.1, crs="epsg:4326")

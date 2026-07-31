@@ -437,6 +437,29 @@ def test_segmented_zero_area() -> None:
     )
 
 
+def test_project_to_extent() -> None:
+    extent = geom.box(-2_000_000, -5_000_000, 2_200_000, -1_000_000, epsg3577)
+
+    # the whole globe covers the extent, so its projection has to cover it too
+    out = geom.project_to_extent(geom.box(-180, -90, 180, 90, epsg4326), extent)
+    assert out.crs == epsg3577
+    assert out.area / extent.area > 0.999
+
+    # ... a region on the far side of the planet does not
+    assert geom.project_to_extent(geom.box(-80, 20, -70, 30, epsg4326), extent).is_empty
+
+    # a query well inside the safe region keeps its shape, just sampled more finely
+    local = geom.box(130, -30, 140, -20, epsg4326)
+    out = geom.project_to_extent(local, extent)
+    assert out.crs == epsg3577
+    assert out.area == approx(local.to_crs(epsg3577).area, rel=0.01)
+    assert count_coordinates(out) > count_coordinates(local.to_crs(epsg3577))
+
+    assert geom.project_to_extent(extent, extent) is extent
+    with pytest.raises(ValueError):
+        geom.project_to_extent(geom.box(0, 0, 1, 1, None), extent)
+
+
 def test_unary_union() -> None:
     box1 = geom.box(10, 10, 30, 30, crs=epsg4326)
     box2 = geom.box(20, 10, 40, 30, crs=epsg4326)

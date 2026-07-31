@@ -147,6 +147,7 @@ Shapely geometry classes with CRS information attached.
    intersects
    lonlat_bounds
    mid_longitude
+   project_to_extent
    projected_lon
    sides
 

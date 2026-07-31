@@ -27,7 +27,13 @@ from affine import Affine
 
 from . import geom
 from .crs import CRS, MaybeCRS, SomeCRS, norm_crs
-from .geom import BoundingBox, Geometry, bbox_intersection, bbox_union
+from .geom import (
+    BoundingBox,
+    Geometry,
+    bbox_intersection,
+    bbox_union,
+    project_to_extent,
+)
 from .math import (
     clamp,
     extract_anchor,
@@ -681,7 +687,9 @@ class GeoBox(GeoBoxBase):
         if crs is None or isinstance(crs, Unset):
             crs = geopolygon.crs
         else:
-            geopolygon = geopolygon.to_crs(crs)
+            # densify, else the bounding box of the projected corners can be smaller
+            # than the projected polygon and the geobox crops it (odc-geo#87)
+            geopolygon = geopolygon.to_crs(crs, resolution="auto")
 
         return GeoBox.from_bbox(
             geopolygon.boundingbox,
@@ -1444,7 +1452,12 @@ class GeoboxTiles:
         """
 
         if bbox.crs is not None:
-            bbox = self._gbox.project(bbox.polygon).boundingbox
+            poly = bbox.polygon
+            if bbox.crs != self._gbox.crs:
+                poly = project_to_extent(poly, self._gbox.extent)
+                if poly.is_empty:
+                    return range(0), range(0)
+            bbox = self._gbox.project(poly).boundingbox
 
         def _clamp(span: Tuple[float, float], N: int):
             a1, a2 = span
@@ -1479,7 +1492,9 @@ class GeoboxTiles:
             poly = query
 
         if target_crs is not None and poly.crs != target_crs:
-            poly = poly.to_crs(target_crs, check_and_fix=True)
+            poly = project_to_extent(poly, self._gbox.extent)
+            if poly.is_empty:
+                return
 
         yy, xx = self.range_from_bbox(poly.boundingbox)
         for idx in itertools.product(yy, xx):

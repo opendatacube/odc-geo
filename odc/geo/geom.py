@@ -1498,6 +1498,55 @@ def lonlat_bounds(
     return BoundingBox.from_xy(xx_range, bbox.range_y, crs=4326)
 
 
+def _projects_cleanly(geom: Geometry) -> bool:
+    """Did a projection produce a usable shape, or did it fall apart?"""
+    if geom.is_empty:
+        return False
+    return geom.is_valid and all(math.isfinite(v) for v in geom.boundingbox.bbox)
+
+
+def project_to_extent(geom: Geometry, extent: Geometry) -> Geometry:
+    """
+    Project ``geom`` into the CRS of ``extent``, robust to ``geom`` being large.
+
+    Transforming the vertices of a geometry and taking the result at face value only
+    works while the transform is near-affine over the geometry: straight edges become
+    chords of the real, curved ones, and vertices outside the destination's domain land
+    somewhere arbitrary or not at all. For a query spanning much of the globe the
+    outcome can miss ``extent`` entirely (odc-geo#87).
+
+    Densifying fixes the chords. Where the destination cannot represent the input at
+    all, ``geom`` is first clipped to ``extent``, which is lossless for callers that
+    only want the overlap with ``extent`` anyway. Some inputs have no faithful image at
+    all -- a lon/lat box wrapping past the destination's antimeridian, or one covering a
+    pole -- and for those the whole of ``extent`` is returned, so callers over-select
+    rather than silently lose the overlap.
+
+    :param geom: Geometry in any CRS
+    :param extent: Region of interest, in the destination CRS
+    :return: ``geom`` in the CRS of ``extent``, empty only when there is no overlap
+    """
+    if geom.crs is None or extent.crs is None:
+        raise ValueError("Both geometries need a CRS")
+    if geom.crs == extent.crs:
+        return geom
+
+    clip = extent.to_crs(geom.crs, resolution="auto")
+    if _projects_cleanly(clip):
+        clipped = geom & clip
+        if clipped.is_empty:
+            return Geometry(clipped.geom, extent.crs)
+    else:
+        # ``extent`` has no faithful image in the source CRS either, so there is
+        # nothing to clip against
+        clipped = geom
+
+    out = clipped.to_crs(extent.crs, resolution="auto", check_and_fix=True)
+    if _projects_cleanly(out):
+        return out
+    return extent
+
+
 def mid_longitude(geom: Geometry) -> float:
     """
     Compute longitude of the center point of a geometry.
