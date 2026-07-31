@@ -458,10 +458,16 @@ def densify(
     """
     Adds points so they are at most `resolution` units apart.
     """
+    if len(coords) == 0:
+        return []
+    if not resolution > 0:
+        # nothing to add, and the loop below would never terminate
+        return [cast(Tuple[float, float], p) for p in coords]
+
     d2 = resolution**2
 
     def short_enough(p1, p2):
-        return (p1[0] ** 2 + p2[0] ** 2) < d2
+        return ((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2) < d2
 
     new_coords: List[Tuple[float, float]] = [cast(Tuple[float, float], coords[0])]
     for p1, p2 in zip(coords[:-1], coords[1:]):
@@ -1532,4 +1538,10 @@ def count_coordinates(g: Geometry | Iterable[Geometry] | BoundingBox) -> int:
 
 def _auto_resolution(g: Geometry) -> float:
     # aim for ~100 points per side of a square
-    return math.sqrt(g.area) * 4 / 100
+    res = math.sqrt(g.area) * 4 / 100
+    if res > 0:
+        return res
+    # zero-area inputs (lines, degenerate polygons) still need densifying,
+    # fall back to the extent
+    bbox = g.boundingbox
+    return max(bbox.span_x, bbox.span_y) / 25

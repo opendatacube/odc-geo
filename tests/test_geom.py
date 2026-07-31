@@ -401,6 +401,41 @@ def test_densify() -> None:
     assert densify(s_x10, 5) == [(0, 0), (5, 0), (10, 0)]
     assert densify(s_x10, 4) == [(0, 0), (4, 0), (8, 0), (10, 0)]
 
+    # the "is this segment already short enough" test has to measure the segment, a
+    # long one is not exempt just because its endpoints sit near x=0
+    for coords in (
+        [(0.1, -80.0), (0.1, 80.0)],
+        [(50.0, -80.0), (50.0, 80.0)],
+        [(-80.0, 0.1), (80.0, 0.1)],
+        [(0.0, 0.0), (0.0, 5.0), (10.0, 5.0)],
+    ):
+        pts = densify(coords, 10)
+        assert max(math.dist(a, b) for a, b in zip(pts[:-1], pts[1:])) <= 10 + 1e-9
+
+    # no positive step means nothing can be added, and used to spin forever
+    assert densify(s_x10, 0) == s_x10
+    assert densify(s_x10, -1) == s_x10
+    assert densify([], 1) == []
+
+
+def test_segmented_zero_area() -> None:
+    # resolution="auto" was derived from area, which is 0 for anything 1-D, and a
+    # zero step never terminated
+    ll = geom.line([(0.0, -80.0), (0.0, 80.0)], epsg4326)
+    assert len(ll.segmented(10).geom.coords) == 17
+    assert len(ll.to_crs(epsg3857, resolution="auto").geom.coords) > 2
+
+    sliver = geom.polygon([(1, 1), (2, 2), (3, 3), (1, 1)], crs=epsg4326)
+    assert sliver.to_crs(epsg3857, resolution="auto").is_empty is False
+
+    pt = geom.point(10, 20, epsg4326)
+    assert pt.to_crs(epsg3857, resolution="auto").geom.geom_type == "Point"
+    assert (
+        geom.Geometry({"type": "Polygon", "coordinates": []}, epsg4326)
+        .to_crs(epsg3857, resolution="auto")
+        .is_empty
+    )
+
 
 def test_unary_union() -> None:
     box1 = geom.box(10, 10, 30, 30, crs=epsg4326)
