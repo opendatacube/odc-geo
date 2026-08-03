@@ -460,7 +460,13 @@ def densify(
     """
     if len(coords) == 0:
         return []
-    assert resolution > 0
+    if resolution <= 0:
+        # A degenerate (zero-extent) geometry legitimately produces resolution=0
+        # via callers that auto-derive it from a bounding-box span (e.g. a single
+        # point or an empty GeoBox slice). There is nothing to subdivide by, and
+        # looping with a non-positive step would never terminate, so leave the
+        # coordinates as-is instead.
+        return [cast(Tuple[float, float], p) for p in coords]
 
     d2 = resolution**2
 
@@ -1535,10 +1541,13 @@ def count_coordinates(g: Geometry | Iterable[Geometry] | BoundingBox) -> int:
 
 
 def _auto_resolution(g: Geometry) -> float:
-    # aim for ~100 points per side of a square
+    # aim for ~100 points per side of a square. Not a precision guard: area is
+    # never negative, this just tells apart a genuinely 2D geometry from a
+    # degenerate one (line, point, sliver polygon) where sqrt(area) is a poor
+    # resolution estimate (0 for a point/line, near-0 for a thin polygon).
     if g.area > 0:
         return math.sqrt(g.area) * 4 / 100
-    # zero-area inputs (lines, degenerate polygons) still need densifying,
-    # fall back to the extent
+    # fall back to the bounding-box extent; can still be 0 for a single point,
+    # which densify() now tolerates instead of asserting.
     bbox = g.boundingbox
     return max(bbox.span_x, bbox.span_y) / 25
