@@ -413,12 +413,28 @@ def test_densify() -> None:
         pts = densify(coords, 10)
         assert max(math.dist(a, b) for a, b in zip(pts[:-1], pts[1:])) <= 10 + 1e-9
 
-    # a non-positive step would make the interpolation loop non-terminating
-    with pytest.raises(AssertionError):
-        densify(s_x10, 0)
-    with pytest.raises(AssertionError):
-        densify(s_x10, -1)
+    # a non-positive step would make the interpolation loop non-terminating; a degenerate
+    # (zero-extent) geometry legitimately derives resolution=0 from its own bounding box
+    # (e.g. GeoBox._reproject_resolution, ui.py's outline()), so leave coords unchanged
+    # rather than raising.
+    assert densify(s_x10, 0) == s_x10
+    assert densify(s_x10, -1) == s_x10
     assert densify([], 1) == []
+    assert densify([], 0) == []
+
+
+def test_reproject_zero_extent_geobox() -> None:
+    # a GeoBox with a zero-size shape has a zero-span bounding box in both axes, so
+    # _reproject_resolution derives resolution=0 -- densify must not raise on that.
+    from odc.geo import wh_
+    from odc.geo.geobox import GeoBox
+
+    gbox = GeoBox.from_bbox([0, 0, 20, 10], "epsg:3857", shape=wh_(200, 100))
+    empty = gbox[:0, :0]
+    assert empty.extent.boundingbox.span_x == 0
+    assert empty.extent.boundingbox.span_y == 0
+    assert empty.footprint("epsg:4326").geom_type == "Polygon"
+    assert isinstance(empty._repr_html_(), str)
 
 
 def test_segmented_zero_area() -> None:
