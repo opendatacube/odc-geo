@@ -646,7 +646,7 @@ def _extract_transform(
             # non-axis aligned geobox detected
             # adjust transform
             #  world <- pix' <- pix
-            transform = original_transform * transform
+            transform = original_transform @ transform
 
         if any(map(math.isnan, transform)):
             transform = original_transform
