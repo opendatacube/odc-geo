@@ -963,7 +963,6 @@ def test_mul_affine() -> None:
     assert g.transform(Affine.translation(10, 100)) == geom.point(11, 102, epsg4326)
 
     assert g.transform(x10) == geom.point(10, 20, epsg4326)
-    assert g.transform(x10) == g.transform(x10)
 
     mg = geom.multigeom([g, g, g])
     assert mg.is_multi
@@ -971,7 +970,9 @@ def test_mul_affine() -> None:
     assert mg.transform(x10).crs == mg.crs
     assert mg.transform(x10, crs=None).crs is None
 
-    assert mg.transform(x10) == mg.transform(x10)
+    assert mg.transform(x10) == geom.multigeom(
+        [geom.point(10, 20, epsg4326), geom.point(10, 20, epsg4326), geom.point(10, 20, epsg4326)]
+    )
 
 
 def test_deprecation_warnings() -> None:
