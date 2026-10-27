@@ -289,9 +289,9 @@ class BoundingBox(Sequence[float]):
         :param transform: Affine mapping from pixel to world
         :param crs: CRS
         """
-        nx, ny = shape_(shape).xy
-        pts = [(0, 0), (nx, 0), (nx, ny), (0, ny)]
-        transform.itransform(pts)
+        nx, ny = map(float, shape_(shape).xy)
+        pts = [(0.0, 0.0), (nx, 0.0), (nx, ny), (0.0, ny)]
+        transform.itransform(pts)  # type: ignore
         xx, yy = list(zip(*pts))
         return BoundingBox.from_xy((min(xx), max(xx)), (min(yy), max(yy)), crs)
 
@@ -1296,7 +1296,7 @@ def polygon_from_transform(
     """
     x1, y1 = shape_(shape).xy
     points = [(0.0, 0.0), (0.0, y1), (x1, y1), (x1, 0.0), (0.0, 0.0)]
-    transform.itransform(points)
+    transform.itransform(points)  # type: ignore
     return polygon(points, crs=crs)
 
 
