@@ -522,6 +522,8 @@ def compute_reproject_roi(
     # Same projection case
     #
     A = tr.back.linear  # dst->src
+    assert A is not None
+
     scale2 = get_scale_from_linear_transform(A)
     scale = min(scale2.xy)
     read_shrink = _pick_read_scale(scale)

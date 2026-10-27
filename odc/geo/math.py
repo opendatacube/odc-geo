@@ -13,6 +13,7 @@ from __future__ import annotations
 from math import ceil, floor, fmod, isfinite, log2
 from typing import (
     Any,
+    Callable,
     Iterator,
     List,
     Literal,
@@ -747,7 +748,10 @@ class Poly2d:
 
         sx, zx, tx, zy, sy, ty, *_ = A
         if abs(zx) < tol and abs(zy) < tol:
-            self._norm = lambda x, y: (np.polyval([sx, tx], x), np.polyval([sy, ty], y))
+            self._norm: Callable[[Any, Any], tuple[Any, Any]] = lambda x, y: (
+                np.polyval([sx, tx], x),
+                np.polyval([sy, ty], y),
+            )
             self._safe_to_grid = True
         else:
             self._norm = lambda x, y: A * (x, y)
