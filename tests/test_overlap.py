@@ -280,16 +280,16 @@ def test_compute_reproject_roi_paste() -> None:
     _yes(src[10:, 29:], src)
 
     # subpixel translation below threshhold
-    _no_(src, src * t_(0.3, 0.3))
-    _yes(src, src * t_(0.3, 0.3), ttol=0.5)
-    _no_(src, src * t_(0.0, 0.1))
-    _yes(src, src * t_(0.0, 0.1), ttol=0.15)
-    _no_(src, src * t_(-0.1, 0.0))
-    _yes(src, src * t_(-0.1, 0.0), ttol=0.15)
+    _yes(src, src @ t_(0.3, 0.3), ttol=0.5)
+    _no_(src, src @ t_(0.0, 0.1))
+    _no_(src, src @ t_(0.3, 0.3))
+    _yes(src, src @ t_(0.0, 0.1), ttol=0.15)
+    _no_(src, src @ t_(-0.1, 0.0))
+    _yes(src, src @ t_(-0.1, 0.0), ttol=0.15)
 
     # tiny scale deviations
-    _no_(src, src[20:, :30] * s_(1.003, 1.003))
-    _yes(src, src[20:, :30] * s_(1.003, 1.003), stol=0.01)
+    _no_(src, src[20:, :30] @ s_(1.003, 1.003))
+    _yes(src, src[20:, :30] @ s_(1.003, 1.003), stol=0.01)
 
     # integer shrink
     _no_(src, src.zoom_out(2.3))

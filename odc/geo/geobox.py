@@ -7,6 +7,7 @@ from __future__ import annotations
 import importlib
 import itertools
 import math
+import warnings
 from collections import OrderedDict, namedtuple
 from typing import (
     Any,
@@ -948,9 +949,19 @@ class GeoBox(GeoBoxBase):
         return GeoBox(self._shape, self._affine @ transform, self._crs)
 
     def __mul__(self, transform: Affine) -> "GeoBox":
+        warnings.warn(
+            "Use `@` matmul instead of `*` mul operator for matrix multiplication",
+            PendingDeprecationWarning,
+            stacklevel=2,
+        )
         return self.__matmul__(transform)
 
     def __rmul__(self, transform: Affine) -> "GeoBox":
+        warnings.warn(
+            "Use `@` matmul instead of `*` mul operator for matrix multiplication",
+            PendingDeprecationWarning,
+            stacklevel=2,
+        )
         return self.__rmatmul__(transform)
 
     def snap_to(self, other: "GeoBox") -> "GeoBox":
@@ -1048,7 +1059,7 @@ class GeoBox(GeoBoxBase):
         """
         ny, _ = self._shape
         A = Affine.translation(0, ny) @ Affine.scale(1, -1)
-        return self * A
+        return self @ A
 
     def flipx(self) -> "GeoBox":
         """
@@ -1058,7 +1069,7 @@ class GeoBox(GeoBoxBase):
         """
         _, nx = self._shape
         A = Affine.translation(nx, 0) @ Affine.scale(-1, 1)
-        return self * A
+        return self @ A
 
     def translate_pix(self, tx: float, ty: float) -> "GeoBox":
         """
@@ -1067,7 +1078,7 @@ class GeoBox(GeoBoxBase):
         ``(0,0)`` of the new GeoBox will be at the same location as pixel ``(tx, ty)`` in the original
         GeoBox.
         """
-        return self * Affine.translation(tx, ty)
+        return self @ Affine.translation(tx, ty)
 
     @property
     def left(self) -> "GeoBox":
@@ -1103,8 +1114,7 @@ class GeoBox(GeoBoxBase):
         """
         ny, nx = self._shape
         c0 = self._affine @ (nx * 0.5, ny * 0.5)
-        A = Affine.rotation(deg, c0) @ self._affine
-        return GeoBox(self._shape, A, self._crs)
+        return Affine.rotation(deg, c0) @ self
 
     def _confirm_axis_aligned(self, raise_error: Optional[str] = None) -> bool:
         if is_affine_st(self._affine):
@@ -1342,7 +1352,7 @@ def rotate(gbox: GeoBox, deg: float) -> GeoBox:
 
 def affine_transform_pix(gbox: GeoBox, transform: Affine) -> GeoBox:
     """Alias for :py:meth:`odc.geo.geobox.GeoBox.__mul__`."""
-    return gbox * transform
+    return gbox @ transform
 
 
 class GeoboxTiles:
