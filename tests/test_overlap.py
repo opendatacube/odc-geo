@@ -56,7 +56,7 @@ def test_affine_rsw() -> None:
 
         R, W, S = decompose_rws(A)
 
-        assert diff_affine(A, R * W * S) < tol
+        assert diff_affine(A, R @ W @ S) < tol
         assert diff_affine(S, mkA(0, scale)) < tol
         assert diff_affine(R, mkA(a, translation=translation)) < tol
 
@@ -78,7 +78,7 @@ def test_affine_rsw() -> None:
 def test_fit() -> None:
     def run_test(A, n, tol: float = 1e-5) -> None:
         X = [xy_(uniform(0, 1), uniform(0, 1)) for _ in range(n)]
-        Y = [xy_(A * pt.xy) for pt in X]
+        Y = [xy_(A @ pt.xy) for pt in X]
         A_ = affine_from_pts(X, Y)
 
         assert diff_affine(A, A_) < tol
