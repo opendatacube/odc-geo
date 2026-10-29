@@ -983,6 +983,12 @@ class Geometry(SupportsCoords[float]):
         t = self.geom_type
         return t.startswith("Multi") or t == "GeometryCollection"
 
+    def __rmatmul__(self, A: Affine) -> "Geometry":
+        """
+        Map geometry points through linear transform ``A*g``.
+        """
+        return self.transform(A)
+
     def __rmul__(self, A: Affine) -> "Geometry":
         """
         Map geometry points through linear transform ``A*g``.
