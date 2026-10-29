@@ -185,7 +185,7 @@ class BoundingBox(Sequence[float]):
         Apply linear transform on four points of the bounding box and compute bounding box of these
         four points.
         """
-        pts = [transform * pt for pt in self.points]
+        pts = [transform @ pt for pt in self.points]
         xx = [x for x, _ in pts]
         yy = [y for _, y in pts]
         return BoundingBox(min(xx), min(yy), max(xx), max(yy), self._crs)
@@ -702,7 +702,7 @@ class Geometry(SupportsCoords[float]):
         if isinstance(func, Affine):
 
             def _tr(A, x, y):
-                _xy = [A * xy for xy in zip(x, y)]
+                _xy = [A @ xy for xy in zip(x, y)]
                 return [x for x, _ in _xy], [y for _, y in _xy]
 
             _geom = ops.transform(functools.partial(_tr, func), self.geom)
@@ -982,6 +982,12 @@ class Geometry(SupportsCoords[float]):
         """True for multi-geometry types."""
         t = self.geom_type
         return t.startswith("Multi") or t == "GeometryCollection"
+
+    def __rmatmul__(self, A: Affine) -> "Geometry":
+        """
+        Map geometry points through linear transform ``A*g``.
+        """
+        return self.transform(A)
 
     def __rmul__(self, A: Affine) -> "Geometry":
         """

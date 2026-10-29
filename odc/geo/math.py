@@ -440,7 +440,7 @@ def approx_equal_affine(a: Affine, b: Affine, tol: float = 1e-6) -> bool:
     """
     Check if two affine matrices are approximately equal.
     """
-    sx, z1, tx, z2, sy, ty = map(lambda v: maybe_int(v, tol), (~a * b)[:6])
+    sx, z1, tx, z2, sy, ty = map(lambda v: maybe_int(v, tol), (~a @ b)[:6])
     return (sx, z1, tx, z2, sy, ty) == (1, 0, 0, 0, 1, 0)
 
 
@@ -754,7 +754,7 @@ class Poly2d:
             )
             self._safe_to_grid = True
         else:
-            self._norm = lambda x, y: A * (x, y)
+            self._norm = lambda x, y: A @ (x, y)
 
     def __call__(self, x: Any, y: Any = None) -> Any:
         """
@@ -782,7 +782,7 @@ class Poly2d:
 
         useful when cropping original image with GCPs.
         """
-        return Poly2d(self._cc, self._A * A)
+        return Poly2d(self._cc, self._A @ A)
 
     @staticmethod
     def fit(aa: np.ndarray, bb: np.ndarray) -> "Poly2d":
@@ -904,7 +904,7 @@ def extract_anchor(pix2wld: Affine, tol: float = 1e-3) -> AnchorEnum | XY[float]
         x = snap_scale(maybe_zero(x, tol), tol)
         return 0 if x >= 1 else x
 
-    anchor = tuple(_anchor(px, tol) for px in (~pix2wld) * (0, 0))
+    anchor = tuple(_anchor(px, tol) for px in (~pix2wld) @ (0, 0))
     if anchor == (0, 0):
         return AnchorEnum.EDGE
     if anchor == (0.5, 0.5):

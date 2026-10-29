@@ -56,7 +56,7 @@ def test_affine_rsw() -> None:
 
         R, W, S = decompose_rws(A)
 
-        assert diff_affine(A, R * W * S) < tol
+        assert diff_affine(A, R @ W @ S) < tol
         assert diff_affine(S, mkA(0, scale)) < tol
         assert diff_affine(R, mkA(a, translation=translation)) < tol
 
@@ -78,7 +78,7 @@ def test_affine_rsw() -> None:
 def test_fit() -> None:
     def run_test(A, n, tol: float = 1e-5) -> None:
         X = [xy_(uniform(0, 1), uniform(0, 1)) for _ in range(n)]
-        Y = [xy_(A * pt.xy) for pt in X]
+        Y = [xy_(A @ pt.xy) for pt in X]
         A_ = affine_from_pts(X, Y)
 
         assert diff_affine(A, A_) < tol
@@ -280,16 +280,16 @@ def test_compute_reproject_roi_paste() -> None:
     _yes(src[10:, 29:], src)
 
     # subpixel translation below threshhold
-    _no_(src, src * t_(0.3, 0.3))
-    _yes(src, src * t_(0.3, 0.3), ttol=0.5)
-    _no_(src, src * t_(0.0, 0.1))
-    _yes(src, src * t_(0.0, 0.1), ttol=0.15)
-    _no_(src, src * t_(-0.1, 0.0))
-    _yes(src, src * t_(-0.1, 0.0), ttol=0.15)
+    _yes(src, src @ t_(0.3, 0.3), ttol=0.5)
+    _no_(src, src @ t_(0.0, 0.1))
+    _no_(src, src @ t_(0.3, 0.3))
+    _yes(src, src @ t_(0.0, 0.1), ttol=0.15)
+    _no_(src, src @ t_(-0.1, 0.0))
+    _yes(src, src @ t_(-0.1, 0.0), ttol=0.15)
 
     # tiny scale deviations
-    _no_(src, src[20:, :30] * s_(1.003, 1.003))
-    _yes(src, src[20:, :30] * s_(1.003, 1.003), stol=0.01)
+    _no_(src, src[20:, :30] @ s_(1.003, 1.003))
+    _yes(src, src[20:, :30] @ s_(1.003, 1.003), stol=0.01)
 
     # integer shrink
     _no_(src, src.zoom_out(2.3))

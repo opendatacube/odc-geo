@@ -959,7 +959,7 @@ def test_mul_affine() -> None:
     g = geom.point(1, 2, epsg4326)
     x10 = Affine.scale(10)
 
-    with pytest.warns(DeprecationWarning):
+    with pytest.warns((DeprecationWarning, PendingDeprecationWarning)):
         # it warns because x10.__mul__(g) is called first and it attempts to
         # iterate over g, which is deprecated.
         #
@@ -968,6 +968,7 @@ def test_mul_affine() -> None:
 
         assert x10 * g == geom.point(10, 20, epsg4326)
         assert x10 * g == g.transform(x10)
+        assert x10 @ g == x10 * g
 
     mg = geom.multigeom([g, g, g])
     assert mg.is_multi
@@ -975,8 +976,9 @@ def test_mul_affine() -> None:
     assert mg.transform(x10).crs == mg.crs
     assert mg.transform(x10, crs=None).crs is None
 
-    with pytest.warns(DeprecationWarning):
+    with pytest.warns((DeprecationWarning, PendingDeprecationWarning)):
         assert x10 * mg == mg.transform(x10)
+        assert x10 @ mg == mg.transform(x10)
 
 
 def test_deprecation_warnings() -> None:

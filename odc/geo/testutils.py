@@ -56,9 +56,9 @@ def mkA(
 ) -> Affine:
     return (
         Affine.translation(*translation)
-        * Affine.rotation(rot)
-        * Affine.shear(shear)
-        * Affine.scale(*scale)
+        @ Affine.rotation(rot)
+        @ Affine.shear(shear)
+        @ Affine.scale(*scale)
     )
 
 
@@ -109,7 +109,7 @@ def xy_norm(
     sx, tx = norm_v(x)
     sy, ty = norm_v(y)
 
-    A = Affine(sx, 0, tx, 0, sy, ty) * A_rot
+    A = Affine(sx, 0, tx, 0, sy, ty) @ A_rot
 
     return x, y, ~A
 

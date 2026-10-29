@@ -73,7 +73,7 @@ class LinearPointTransform:
 
     def __call__(self, pts: Sequence[XY[float]]) -> Sequence[XY[float]]:
         A = self.A
-        return [xy_(A * pt.xy) for pt in pts]
+        return [xy_(A @ pt.xy) for pt in pts]
 
     def __repr__(self) -> str:
         return f"LinearPointTransform(\n  {self.A!r})"
@@ -234,7 +234,7 @@ def get_scale_at_point(
 
 def _same_crs_pix_transform(src: GeoBox, dst: GeoBox) -> LinearPointTransform:
     assert src.crs == dst.crs
-    _fwd = (~dst.transform) * src.transform  # src -> dst
+    _fwd = (~dst.transform) @ src.transform  # src -> dst
     return LinearPointTransform(_fwd)
 
 
@@ -381,7 +381,7 @@ def _can_paste(
 
     read_scale = _pick_read_scale(scale)
     # A_ maps coords from `dst` to `src.overview[scale]`
-    A_ = Affine.scale(1 / read_scale, 1 / read_scale) * A
+    A_ = Affine.scale(1 / read_scale, 1 / read_scale) @ A
 
     sx, _, tx, _, sy, ty, *_ = A_  # tx, ty are in dst pixel space
 
@@ -542,7 +542,7 @@ def compute_reproject_roi(
             # compute overlap in scaled down image, then upscale source overlap
             assert isinstance(src, GeoBox)
             _src = src.zoom_out(read_shrink)
-            A_ = snap_affine(Affine.scale(1 / read_shrink) * A, ttol=ttol, stol=stol)
+            A_ = snap_affine(Affine.scale(1 / read_shrink) @ A, ttol=ttol, stol=stol)
             roi_src, roi_dst = box_overlap(_src.shape, dst.shape, A_)
             roi_src = scaled_up_roi(roi_src, read_shrink)
     else:

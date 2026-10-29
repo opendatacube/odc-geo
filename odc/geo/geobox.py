@@ -7,6 +7,7 @@ from __future__ import annotations
 import importlib
 import itertools
 import math
+import warnings
 from collections import OrderedDict, namedtuple
 from typing import (
     Any,
@@ -221,10 +222,10 @@ class GeoBoxBase:
         return True
 
     def wld2pix(self, x, y):
-        return (~self._affine) * (x, y)
+        return (~self._affine) @ (x, y)
 
     def pix2wld(self, x, y):
-        return self._affine * (x, y)
+        return self._affine @ (x, y)
 
     @property
     def extent(self) -> Geometry:
@@ -366,12 +367,12 @@ class GeoBoxBase:
         ty, tx = (s.start for s in roi)
         ny, nx = roi_shape(roi)
 
-        affine = self._affine * Affine.translation(tx, ty)
+        affine = self._affine @ Affine.translation(tx, ty)
         return shape_((ny, nx)), affine
 
     def compute_zoom_out(self, factor: float) -> Tuple[Shape2d, Affine]:
         ny, nx = (max(1, math.ceil(s / factor)) for s in self.shape)
-        A = self._affine * Affine.scale(factor, factor)
+        A = self._affine @ Affine.scale(factor, factor)
         return (shape_((ny, nx)), A)
 
     def compute_zoom_to(
@@ -402,7 +403,7 @@ class GeoBoxBase:
 
         shape = shape_(shape)
         sy, sx = (N / float(n) for N, n in zip(self._shape, shape.shape))
-        A = self._affine * Affine.scale(sx, sy)
+        A = self._affine @ Affine.scale(sx, sy)
         return (shape, A)
 
     def project(self, g: Geometry) -> Geometry:
@@ -599,7 +600,7 @@ class GeoBox(GeoBoxBase):
                 offx, nx = snap_grid(bbox.left, bbox.right, rx, _snap.x, tol=tol)
                 offy, ny = snap_grid(bbox.bottom, bbox.top, ry, _snap.y, tol=tol)
 
-            affine = Affine.translation(offx, offy) * Affine.scale(rx, ry)
+            affine = Affine.translation(offx, offy) @ Affine.scale(rx, ry)
             return GeoBox((ny, nx), crs=bbox.crs, affine=affine)
 
         if shape is None:
@@ -627,7 +628,7 @@ class GeoBox(GeoBoxBase):
             offx, _ = snap_grid(bbox.left, bbox.right, rx, _snap.x, tol=tol)
             offy, _ = snap_grid(bbox.bottom, bbox.top, ry, _snap.y, tol=tol)
 
-        affine = Affine.translation(offx, offy) * Affine.scale(rx, ry)
+        affine = Affine.translation(offx, offy) @ Affine.scale(rx, ry)
         return GeoBox((ny, nx), crs=bbox.crs, affine=affine)
 
     @staticmethod
@@ -715,7 +716,7 @@ class GeoBox(GeoBoxBase):
             _round_to_res(buf, res)
             for buf, res in zip((ybuff, xbuff), self.resolution.yx)
         )
-        affine = self._affine * Affine.translation(-bx, -by)
+        affine = self._affine @ Affine.translation(-bx, -by)
 
         ny, nx = (sz + 2 * b for sz, b in zip(self._shape, (by, bx)))
 
@@ -916,7 +917,7 @@ class GeoBox(GeoBoxBase):
             and self._crs == other._crs
         )
 
-    def __rmul__(self, transform: Affine) -> "GeoBox":
+    def __rmatmul__(self, transform: Affine) -> "GeoBox":
         """
         Apply affine transform on CRS side.
 
@@ -929,13 +930,13 @@ class GeoBox(GeoBoxBase):
            :py:class:`~odc.geo.gebox.GeoBox` of the same pixel shape but
            covering different region.
         """
-        return GeoBox(self._shape, transform * self._affine, self._crs)
+        return GeoBox(self._shape, transform @ self._affine, self._crs)
 
-    def __mul__(self, transform: Affine) -> "GeoBox":
+    def __matmul__(self, transform: Affine) -> "GeoBox":
         """
         Apply affine transform on pixel side.
 
-        ``X_old_pix = transform * X_new_pix``
+        ``X_old_pix = transform @ X_new_pix``
 
         :param transform:
            Affine matrix mapping from new pixel coordinate space to pixel coordinate
@@ -945,7 +946,23 @@ class GeoBox(GeoBoxBase):
           :py:class:`~odc.geo.gebox.GeoBox` of the same pixel shape but covering different
           region. Pixel coordinates in the output relate to input coordinates via ``transform``.
         """
-        return GeoBox(self._shape, self._affine * transform, self._crs)
+        return GeoBox(self._shape, self._affine @ transform, self._crs)
+
+    def __mul__(self, transform: Affine) -> "GeoBox":
+        warnings.warn(
+            "Use `@` matmul instead of `*` mul operator for matrix multiplication",
+            PendingDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.__matmul__(transform)
+
+    def __rmul__(self, transform: Affine) -> "GeoBox":
+        warnings.warn(
+            "Use `@` matmul instead of `*` mul operator for matrix multiplication",
+            PendingDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.__rmatmul__(transform)
 
     def snap_to(self, other: "GeoBox") -> "GeoBox":
         """
@@ -976,7 +993,7 @@ class GeoBox(GeoBoxBase):
         pady = padx if pady is None else pady
 
         ny, nx = self._shape.yx
-        A = self._affine * Affine.translation(-padx, -pady)
+        A = self._affine @ Affine.translation(-padx, -pady)
         shape = (ny + pady * 2, nx + padx * 2)
         return GeoBox(shape, A, self._crs)
 
@@ -1041,8 +1058,8 @@ class GeoBox(GeoBoxBase):
         :returns: GeoBox covering the same region but with Y-axis flipped
         """
         ny, _ = self._shape
-        A = Affine.translation(0, ny) * Affine.scale(1, -1)
-        return self * A
+        A = Affine.translation(0, ny) @ Affine.scale(1, -1)
+        return self @ A
 
     def flipx(self) -> "GeoBox":
         """
@@ -1051,8 +1068,8 @@ class GeoBox(GeoBoxBase):
         :returns: GeoBox covering the same region but with X-axis flipped
         """
         _, nx = self._shape
-        A = Affine.translation(nx, 0) * Affine.scale(-1, 1)
-        return self * A
+        A = Affine.translation(nx, 0) @ Affine.scale(-1, 1)
+        return self @ A
 
     def translate_pix(self, tx: float, ty: float) -> "GeoBox":
         """
@@ -1061,7 +1078,7 @@ class GeoBox(GeoBoxBase):
         ``(0,0)`` of the new GeoBox will be at the same location as pixel ``(tx, ty)`` in the original
         GeoBox.
         """
-        return self * Affine.translation(tx, ty)
+        return self @ Affine.translation(tx, ty)
 
     @property
     def left(self) -> "GeoBox":
@@ -1096,8 +1113,8 @@ class GeoBox(GeoBoxBase):
         y-axis)
         """
         ny, nx = self._shape
-        c0 = self._affine * (nx * 0.5, ny * 0.5)
-        return Affine.rotation(deg, c0) * self
+        c0 = self._affine @ (nx * 0.5, ny * 0.5)
+        return Affine.rotation(deg, c0) @ self
 
     def _confirm_axis_aligned(self, raise_error: Optional[str] = None) -> bool:
         if is_affine_st(self._affine):
@@ -1162,7 +1179,7 @@ def pixel_translation(a: GeoBox, b: GeoBox) -> XY[float]:
     #    0  1  ty
     #    0  0   1
     # Such that tx,ty are almost integer.
-    sx, z1, tx, z2, sy, ty, *_ = ~b.affine * a.affine
+    sx, z1, tx, z2, sy, ty, *_ = ~b.affine @ a.affine
 
     if not (
         numpy.isclose(sx, 1)
@@ -1216,7 +1233,7 @@ def geobox_union_conservative(geoboxes: List[GeoBox]) -> GeoBox:
         bounding_box_in_pixel_domain(geobox, reference=reference) for geobox in geoboxes
     )
 
-    affine = reference.affine * Affine.translation(*bbox[:2])
+    affine = reference.affine @ Affine.translation(*bbox[:2])
     return GeoBox(shape=bbox.shape, affine=affine, crs=reference.crs)
 
 
@@ -1253,7 +1270,7 @@ def geobox_intersection_conservative(geoboxes: List[GeoBox]) -> GeoBox:
             crs=bbox.crs,
         )
 
-    affine = reference.affine * Affine.translation(*bbox[:2])
+    affine = reference.affine @ Affine.translation(*bbox[:2])
 
     return GeoBox(shape=bbox.shape, affine=affine, crs=reference.crs)
 
@@ -1278,7 +1295,7 @@ def scaled_down_geobox(src_geobox: GeoBox, scaler: int) -> GeoBox:
 
     # Since 0,0 is at the corner of a pixel, not center, there is no
     # translation between pixel plane coords due to scaling
-    A = src_geobox.transform * Affine.scale(scaler, scaler)
+    A = src_geobox.transform @ Affine.scale(scaler, scaler)
 
     return GeoBox((ny, nx), A, src_geobox.crs)
 
@@ -1335,7 +1352,7 @@ def rotate(gbox: GeoBox, deg: float) -> GeoBox:
 
 def affine_transform_pix(gbox: GeoBox, transform: Affine) -> GeoBox:
     """Alias for :py:meth:`odc.geo.geobox.GeoBox.__mul__`."""
-    return gbox * transform
+    return gbox @ transform
 
 
 class GeoboxTiles:
@@ -1495,7 +1512,7 @@ class GeoboxTiles:
         if not isinstance(src.base, GeoBox):
             return None
         # src_pix = A*dst_pix
-        A = snap_affine((~src.base.transform) * self.base.transform)
+        A = snap_affine((~src.base.transform) @ self.base.transform)
         if is_affine_st(A):
             return A
         return None

@@ -181,7 +181,7 @@ def test_apply_affine() -> None:
     assert xx_.shape == xx.shape
     assert yy_.shape == xx.shape
 
-    xy_expect = [A * (x, y) for x, y in zip(xx.ravel(), yy.ravel())]
+    xy_expect = [A @ (x, y) for x, y in zip(xx.ravel(), yy.ravel())]
     xy_got = list(zip(xx_.ravel(), yy_.ravel()))
 
     np.testing.assert_array_almost_equal(xy_expect, xy_got)
@@ -346,7 +346,7 @@ def test_poly2d(pts) -> None:
     assert p.grid2d(np.arange(3), np.arange(4)).shape == (2, 3, 4)
 
     # With input transform check
-    A = Affine.scale(0.93) * Affine.translation(10, -13.2)
+    A = Affine.scale(0.93) @ Affine.translation(10, -13.2)
     p_ = p.with_input_transform(A)
     x_, y_ = apply_affine(~A, x, y)
     xx, yy = p_(x_, y_)

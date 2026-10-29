@@ -158,7 +158,7 @@ class GCPGeoBox(GeoBoxBase):
         """
         Compute best fitting linear GeoBox.
         """
-        return GeoBox(self.shape, self._mapping.approx * self._affine, self.crs)
+        return GeoBox(self.shape, self._mapping.approx @ self._affine, self.crs)
 
     @property
     def resolution(self) -> Resolution:
@@ -167,10 +167,10 @@ class GCPGeoBox(GeoBoxBase):
 
     def wld2pix(self, x, y):
         x, y = self._mapping.w2p(x, y)
-        return (~self._affine) * (x, y)
+        return (~self._affine) @ (x, y)
 
     def pix2wld(self, x, y):
-        x, y = self._affine * (x, y)
+        x, y = self._affine @ (x, y)
         wx, wy = self._mapping.p2w(x, y)
         return (wx, wy)
 
@@ -232,7 +232,7 @@ class GCPGeoBox(GeoBoxBase):
         pady = padx if pady is None else pady
 
         ny, nx = self._shape.yx
-        A = self._affine * Affine.translation(-padx, -pady)
+        A = self._affine @ Affine.translation(-padx, -pady)
         shape = (ny + pady * 2, nx + padx * 2)
         return GCPGeoBox(shape, self._mapping, A)
 
@@ -309,7 +309,7 @@ class GCPGeoBox(GeoBoxBase):
             ((wx, wy),) = wld.coords
 
             ((px, py),) = pix.coords
-            px, py = a_inv * (px, py)
+            px, py = a_inv @ (px, py)
             return GroundControlPoint(row=py, col=px, x=wx, y=wy, id=_id)
 
         return [

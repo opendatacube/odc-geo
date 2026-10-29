@@ -733,3 +733,25 @@ def test_shape(shape, allowed) -> None:
 )
 def test_geobox_anchor(gbox, expected_anchor) -> None:
     assert gbox.anchor == expected_anchor
+
+
+@pytest.mark.parametrize(
+    "gbox",
+    [
+        GeoBox.from_bbox((3, 4, 5, 7), epsg4326, resolution=0.25, anchor="edge"),
+        GeoBox.from_bbox((-3, -4, 5, 7), epsg4326, resolution=0.25),
+        GeoBox.from_bbox((-3, -4, 5, 7), epsg4326, resolution=0.25, anchor="center"),
+        GeoBox.from_bbox((35, 40, 50, 70), epsg3857, resolution=10, tight=True),
+        GeoBox.from_bbox((-31, 40, 50, 72), epsg3857, resolution=10, tight=True),
+    ],
+)
+@pytest.mark.parametrize("A", [Affine.scale(3), Affine.translation(10, -20)])
+def test_mul_affine(gbox, A):
+    with pytest.warns(PendingDeprecationWarning):
+        assert gbox * A == gbox @ A
+        assert A * gbox == A @ gbox
+
+    assert A @ gbox == GeoBox(gbox.shape, A @ gbox.affine, gbox.crs)
+    assert gbox @ A == GeoBox(gbox.shape, gbox.affine @ A, gbox.crs)
+    assert (~A) @ (A @ gbox) == gbox
+    assert (gbox @ A) @ (~A) == gbox
