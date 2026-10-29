@@ -916,7 +916,7 @@ class GeoBox(GeoBoxBase):
             and self._crs == other._crs
         )
 
-    def __rmul__(self, transform: Affine) -> "GeoBox":
+    def __rmatmul__(self, transform: Affine) -> "GeoBox":
         """
         Apply affine transform on CRS side.
 
@@ -931,11 +931,11 @@ class GeoBox(GeoBoxBase):
         """
         return GeoBox(self._shape, transform @ self._affine, self._crs)
 
-    def __mul__(self, transform: Affine) -> "GeoBox":
+    def __matmul__(self, transform: Affine) -> "GeoBox":
         """
         Apply affine transform on pixel side.
 
-        ``X_old_pix = transform * X_new_pix``
+        ``X_old_pix = transform @ X_new_pix``
 
         :param transform:
            Affine matrix mapping from new pixel coordinate space to pixel coordinate
@@ -947,11 +947,11 @@ class GeoBox(GeoBoxBase):
         """
         return GeoBox(self._shape, self._affine @ transform, self._crs)
 
-    def __matmul__(self, transform: Affine) -> "GeoBox":
-        return self * transform
-
-    def __rmatmul__(self, transform: Affine) -> "GeoBox":
+    def __mul__(self, transform: Affine) -> "GeoBox":
         return self.__matmul__(transform)
+
+    def __rmul__(self, transform: Affine) -> "GeoBox":
+        return self.__rmatmul__(transform)
 
     def snap_to(self, other: "GeoBox") -> "GeoBox":
         """
