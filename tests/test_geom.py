@@ -959,10 +959,15 @@ def test_mul_affine() -> None:
     g = geom.point(1, 2, epsg4326)
     x10 = Affine.scale(10)
 
-    # Avoid Affine * operator (deprecated); use Geometry.transform instead.
-    assert g.transform(Affine.translation(10, 100)) == geom.point(11, 102, epsg4326)
+    with pytest.warns((DeprecationWarning, PendingDeprecationWarning)):
+        # it warns because x10.__mul__(g) is called first and it attempts to
+        # iterate over g, which is deprecated.
+        #
+        # Only then g.__rmul__(x10) is called
+        assert Affine.translation(10, 100) * g == geom.point(11, 102, epsg4326)
 
-    assert g.transform(x10) == geom.point(10, 20, epsg4326)
+        assert x10 * g == geom.point(10, 20, epsg4326)
+        assert x10 * g == g.transform(x10)
 
     mg = geom.multigeom([g, g, g])
     assert mg.is_multi
@@ -970,9 +975,8 @@ def test_mul_affine() -> None:
     assert mg.transform(x10).crs == mg.crs
     assert mg.transform(x10, crs=None).crs is None
 
-    assert mg.transform(x10) == geom.multigeom(
-        [geom.point(10, 20, epsg4326), geom.point(10, 20, epsg4326), geom.point(10, 20, epsg4326)]
-    )
+    with pytest.warns((DeprecationWarning, PendingDeprecationWarning)):
+        assert x10 * mg == mg.transform(x10)
 
 
 def test_deprecation_warnings() -> None:
