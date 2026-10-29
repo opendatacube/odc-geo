@@ -58,7 +58,7 @@ def xr_from_laspy(
         maybe_crs_coord[str(crs_coord.name)] = crs_coord
     else:
         if (wkt := src.header.parse_crs()) is None:
-            warnings.warn(f"No CRS found in LAS: {_las_source_name(src)}")
+            warnings.warn(f"No CRS found in LAS: {_las_source_name(src)}", stacklevel=3)
         else:
             crs_coord = xr_crs_coord(wkt)
             maybe_crs_coord[str(crs_coord.name)] = crs_coord
@@ -68,7 +68,9 @@ def xr_from_laspy(
     else:
         query = {k: v for k, v in query.items() if v is not None}
         if len(query) > 0:
-            warnings.warn("Query params are only supported for COPC files")
+            warnings.warn(
+                "Query params are only supported for COPC files", stacklevel=3
+            )
         data = src.read()
 
     all_vars: list[str] = list(data.point_format.dimension_names)

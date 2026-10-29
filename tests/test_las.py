@@ -92,7 +92,17 @@ def las_test_data(data_dir, request):
 def test_las_load(las_test_data) -> None:
     src = las_test_data.src
     expected_crs = test_crss.get(las_test_data.expected_crs, las_test_data.expected_crs)
-    xx = load_las(src)
+
+    def _load_las(*args, **kwargs):
+        if expected_crs is None:
+            with pytest.warns(
+                UserWarning,
+                match="No CRS found in LAS:",
+            ):
+                return load_las(*args, **kwargs)
+        return load_las(*args, **kwargs)
+
+    xx = _load_las(src)
 
     assert "x" in xx.coords
     assert "y" in xx.coords
@@ -103,7 +113,7 @@ def test_las_load(las_test_data) -> None:
 
     assert xx.odc.crs == expected_crs
 
-    yy = load_las(src, channels=["red", "green", "blue"])
+    yy = _load_las(src, channels=["red", "green", "blue"])
     assert set(yy.data_vars) == {"red", "green", "blue"}
 
     assert yy.odc.crs == xx.odc.crs
@@ -111,18 +121,28 @@ def test_las_load(las_test_data) -> None:
     assert len(yy.time) == len(xx.time)
 
     if ".copc." in src:
-        xx0 = load_las(src, driver="copc", level=0)
+        xx0 = _load_las(src, driver="copc", level=0)
         assert xx0.odc.crs == xx.odc.crs
         assert len(xx0.time) <= len(xx.time)
     else:
-        assert load_las(src, driver="laspy").odc.crs == xx.odc.crs
+        assert _load_las(src, driver="laspy").odc.crs == xx.odc.crs
+
+        with pytest.warns(
+            UserWarning,
+            match="Query params are only supported for COPC files",
+        ):
+            assert _load_las(src, driver="laspy", level=0).odc.crs == xx.odc.crs
 
 
 @pytest.mark.parametrize("force_crs", ["EPSG:4326", "EPSG:3857"])
 def test_force_crs(las_test_data, force_crs: str) -> None:
     src = las_test_data.src
 
-    xx = load_las(src)
+    if las_test_data.expected_crs is None:
+        with pytest.warns(UserWarning):
+            xx = load_las(src)
+    else:
+        xx = load_las(src)
     assert xx.odc.crs != force_crs
 
     yy = load_las(src, force_crs=force_crs)
@@ -132,3 +152,11 @@ def test_force_crs(las_test_data, force_crs: str) -> None:
 def test_have_laspy() -> None:
     assert have.laspy is True
     assert have.copc is True
+
+
+def test_bad_driver() -> None:
+    try:
+        _ = load_las("", driver="no-such-driver")  # type: ignore
+        assert not "Expected code abouve to raise an Error"
+    except ValueError:
+        pass
