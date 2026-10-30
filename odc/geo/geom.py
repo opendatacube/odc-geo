@@ -705,9 +705,11 @@ class Geometry(SupportsCoords[float]):
                 _xy = [A @ xy for xy in zip(x, y)]
                 return [x for x, _ in _xy], [y for _, y in _xy]
 
-            _geom = ops.transform(functools.partial(_tr, func), self.geom)
+            _geom = shapely.transform(
+                self.geom, functools.partial(_tr, func), interleaved=False
+            )
         else:
-            _geom = ops.transform(func, self.geom)
+            _geom = shapely.transform(self.geom, func, interleaved=False)
 
         if isinstance(crs, Unset):
             crs = self.crs
@@ -716,7 +718,7 @@ class Geometry(SupportsCoords[float]):
 
     def _to_crs(self, crs: CRS) -> "Geometry":
         assert self.crs is not None
-        return Geometry(ops.transform(self.crs.transformer_to_crs(crs), self.geom), crs)  # type: ignore
+        return self.transform(self.crs.transformer_to_crs(crs), crs=crs)
 
     def to_crs(
         self,
