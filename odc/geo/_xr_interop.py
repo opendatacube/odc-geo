@@ -314,7 +314,8 @@ def mask(
     """
     Apply a polygon geometry as a mask, setting all
     :py:class:`xarray.Dataset` or :py:class:`xarray.DataArray` pixels
-    outside the rasterized polygon to ``NaN``.
+    outside the rasterized polygon to ``NaN``. Source pixels marked
+    as nodata are also set to ``NaN``.
 
     :param xx:
        :py:class:`~xarray.Dataset` or :py:class:`~xarray.DataArray`.
@@ -346,17 +347,19 @@ def mask(
         value_inside=not invert,
     )
 
-    # Mask data outside rasterized `poly`
-    xx_masked = xx.where(rasterized.data)
+    def mask_band(band: xarray.DataArray) -> xarray.DataArray:
+        valid = rasterized.data
+        # A fill value in encoding alone describes storage, e.g. packed CF data.
+        nodata = band.attrs.get("nodata", band.attrs.get("_FillValue"))
+        if not is_nodata_empty(nodata):
+            valid = (band != nodata) & valid
+        masked = band.where(valid)
+        masked.odc.nodata = None
+        return masked
 
-    # Remove nodata attribute from arrays
-    if isinstance(xx_masked, xarray.Dataset):
-        for var in xx_masked.data_vars:
-            xx_masked[var].attrs.pop("nodata", None)
-    else:
-        xx_masked.attrs.pop("nodata", None)
-
-    return xx_masked
+    if isinstance(xx, xarray.Dataset):
+        return xx.assign({name: mask_band(band) for name, band in xx.data_vars.items()})
+    return mask_band(xx)
 
 
 def crop(

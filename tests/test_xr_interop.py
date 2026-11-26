@@ -826,6 +826,39 @@ def test_mask(xx_epsg4326, poly) -> None:
     assert xx_ds_masked.test.isnull().any()
 
 
+def test_mask_source_nodata() -> None:
+    gbox = GeoBox.from_bbox((0, 0, 3, 2), "epsg:4326", tight=True, shape=(2, 3))
+    values = np.array([[1, -999, 2], [0, 5, 6]], dtype="int16")
+    red = wrap_xr(values, gbox, nodata=-999)
+    nir = wrap_xr(values, gbox, _FillValue=0)
+    poly = gbox[:, :2].extent
+    expected_red = [[1, np.nan, np.nan], [0, 5, np.nan]]
+    expected_nir = [[1, -999, np.nan], [np.nan, 5, np.nan]]
+
+    result = red.odc.mask(poly, all_touched=False)
+    np.testing.assert_equal(result.values, expected_red)
+    assert result.odc.nodata is None
+    assert red.odc.nodata == -999
+
+    dataset = xr.Dataset({"red": red, "nir": nir}, attrs={"scene": "example"})
+    masked = dataset.odc.mask(poly, all_touched=False)
+    np.testing.assert_equal(masked.red.values, expected_red)
+    np.testing.assert_equal(masked.nir.values, expected_nir)
+    assert masked.nir.odc.nodata is None
+    assert masked.attrs == dataset.attrs
+    assert dataset.nir.odc.nodata == 0
+
+
+def test_mask_cf_decoded_nodata() -> None:
+    gbox = GeoBox.from_bbox((0, 0, 2, 1), "epsg:4326", tight=True, shape=(1, 2))
+    packed = wrap_xr(np.array([[-999, 0]], dtype="int16"), gbox)
+    packed.attrs.update(_FillValue=-999, add_offset=-999)
+    decoded = xr.decode_cf(packed.to_dataset(name="band")).band
+    # The second pixel decodes to -999, a valid physical value.
+    result = decoded.odc.mask(gbox.extent)
+    np.testing.assert_equal(result.values, [[np.nan, -999]])
+
+
 def test_spatial_dims() -> None:
     gbox = GeoBox.from_bbox([0, -10, 100, 20], "epsg:4326", tight=True, shape=(13, 29))
     xx0 = xr_zeros(gbox, "int16", always_yx=True, time=["2020-01-01", "2020-01-02"])
