@@ -857,14 +857,19 @@ def test_mask_source_nodata() -> None:
 
 def test_mask_cf_decoded_nodata() -> None:
     gbox = GeoBox.from_bbox((0, 0, 2, 1), "epsg:4326", tight=True, shape=(1, 2))
-    packed = wrap_xr(np.array([[-999, 0]], dtype="int16"), gbox)
-    packed.attrs.update(_FillValue=-999, add_offset=-999)
-    decoded = xr.decode_cf(packed.to_dataset(name="band")).band
-    # The second pixel decodes to -999, a valid physical value.
-    result = decoded.odc.mask(gbox.extent)
-    np.testing.assert_equal(result.values, [[np.nan, -999]])
+    packed = wrap_xr(np.array([[0, 1000]], dtype="uint16"), gbox)
+    packed.attrs.update(_FillValue=0, scale_factor=0.0001, add_offset=-0.1)
+    assert packed.odc.nodata == 0
+    np.testing.assert_equal(packed.odc.mask(gbox.extent).values, [[np.nan, 1000]])
 
-    decoded.attrs["nodata"] = -999
+    decoded = xr.decode_cf(packed.to_dataset(name="band")).band
+    # The second pixel decodes to a valid zero, also the on-disk fill value.
+    assert decoded.encoding["_FillValue"] == 0
+    assert np.isnan(decoded.odc.nodata)
+    np.testing.assert_equal(decoded.odc.mask(gbox.extent).values, [[np.nan, 0]])
+
+    decoded.attrs["nodata"] = 0
+    assert decoded.odc.nodata == 0
     np.testing.assert_equal(decoded.odc.mask(gbox.extent).values, [[np.nan, np.nan]])
 
 

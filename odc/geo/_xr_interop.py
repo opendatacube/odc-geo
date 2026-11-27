@@ -50,7 +50,7 @@ from .math import (
 )
 from .overlap import compute_output_geobox
 from .roi import roi_is_empty
-from .types import Nodata, Resolution, SomeNodata, SomeResolution, SomeShape, Unset, xy_
+from .types import Nodata, Resolution, SomeNodata, SomeResolution, SomeShape, xy_
 
 # pylint: disable=import-outside-toplevel
 # pylint: disable=too-many-lines
@@ -79,8 +79,6 @@ STANDARD_SPATIAL_DIMS = [
     ("latitude", "longitude"),
     ("lat", "lon"),
 ]
-
-_NoValue = Unset()
 
 
 @dataclass
@@ -350,13 +348,6 @@ def mask(
     def mask_band(band: xarray.DataArray) -> xarray.DataArray:
         valid = rasterized.data
         nodata = band.odc.nodata
-        # CF decoding already masked the packed fill value before scaling.
-        if (
-            ("add_offset" in band.encoding or "scale_factor" in band.encoding)
-            and not (band.attrs.keys() & {"nodata", "_FillValue"})
-            and "nodata" not in band.encoding
-        ):
-            nodata = None
         if not is_nodata_empty(nodata):
             valid = (band != nodata) & valid
         masked = band.where(valid)
@@ -1194,22 +1185,25 @@ class ODCExtensionDa(ODCExtension):
 
     @property
     def nodata(self) -> Nodata:
-        """Extract ``nodata/_FillValue`` attribute if set."""
+        """Return the nodata value for the array's current pixel values, if set."""
         attrs = self._xx.attrs
         encoding = self._xx.encoding
 
-        for k in ["nodata", "_FillValue"]:
-            nodata = attrs.get(k, _NoValue)
-            if nodata is _NoValue:
-                nodata = encoding.get(k, _NoValue)
-
-            if nodata is _NoValue:
+        for k in NODATA_ATTRIBUTES:
+            if k in attrs:
+                nodata = attrs[k]
+            elif k in encoding:
+                nodata = encoding[k]
+                # xarray masks the packed fill value before applying scale/offset.
+                if (
+                    k == "_FillValue"
+                    and nodata is not None
+                    and ("scale_factor" in encoding or "add_offset" in encoding)
+                ):
+                    return numpy.nan
+            else:
                 continue
-
-            if nodata is None:
-                return None
-
-            return float(nodata)
+            return None if nodata is None else float(nodata)
 
         return None
 
