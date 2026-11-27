@@ -848,6 +848,12 @@ def test_mask_source_nodata() -> None:
     assert masked.attrs == dataset.attrs
     assert dataset.nir.odc.nodata == 0
 
+    encoded = wrap_xr(values, gbox)
+    encoded.encoding["_FillValue"] = -999
+    np.testing.assert_equal(
+        encoded.odc.mask(poly, all_touched=False).values, expected_red
+    )
+
 
 def test_mask_cf_decoded_nodata() -> None:
     gbox = GeoBox.from_bbox((0, 0, 2, 1), "epsg:4326", tight=True, shape=(1, 2))
@@ -857,6 +863,9 @@ def test_mask_cf_decoded_nodata() -> None:
     # The second pixel decodes to -999, a valid physical value.
     result = decoded.odc.mask(gbox.extent)
     np.testing.assert_equal(result.values, [[np.nan, -999]])
+
+    decoded.attrs["nodata"] = -999
+    np.testing.assert_equal(decoded.odc.mask(gbox.extent).values, [[np.nan, np.nan]])
 
 
 def test_spatial_dims() -> None:

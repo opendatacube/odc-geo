@@ -349,8 +349,14 @@ def mask(
 
     def mask_band(band: xarray.DataArray) -> xarray.DataArray:
         valid = rasterized.data
-        # A fill value in encoding alone describes storage, e.g. packed CF data.
-        nodata = band.attrs.get("nodata", band.attrs.get("_FillValue"))
+        nodata = band.odc.nodata
+        # CF decoding already masked the packed fill value before scaling.
+        if (
+            ("add_offset" in band.encoding or "scale_factor" in band.encoding)
+            and not (band.attrs.keys() & {"nodata", "_FillValue"})
+            and "nodata" not in band.encoding
+        ):
+            nodata = None
         if not is_nodata_empty(nodata):
             valid = (band != nodata) & valid
         masked = band.where(valid)
